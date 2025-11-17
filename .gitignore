@@ -1,0 +1,9 @@
+﻿node_modules/
+.env
+.env.local
+.next/
+target/
+.anchor/
+test-ledger/
+dist/
+.vercel

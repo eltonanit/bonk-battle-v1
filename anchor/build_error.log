@@ -1,0 +1,4 @@
+error: package `toml_parser v1.0.4` cannot be built because it requires rustc 1.76 or newer, while the currently active rustc version is 1.75.0-dev
+Either upgrade to rustc 1.76 or newer, or use
+cargo update toml_parser@1.0.4 --precise ver
+where `ver` is the latest version of `toml_parser` supporting rustc 1.75.0-dev
