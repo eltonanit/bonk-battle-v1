@@ -1,0 +1,1716 @@
+{
+  "address": "HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9",
+  "metadata": {
+    "name": "bonk_battle",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "buy_token",
+      "discriminator": [
+        138,
+        127,
+        14,
+        91,
+        38,
+        87,
+        115,
+        105
+      ],
+      "accounts": [
+        {
+          "name": "token_battle_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "contract_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "token_battle_state"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "user_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "price_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_wallet",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "sol_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "check_victory_conditions",
+      "discriminator": [
+        176,
+        199,
+        31,
+        103,
+        154,
+        28,
+        170,
+        98
+      ],
+      "accounts": [
+        {
+          "name": "token_battle_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_battle_state.mint",
+                "account": "TokenBattleState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "create_battle_token",
+      "discriminator": [
+        251,
+        0,
+        33,
+        123,
+        229,
+        128,
+        151,
+        242
+      ],
+      "accounts": [
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "token_battle_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "contract_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "token_battle_state"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "price_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "finalize_duel",
+      "discriminator": [
+        57,
+        165,
+        69,
+        195,
+        50,
+        206,
+        212,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "winner_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "winner_state.mint",
+                "account": "TokenBattleState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "loser_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "loser_state.mint",
+                "account": "TokenBattleState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_wallet",
+          "writable": true
+        },
+        {
+          "name": "keeper_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_price_oracle",
+      "discriminator": [
+        61,
+        200,
+        206,
+        137,
+        205,
+        74,
+        242,
+        172
+      ],
+      "accounts": [
+        {
+          "name": "price_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "initial_sol_price",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "sell_token",
+      "discriminator": [
+        109,
+        61,
+        40,
+        187,
+        230,
+        176,
+        135,
+        174
+      ],
+      "accounts": [
+        {
+          "name": "token_battle_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "user_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "user"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "price_oracle",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury_wallet",
+          "writable": true
+        },
+        {
+          "name": "user",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "token_amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "start_battle",
+      "discriminator": [
+        87,
+        12,
+        31,
+        196,
+        33,
+        191,
+        140,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "token_a_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_a_state.mint",
+                "account": "TokenBattleState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_b_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_b_state.mint",
+                "account": "TokenBattleState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_sol_price",
+      "discriminator": [
+        166,
+        98,
+        183,
+        175,
+        125,
+        81,
+        109,
+        119
+      ],
+      "accounts": [
+        {
+          "name": "price_oracle",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  105,
+                  99,
+                  101,
+                  95,
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_sol_price",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "withdraw_for_listing",
+      "discriminator": [
+        127,
+        237,
+        151,
+        214,
+        106,
+        20,
+        93,
+        33
+      ],
+      "accounts": [
+        {
+          "name": "token_battle_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  98,
+                  97,
+                  116,
+                  116,
+                  108,
+                  101,
+                  95,
+                  115,
+                  116,
+                  97,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "contract_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "token_battle_state"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "keeper_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "keeper_authority"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "keeper_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PriceOracle",
+      "discriminator": [
+        57,
+        140,
+        120,
+        176,
+        191,
+        65,
+        52,
+        89
+      ]
+    },
+    {
+      "name": "TokenBattleState",
+      "discriminator": [
+        54,
+        102,
+        185,
+        22,
+        231,
+        3,
+        228,
+        117
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "BattleStarted",
+      "discriminator": [
+        235,
+        52,
+        57,
+        175,
+        248,
+        203,
+        38,
+        226
+      ]
+    },
+    {
+      "name": "DuelFinalized",
+      "discriminator": [
+        118,
+        72,
+        55,
+        15,
+        42,
+        25,
+        171,
+        34
+      ]
+    },
+    {
+      "name": "GladiatorForged",
+      "discriminator": [
+        45,
+        249,
+        73,
+        163,
+        71,
+        77,
+        158,
+        214
+      ]
+    },
+    {
+      "name": "GladiatorQualified",
+      "discriminator": [
+        127,
+        235,
+        12,
+        11,
+        173,
+        185,
+        133,
+        23
+      ]
+    },
+    {
+      "name": "ListingWithdrawal",
+      "discriminator": [
+        72,
+        110,
+        224,
+        229,
+        140,
+        29,
+        164,
+        214
+      ]
+    },
+    {
+      "name": "PriceUpdated",
+      "discriminator": [
+        154,
+        72,
+        87,
+        150,
+        246,
+        230,
+        23,
+        217
+      ]
+    },
+    {
+      "name": "TokenPurchased",
+      "discriminator": [
+        3,
+        73,
+        186,
+        50,
+        15,
+        181,
+        213,
+        37
+      ]
+    },
+    {
+      "name": "TokenSold",
+      "discriminator": [
+        88,
+        61,
+        1,
+        247,
+        185,
+        6,
+        252,
+        86
+      ]
+    },
+    {
+      "name": "VictoryAchieved",
+      "discriminator": [
+        172,
+        221,
+        65,
+        15,
+        142,
+        218,
+        83,
+        227
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidTokenName",
+      "msg": "Invalid token name: must be 1-50 characters"
+    },
+    {
+      "code": 6001,
+      "name": "InvalidTokenSymbol",
+      "msg": "Invalid token symbol: must be 1-10 characters"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidTokenUri",
+      "msg": "Invalid token URI: must be <= 200 characters"
+    },
+    {
+      "code": 6003,
+      "name": "AmountTooSmall",
+      "msg": "Amount too small: minimum transaction required"
+    },
+    {
+      "code": 6004,
+      "name": "AmountTooLarge",
+      "msg": "Amount too large: maximum transaction exceeded"
+    },
+    {
+      "code": 6005,
+      "name": "TradingInactive",
+      "msg": "Trading is inactive for this token"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientOutput",
+      "msg": "Insufficient output from bonding curve"
+    },
+    {
+      "code": 6007,
+      "name": "ExceedsSupply",
+      "msg": "Exceeds available token supply"
+    },
+    {
+      "code": 6008,
+      "name": "InsufficientLiquidity",
+      "msg": "Insufficient liquidity in pool"
+    },
+    {
+      "code": 6009,
+      "name": "InsufficientBalance",
+      "msg": "Insufficient token balance"
+    },
+    {
+      "code": 6010,
+      "name": "NotQualified",
+      "msg": "Token not qualified for battle"
+    },
+    {
+      "code": 6011,
+      "name": "SelfBattle",
+      "msg": "Cannot battle against self"
+    },
+    {
+      "code": 6012,
+      "name": "UnfairMatch",
+      "msg": "Unfair match: market cap difference too large"
+    },
+    {
+      "code": 6013,
+      "name": "NotInBattle",
+      "msg": "Token not currently in battle"
+    },
+    {
+      "code": 6014,
+      "name": "NoVictoryAchieved",
+      "msg": "No victory achieved yet"
+    },
+    {
+      "code": 6015,
+      "name": "InvalidBattleState",
+      "msg": "Invalid battle state for this operation"
+    },
+    {
+      "code": 6016,
+      "name": "NotOpponents",
+      "msg": "Tokens are not opponents"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidTreasury",
+      "msg": "Invalid treasury wallet address"
+    },
+    {
+      "code": 6018,
+      "name": "Unauthorized",
+      "msg": "Unauthorized: invalid keeper authority"
+    },
+    {
+      "code": 6019,
+      "name": "MathOverflow",
+      "msg": "Mathematical overflow in calculation"
+    },
+    {
+      "code": 6020,
+      "name": "InvalidCurveState",
+      "msg": "Invalid bonding curve state"
+    },
+    {
+      "code": 6021,
+      "name": "PriceUpdateTooSoon",
+      "msg": "Price update too soon, must wait 24 hours"
+    },
+    {
+      "code": 6022,
+      "name": "WouldExceedGraduation",
+      "msg": "Would exceed graduation threshold"
+    },
+    {
+      "code": 6023,
+      "name": "NotReadyForListing",
+      "msg": "Token not ready for listing"
+    },
+    {
+      "code": 6024,
+      "name": "NoLiquidityToWithdraw",
+      "msg": "No liquidity to withdraw for listing"
+    }
+  ],
+  "types": [
+    {
+      "name": "BattleStarted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "token_a",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_b",
+            "type": "pubkey"
+          },
+          {
+            "name": "mc_a_usd",
+            "type": "u64"
+          },
+          {
+            "name": "mc_b_usd",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "BattleStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Created"
+          },
+          {
+            "name": "Qualified"
+          },
+          {
+            "name": "InBattle"
+          },
+          {
+            "name": "VictoryPending"
+          },
+          {
+            "name": "Listed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DuelFinalized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "winner_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "loser_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "spoils_transferred",
+            "type": "u64"
+          },
+          {
+            "name": "platform_fee_collected",
+            "type": "u64"
+          },
+          {
+            "name": "total_winner_liquidity",
+            "type": "u64"
+          },
+          {
+            "name": "loser_can_retry",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GladiatorForged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "initial_market_cap_usd",
+            "type": "u64"
+          },
+          {
+            "name": "initial_market_cap_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "sol_price_at_creation",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GladiatorQualified",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "market_cap_usd",
+            "type": "u64"
+          },
+          {
+            "name": "sol_collected",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ListingWithdrawal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_withdrawn",
+            "type": "u64"
+          },
+          {
+            "name": "keeper",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceOracle",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sol_price_usd",
+            "type": "u64"
+          },
+          {
+            "name": "last_update_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "next_update_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "keeper_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "update_count",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PriceUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "previous_price",
+            "type": "u64"
+          },
+          {
+            "name": "new_price",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "update_number",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenBattleState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_collected",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_sold",
+            "type": "u64"
+          },
+          {
+            "name": "total_trade_volume",
+            "type": "u64"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "battle_status",
+            "type": {
+              "defined": {
+                "name": "BattleStatus"
+              }
+            }
+          },
+          {
+            "name": "opponent_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "creation_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "last_trade_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "battle_start_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "victory_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "listing_timestamp",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenPurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "sol_amount",
+            "type": "u64"
+          },
+          {
+            "name": "tokens_received",
+            "type": "u64"
+          },
+          {
+            "name": "new_market_cap_usd",
+            "type": "u64"
+          },
+          {
+            "name": "sol_price",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TokenSold",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "seller",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_amount",
+            "type": "u64"
+          },
+          {
+            "name": "sol_received",
+            "type": "u64"
+          },
+          {
+            "name": "new_market_cap_usd",
+            "type": "u64"
+          },
+          {
+            "name": "sol_price",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "VictoryAchieved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "winner_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "final_mc_usd",
+            "type": "u64"
+          },
+          {
+            "name": "final_volume_usd",
+            "type": "u64"
+          },
+          {
+            "name": "sol_collected",
+            "type": "u64"
+          },
+          {
+            "name": "victory_timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-stonks_fan = "54zTTRA9QVbGMk86dU7A51f51QjdvwD9gLPFNEt5kdYw"
+bonk_battle = "HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9"
 
 [registry]
 url = "https://api.apr.dev"
