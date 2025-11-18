@@ -1,0 +1,269 @@
+{
+  "version": "0.1.0",
+  "name": "stonks_fan",
+  "instructions": [
+    {
+      "name": "createToken",
+      "accounts": [
+        { "name": "creator", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "treasury", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "mintSeed", "type": "u64" },
+        { "name": "tier", "type": "u8" },
+        { "name": "name", "type": "string" },
+        { "name": "symbol", "type": "string" },
+        { "name": "uri", "type": "string" }
+      ]
+    },
+    {
+      "name": "buyTokens",
+      "accounts": [
+        { "name": "buyer", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false },
+        { "name": "buyerRecord", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "buyerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "treasury", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "associatedTokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false },
+        { "name": "rent", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "solAmount", "type": "u64" },
+        { "name": "minTokensOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "buyMoreTokens",
+      "accounts": [
+        { "name": "buyer", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false },
+        { "name": "buyerRecord", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "buyerTokenAccount", "isMut": true, "isSigner": false },
+        { "name": "treasury", "isMut": true, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "solAmount", "type": "u64" },
+        { "name": "minTokensOut", "type": "u64" }
+      ]
+    },
+    {
+      "name": "batchThawHolders",
+      "accounts": [
+        { "name": "caller", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": [
+        { "name": "holderCount", "type": "u8" }
+      ]
+    },
+    {
+      "name": "finalizeGraduation",
+      "accounts": [
+        { "name": "caller", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false },
+        { "name": "mint", "isMut": true, "isSigner": false },
+        { "name": "meteoraPool", "isMut": true, "isSigner": false },
+        { "name": "poolSolVault", "isMut": true, "isSigner": false },
+        { "name": "poolTokenVault", "isMut": true, "isSigner": false },
+        { "name": "meteoraProgram", "isMut": false, "isSigner": false },
+        { "name": "tokenProgram", "isMut": false, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "markAsFailed",
+      "accounts": [
+        { "name": "caller", "isMut": false, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimRefund",
+      "accounts": [
+        { "name": "buyer", "isMut": true, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": false, "isSigner": false },
+        { "name": "buyerRecord", "isMut": true, "isSigner": false },
+        { "name": "treasury", "isMut": true, "isSigner": false },
+        { "name": "systemProgram", "isMut": false, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "emergencyPause",
+      "accounts": [
+        { "name": "admin", "isMut": false, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false }
+      ],
+      "args": []
+    },
+    {
+      "name": "emergencyResume",
+      "accounts": [
+        { "name": "admin", "isMut": false, "isSigner": true },
+        { "name": "tokenLaunch", "isMut": true, "isSigner": false }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "TokenLaunch",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "creator", "type": "publicKey" },
+          { "name": "mint", "type": "publicKey" },
+          { "name": "tier", "type": "u8" },
+          { "name": "virtualSolInit", "type": "u64" },
+          { "name": "constantK", "type": "u128" },
+          { "name": "targetSol", "type": "u64" },
+          { "name": "deadline", "type": "i64" },
+          { "name": "solRaised", "type": "u64" },
+          { "name": "status", "type": { "defined": "LaunchStatus" } },
+          { "name": "createdAt", "type": "i64" },
+          { "name": "graduatedAt", "type": { "option": "i64" } },
+          { "name": "meteoraPool", "type": { "option": "publicKey" } },
+          { "name": "totalBuyers", "type": "u32" },
+          { "name": "totalTokensSold", "type": "u64" },
+          { "name": "holdersThawed", "type": "u32" },
+          { "name": "name", "type": "string" },
+          { "name": "symbol", "type": "string" },
+          { "name": "uri", "type": "string" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "BuyerRecord",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "launch", "type": "publicKey" },
+          { "name": "buyer", "type": "publicKey" },
+          { "name": "solSpent", "type": "u64" },
+          { "name": "tokensReceived", "type": "u64" },
+          { "name": "refundClaimed", "type": "bool" },
+          { "name": "isThawed", "type": "bool" },
+          { "name": "firstBuyTimestamp", "type": "i64" },
+          { "name": "lastBuyTimestamp", "type": "i64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "LaunchStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          { "name": "Active" },
+          { "name": "ReadyToGraduate" },
+          { "name": "Graduated" },
+          { "name": "Failed" },
+          { "name": "Paused" }
+        ]
+      }
+    }
+  ],
+  "events": [
+    {
+      "name": "TokenCreated",
+      "fields": [
+        { "name": "mint", "type": "publicKey", "index": false },
+        { "name": "creator", "type": "publicKey", "index": false },
+        { "name": "tier", "type": "u8", "index": false },
+        { "name": "virtualSolInit", "type": "u64", "index": false },
+        { "name": "constantK", "type": "u128", "index": false },
+        { "name": "targetSol", "type": "u64", "index": false },
+        { "name": "deadline", "type": "i64", "index": false }
+      ]
+    },
+    {
+      "name": "TokensPurchased",
+      "fields": [
+        { "name": "mint", "type": "publicKey", "index": false },
+        { "name": "buyer", "type": "publicKey", "index": false },
+        { "name": "solAmount", "type": "u64", "index": false },
+        { "name": "tokensReceived", "type": "u64", "index": false },
+        { "name": "solRaised", "type": "u64", "index": false },
+        { "name": "currentMarketCap", "type": "u64", "index": false },
+        { "name": "progressBps", "type": "u16", "index": false }
+      ]
+    },
+    {
+      "name": "TokenGraduated",
+      "fields": [
+        { "name": "mint", "type": "publicKey", "index": false },
+        { "name": "solRaised", "type": "u64", "index": false },
+        { "name": "finalMarketCap", "type": "u64", "index": false },
+        { "name": "liquidityProvided", "type": "u64", "index": false },
+        { "name": "tokensForLiquidity", "type": "u64", "index": false },
+        { "name": "meteoraPool", "type": "publicKey", "index": false }
+      ]
+    },
+    {
+      "name": "RefundClaimed",
+      "fields": [
+        { "name": "mint", "type": "publicKey", "index": false },
+        { "name": "buyer", "type": "publicKey", "index": false },
+        { "name": "refundAmount", "type": "u64", "index": false },
+        { "name": "feeCollected", "type": "u64", "index": false }
+      ]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidTier", "msg": "Invalid tier. Must be 1-4" },
+    { "code": 6001, "name": "NameTooLong", "msg": "Name too long" },
+    { "code": 6002, "name": "SymbolTooLong", "msg": "Symbol too long" },
+    { "code": 6003, "name": "UriTooLong", "msg": "URI too long" },
+    { "code": 6004, "name": "InvalidCharacters", "msg": "Invalid characters" },
+    { "code": 6005, "name": "NotActive", "msg": "Not active" },
+    { "code": 6006, "name": "DeadlinePassed", "msg": "Deadline passed" },
+    { "code": 6007, "name": "DeadlineNotPassed", "msg": "Deadline not passed" },
+    { "code": 6008, "name": "AmountTooSmall", "msg": "Amount too small" },
+    { "code": 6009, "name": "AmountTooLarge", "msg": "Amount too large" },
+    { "code": 6010, "name": "InsufficientOutput", "msg": "Insufficient output" },
+    { "code": 6011, "name": "SlippageExceeded", "msg": "Slippage exceeded" },
+    { "code": 6012, "name": "MathOverflow", "msg": "Math overflow" },
+    { "code": 6013, "name": "ExceededCurveSupply", "msg": "Exceeded curve supply" },
+    { "code": 6014, "name": "TargetNotReached", "msg": "Target not reached" },
+    { "code": 6015, "name": "TargetReached", "msg": "Target reached" },
+    { "code": 6016, "name": "NotReadyToGraduate", "msg": "Not ready to graduate" },
+    { "code": 6017, "name": "HoldersNotThawed", "msg": "Holders not thawed" },
+    { "code": 6018, "name": "InvalidStatus", "msg": "Invalid status" },
+    { "code": 6019, "name": "NotFailed", "msg": "Not failed" },
+    { "code": 6020, "name": "RefundAlreadyClaimed", "msg": "Refund already claimed" },
+    { "code": 6021, "name": "NothingToRefund", "msg": "Nothing to refund" },
+    { "code": 6022, "name": "InvalidLaunch", "msg": "Invalid launch" },
+    { "code": 6023, "name": "Unauthorized", "msg": "Unauthorized" },
+    { "code": 6024, "name": "InsufficientBalance", "msg": "Insufficient balance" },
+    { "code": 6025, "name": "EmergencyPeriodExpired", "msg": "Emergency period expired" },
+    { "code": 6026, "name": "NotPaused", "msg": "Not paused" },
+    { "code": 6027, "name": "InvalidBatchSize", "msg": "Invalid batch size" },
+    { "code": 6028, "name": "InvalidAccountCount", "msg": "Invalid account count" },
+    { "code": 6029, "name": "AlreadyThawed", "msg": "Already thawed" },
+    { "code": 6030, "name": "InvalidTokenAccount", "msg": "Invalid token account" },
+    { "code": 6031, "name": "InvalidMint", "msg": "Invalid mint" }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "DxchSpAi7A14f9o1LGPr18HikXEjMT6VXj1oy24VXAgN"
+  },
+  "address": "DxchSpAi7A14f9o1LGPr18HikXEjMT6VXj1oy24VXAgN"
+}

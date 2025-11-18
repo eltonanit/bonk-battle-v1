@@ -1,0 +1,53 @@
+﻿/* STONKS.FAN - Custom Animations */
+
+@keyframes shakeCollision {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(5px); }
+  20% { transform: translateX(-10px); }
+  30% { transform: translateX(25px); }
+  40% { transform: translateX(-5px); }
+  50% { transform: translateX(30px); }
+  60% { transform: translateX(-8px); }
+  70% { transform: translateX(20px); }
+  80% { transform: translateX(-3px); }
+  90% { transform: translateX(10px); }
+}
+
+@keyframes shakeHorizontal {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-8px); }
+  20% { transform: translateX(8px); }
+  30% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  50% { transform: translateX(-6px); }
+  60% { transform: translateX(6px); }
+  70% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+  90% { transform: translateX(-2px); }
+}
+
+@keyframes flashYellow {
+  0%, 100% {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+  }
+  50% {
+    background: #FFEB3B;
+    border-color: #FFEB3B;
+    box-shadow: 0 4px 20px rgba(255, 235, 59, 0.6), 0 0 40px rgba(255, 235, 59, 0.4);
+    transform: scale(1.02);
+  }
+}
+
+.shake-collision {
+  animation: shakeCollision 0.6s ease-in-out;
+}
+
+.shake-horizontal {
+  animation: shakeHorizontal 0.6s ease-in-out;
+}
+
+.flash-yellow {
+  animation: flashYellow 0.6s ease-in-out;
+}
