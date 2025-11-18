@@ -4,36 +4,48 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
-import Link from 'next/link';
+import { PublicKey } from '@solana/web3.js';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { useTokenData } from '@/lib/solana/hooks/useTokenData';
-import { TokenHero } from '@/components/token/TokenHero';
-import { ProgressSection } from '@/components/token/ProgressSection';
-import { StatsRow } from '@/components/token/StatsRow';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
-import { BuySection } from '@/components/token/BuySection';
-import { PriceChart } from '@/components/token/PriceChart';
-import { GraduateButton } from '@/components/token/GraduateButton';
+import { useTokenBattleState } from '@/hooks/useTokenBattleState';
+import { usePriceOracle, useCalculateMarketCapUsd } from '@/hooks/usePriceOracle';
+import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
 import { useTokenViews, formatViews } from '@/hooks/useTokenViews';
+import { BattleStatus } from '@/types/bonk';
+import { TradingPanel } from '@/components/token/TradingPanel';
 
 export default function TokenDetailPage() {
   const params = useParams();
-  const mint = params.mint as string;
-  const { token, loading, error } = useTokenData(mint);
+  const mintAddress = params.mint as string;
   const { publicKey } = useWallet();
-  const { views, loading: viewsLoading } = useTokenViews(mint);
 
-  const refetch = () => window.location.reload();
+  // Parse mint PublicKey
+  const mint = new PublicKey(mintAddress);
+
+  // Fetch token battle state
+  const { state, loading, error, refetch } = useTokenBattleState(mint);
+
+  // Fetch SOL price oracle
+  const { solPriceUsd } = usePriceOracle();
+
+  // Fetch user balance
+  const { balanceFormatted } = useUserTokenBalance(mint);
+
+  // Calculate market cap in USD
+  const marketCapUsd = useCalculateMarketCapUsd(state?.solCollected ?? 0);
+
+  // Fetch views
+  const { views, loading: viewsLoading } = useTokenViews(mintAddress);
 
   // ⭐ INCREMENT VIEW quando user entra nella pagina
   useEffect(() => {
-    if (publicKey && mint) {
-      incrementView(mint, publicKey.toString());
+    if (publicKey && mintAddress) {
+      incrementView(mintAddress, publicKey.toString());
     }
-  }, [publicKey, mint]);
+  }, [publicKey, mintAddress]);
 
   async function incrementView(tokenMint: string, wallet: string) {
     try {
@@ -92,13 +104,27 @@ export default function TokenDetailPage() {
     );
   }
 
-  if (!token) return null;
+  if (!state) return null;
 
-  // Check if token is failed (status=0 or 3, deadline passed, target not reached)
-  const isFailed =
-    (token.status === 0 || token.status === 3) &&
-    token.timeRemaining <= 0 &&
-    token.solRaised < token.targetSol;
+  // Get status badge configuration
+  const getStatusBadge = () => {
+    switch (state.battleStatus) {
+      case BattleStatus.Created:
+        return { color: 'bg-green-500', label: 'NEW', action: 'QUALIFY' };
+      case BattleStatus.Qualified:
+        return { color: 'bg-orange-500', label: 'QUALIFIED', action: 'FIND MATCH' };
+      case BattleStatus.InBattle:
+        return { color: 'bg-orange-500 animate-pulse', label: '⚔️ IN BATTLE!!', action: null };
+      case BattleStatus.VictoryPending:
+        return { color: 'bg-yellow-500', label: '🏆 VICTORY!', action: null };
+      case BattleStatus.Listed:
+        return { color: 'bg-gray-500', label: 'LISTED', action: null };
+      default:
+        return { color: 'bg-gray-500', label: 'UNKNOWN', action: null };
+    }
+  };
+
+  const statusBadge = getStatusBadge();
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -114,57 +140,54 @@ export default function TokenDetailPage() {
         </div>
 
         <div className="max-w-[1200px] pl-8 pr-5 py-8">
+          {/* Token Header */}
           <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border-2 border-purple-500/30 rounded-3xl p-8 mb-6">
-            <TokenHero token={{ ...token, mint }} />
-            {/* ⭐ GRADUATE BUTTON - Subito sotto il nome! */}
-            {token.status === 1 && (
-              <div className="mt-6">
-                <GraduateButton token={token} onSuccess={refetch} />
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-4xl font-bold mb-2">{mintAddress.substring(0, 8)}...</h1>
+                <p className="text-gray-400">Battle Token</p>
+              </div>
+              <span className={`${statusBadge.color} px-4 py-2 rounded-lg font-bold text-white text-sm`}>
+                {statusBadge.label}
+              </span>
+            </div>
+
+            {/* User Balance */}
+            {publicKey && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+                <div className="text-sm text-gray-400 mb-1">Your Balance</div>
+                <div className="text-2xl font-bold">{balanceFormatted?.toFixed(6) ?? 0} tokens</div>
               </div>
             )}
 
-            {/* ⭐ Status-based Actions: Failed = Refund, Graduated = Success */}
-            {isFailed && (
-              <div className="mt-6 bg-red-500/20 border-2 border-red-500/50 rounded-xl p-4">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <div className="text-red-400 font-bold text-lg mb-1">
-                      Token Failed :(
-                    </div>
-                    <div className="text-gray-300 text-sm">
-                      {`Didn't reach target - Refunds available!`}
-                    </div>
-                  </div>
-
-                  <Link
-                    href="/profile?tab=refunds"
-                    className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 whitespace-nowrap"
-                  >
-                    Get REFUND :D
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {/* ⭐ NUOVO: Graduated Success Message */}
-            {token.status === 2 && (
+            {/* Battle Status Actions */}
+            {state.battleStatus === BattleStatus.Listed && (
               <div className="mt-6 bg-green-500/20 border-2 border-green-500/50 rounded-xl p-4">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <div className="text-green-400 font-bold text-lg mb-1">
-                      🎉 Token Graduated!
+                      🎉 Token Listed!
                     </div>
                     <div className="text-gray-300 text-sm">
-                      Listed on DEX - You can now sell your tokens!
+                      This token won its battle and is now listed on Meteora DEX!
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
 
-                  <a href={`https://app.meteora.ag/pools/${token.meteoraPool || ''}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 whitespace-nowrap">
-                    TRADE ON METEORA 🚀
-                  </a>
+            {state.battleStatus === BattleStatus.InBattle && (
+              <div className="mt-6 bg-orange-500/20 border-2 border-orange-500/50 rounded-xl p-4">
+                <div>
+                  <div className="text-orange-400 font-bold text-lg mb-2">
+                    ⚔️ Battle in Progress!
+                  </div>
+                  <div className="text-gray-300 text-sm mb-2">
+                    Fighting against: {state.opponentMint.toString().substring(0, 12)}...
+                  </div>
+                  <div className="text-gray-400 text-xs">
+                    Started: {new Date(state.battleStartTimestamp * 1000).toLocaleString()}
+                  </div>
                 </div>
               </div>
             )}
@@ -190,20 +213,63 @@ export default function TokenDetailPage() {
             </div>
           </div>
 
-          <StatsRow token={token} />
-          <ProgressSection token={token} />
-          <div><br /></div>
-          <PriceChart token={token} />
+          {/* Token Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="text-sm text-gray-400 mb-1">Market Cap</div>
+              <div className="text-xl font-bold">${marketCapUsd?.toFixed(2) ?? '...'}</div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="text-sm text-gray-400 mb-1">SOL Collected</div>
+              <div className="text-xl font-bold">{(state.solCollected / 1e9).toFixed(4)} SOL</div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="text-sm text-gray-400 mb-1">Tokens Sold</div>
+              <div className="text-xl font-bold">{(state.tokensSold / 1e6).toFixed(2)}</div>
+            </div>
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+              <div className="text-sm text-gray-400 mb-1">Volume</div>
+              <div className="text-xl font-bold">{(state.totalTradeVolume / 1e9).toFixed(4)} SOL</div>
+            </div>
+          </div>
 
-          <div className="mt-6">
-            {/* Show Buy Section only if Active (status=0) */}
-            {token.status === 0 && (
-              <BuySection token={token} onSuccess={refetch} />
-            )}
+          {/* Progress to Qualification */}
+          {state.battleStatus === BattleStatus.Created && marketCapUsd !== null && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-400">Progress to Qualification</span>
+                <span className="text-sm font-bold">${marketCapUsd.toFixed(0)} / $5,100</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-4">
+                <div
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-4 rounded-full transition-all"
+                  style={{ width: `${Math.min((marketCapUsd / 5100) * 100, 100)}%` }}
+                />
+              </div>
+              <div className="text-xs text-gray-400 mt-2">
+                Reach $5,100 market cap to qualify for battles!
+              </div>
+            </div>
+          )}
+
+          {/* SOL Price */}
+          {solPriceUsd && (
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">SOL Price (Oracle)</span>
+                <span className="text-lg font-bold">${solPriceUsd.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Trading Panel */}
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-4">Trade</h3>
+            <TradingPanel mint={mint} onSuccess={refetch} />
           </div>
 
           <div className="text-center mt-6">
-            <a href={`https://solscan.io/account/${mint}?cluster=devnet`}
+            <a href={`https://solscan.io/account/${mintAddress}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm" >
