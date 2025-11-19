@@ -112,15 +112,15 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
   };
 
   return (
-    <div className="bg-[#2d2d2d] rounded-xl p-6">
+    <div className="bg-bonk-card rounded-xl p-6">
       {/* Mode Toggle */}
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => setMode('buy')}
           className={`flex-1 py-3 rounded-lg font-bold transition-all ${
             mode === 'buy'
-              ? 'bg-green-500 text-white'
-              : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#252525]'
+              ? 'bg-bonk-green text-white'
+              : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
           }`}
         >
           Buy
@@ -129,8 +129,8 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
           onClick={() => setMode('sell')}
           className={`flex-1 py-3 rounded-lg font-bold transition-all ${
             mode === 'sell'
-              ? 'bg-red-500 text-white'
-              : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#252525]'
+              ? 'bg-bonk-red text-white'
+              : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
           }`}
         >
           Sell
@@ -139,7 +139,7 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
 
       {/* Balance Display */}
       {mode === 'sell' && (
-        <div className="mb-4 p-3 bg-[#1a1a1a] rounded-lg">
+        <div className="mb-4 p-3 bg-bonk-dark rounded-lg">
           <div className="text-sm text-gray-400">Your Balance</div>
           <div className="text-lg font-bold">
             {balanceFormatted?.toFixed(6) ?? 0} tokens
@@ -157,7 +157,7 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           placeholder={mode === 'buy' ? '0.1' : '1000'}
-          className="w-full bg-[#1a1a1a] rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full bg-bonk-dark border border-bonk-border rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-bonk-green"
           step={mode === 'buy' ? '0.01' : '0.000001'}
           disabled={loading}
         />
@@ -170,7 +170,7 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
             <button
               key={val}
               onClick={() => setAmount(val.toString())}
-              className="py-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg font-semibold text-sm transition-all"
+              className="py-2 bg-bonk-dark hover:bg-bonk-border rounded-lg font-semibold text-sm transition-all"
               disabled={loading}
             >
               {val}
@@ -182,7 +182,7 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
       {mode === 'sell' && balance !== null && balance > 0 && (
         <button
           onClick={() => setAmount((balance / 1e6).toString())}
-          className="w-full mb-4 py-2 bg-[#1a1a1a] hover:bg-[#252525] rounded-lg font-semibold transition-all"
+          className="w-full mb-4 py-2 bg-bonk-dark hover:bg-bonk-border rounded-lg font-semibold transition-all"
           disabled={loading}
         >
           MAX ({(balance / 1e6).toFixed(6)})
@@ -193,10 +193,10 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
       <button
         onClick={mode === 'buy' ? handleBuy : handleSell}
         disabled={loading || !publicKey || !amount}
-        className={`w-full py-4 rounded-lg font-bold text-lg transition-all disabled:bg-gray-600 disabled:cursor-not-allowed ${
+        className={`w-full py-4 rounded-lg font-bold text-lg transition-all disabled:bg-bonk-border disabled:cursor-not-allowed ${
           mode === 'buy'
-            ? 'bg-green-500 hover:bg-green-600'
-            : 'bg-red-500 hover:bg-red-600'
+            ? 'bg-bonk-green hover:bg-bonk-green/90 text-white'
+            : 'bg-bonk-red hover:bg-bonk-red/90 text-white'
         }`}
       >
         {loading

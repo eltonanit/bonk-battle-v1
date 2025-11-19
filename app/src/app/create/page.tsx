@@ -129,13 +129,13 @@ export default function CreatePage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#1a1a1a]">
+        <div className="min-h-screen bg-bonk-dark">
             <DesktopHeader />
             <Header />
             <Sidebar />
 
             {/* ⭐ MODIFICATO: Aggiunto pt-20 mobile e FOMOTicker */}
-            <div className="pt-20 lg:pt-0 lg:ml-60 lg:mt-16">
+            <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
                 {/* ⭐ FOMOTicker visibile SOLO su mobile, sotto l'header */}
                 <div className="lg:hidden">
                     <FOMOTicker />
@@ -160,7 +160,7 @@ export default function CreatePage() {
                                                 .replace(/[^a-zA-Z0-9\s]/g, '');
                                             setName(filtered);
                                         }}
-                                        className="w-full bg-[#2d2d2d] border border-[#3d3d3d] rounded-lg px-4 py-3 text-white focus:border-[#10b981] focus:outline-none"
+                                        className="w-full bg-bonk-card border border-bonk-border rounded-lg px-4 py-3 text-white focus:border-bonk-green focus:outline-none"
                                         placeholder="Name your token"
                                         required
                                     />
@@ -177,7 +177,7 @@ export default function CreatePage() {
                                                 .replace(/[^A-Z0-9]/g, '');
                                             setSymbol(filtered);
                                         }}
-                                        className="w-full bg-[#2d2d2d] border border-[#3d3d3d] rounded-lg px-4 py-3 text-white focus:border-[#10b981] focus:outline-none"
+                                        className="w-full bg-bonk-card border border-bonk-border rounded-lg px-4 py-3 text-white focus:border-bonk-green focus:outline-none"
                                         placeholder="e.g. BONK"
                                         maxLength={10}
                                         required
@@ -191,7 +191,7 @@ export default function CreatePage() {
                                 <textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="w-full bg-[#2d2d2d] border border-[#3d3d3d] rounded-lg px-4 py-3 text-white focus:border-[#10b981] focus:outline-none resize-none"
+                                    className="w-full bg-bonk-card border border-bonk-border rounded-lg px-4 py-3 text-white focus:border-bonk-green focus:outline-none resize-none"
                                     rows={4}
                                     placeholder="Write a short description"
                                 />
@@ -202,11 +202,11 @@ export default function CreatePage() {
                             <h2 className="text-xl font-bold mb-2">Battle Information</h2>
                             <p className="text-sm text-gray-400 mb-6">How BONK Battle tokens work</p>
 
-                            <div className="bg-[#10b981]/10 border border-[#10b981]/30 rounded-xl p-6 space-y-4">
+                            <div className="bg-bonk-green/10 border border-bonk-green/30 rounded-xl p-6 space-y-4">
                                 <div className="flex gap-3 items-start">
                                     <div className="text-2xl">🎮</div>
                                     <div>
-                                        <div className="text-[#10b981] font-bold mb-2">No Tiers - Just Battle!</div>
+                                        <div className="text-bonk-green font-bold mb-2">No Tiers - Just Battle!</div>
                                         <div className="text-sm text-gray-300 space-y-2">
                                             <div>├─ <strong>Created:</strong> Your token starts here</div>
                                             <div>├─ <strong>Qualified:</strong> Reach $5,100 MC to qualify for battles</div>
@@ -217,7 +217,7 @@ export default function CreatePage() {
                                     </div>
                                 </div>
 
-                                <div className="flex gap-3 items-start pt-4 border-t border-[#10b981]/20">
+                                <div className="flex gap-3 items-start pt-4 border-t border-bonk-green/20">
                                     <div className="text-2xl">⚔️</div>
                                     <div>
                                         <div className="text-gray-300 text-sm">
@@ -237,12 +237,12 @@ export default function CreatePage() {
                                 onDragLeave={handleDragLeave}
                                 onDrop={handleDrop}
                                 onClick={() => document.getElementById('fileInput')?.click()}
-                                className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-all ${isDragOver ? 'border-[#10b981] bg-[#10b981]/10' : 'border-gray-600 hover:border-[#10b981] hover:bg-[#10b981]/5'}`}
+                                className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-all ${isDragOver ? 'border-bonk-green bg-bonk-green/10' : 'border-bonk-border hover:border-bonk-green hover:bg-bonk-green/5'}`}
                             >
                                 <div className="text-6xl mb-4 opacity-70">🖼️</div>
                                 <div className="text-lg font-semibold mb-2">{imageFile ? imageFile.name : 'Select image to upload'}</div>
                                 <div className="text-sm text-gray-400 mb-6">or drag and drop it here</div>
-                                <button type="button" className="bg-[#10b981] text-white px-8 py-3 rounded-lg font-semibold hover:bg-[#059669] transition-colors">
+                                <button type="button" className="bg-bonk-orange-dark text-black px-8 py-3 rounded-lg font-semibold hover:bg-bonk-orange-dark/90 transition-colors">
                                     Select file
                                 </button>
                                 <input
@@ -281,9 +281,9 @@ export default function CreatePage() {
                         <button
                             type="submit"
                             disabled={isCreating || !publicKey}
-                            className="mt-10 w-full max-w-xs bg-[#10b981] text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-[#059669] disabled:bg-gray-600 disabled:cursor-not-allowed transition-all hover:scale-105"
+                            className="mt-10 w-full max-w-xs bg-bonk-orange-dark text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-bonk-orange-dark/90 disabled:bg-bonk-border disabled:cursor-not-allowed transition-all hover:scale-105"
                         >
-                            {isCreating ? 'Creating Battle Token...' : 'Create Battle Token'}
+                            {isCreating ? 'Starting Battle...' : 'Start Battle'}
                         </button>
                     </form>
                 </div>

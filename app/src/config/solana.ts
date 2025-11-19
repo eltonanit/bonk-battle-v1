@@ -1,4 +1,5 @@
-﻿export const PROGRAM_ID = 'DxchSpAi7A14f9o1LGPr18HikXEjMT6VXj1oy24VXAgN';
+﻿// ⚠️ BONK BATTLE PROGRAM ID (sostituito STONKS)
+export const PROGRAM_ID = 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9';
 export const NETWORK = 'devnet';
 export const RPC_ENDPOINT = 'https://devnet.helius-rpc.com/?api-key=867cca8d-b431-4540-8f55-90c57e3e1c9e';
 // Treasury & Admin addresses (from smart contract)

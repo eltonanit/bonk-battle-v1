@@ -126,13 +126,13 @@ function ProfileContent() {
 
 export default function ProfilePage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-bonk-dark text-white">
       <DesktopHeader />
       <Header />
       <Sidebar />
 
       {/* ⭐ MODIFICATO: Aggiunto pt-20 lg:pt-0 e FOMOTicker */}
-      <div className="pt-20 lg:pt-0 lg:ml-60 lg:mt-16">
+      <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
         {/* ⭐ FOMOTicker visibile SOLO su mobile */}
         <div className="lg:hidden">
           <FOMOTicker />

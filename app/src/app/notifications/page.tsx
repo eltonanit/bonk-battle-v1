@@ -36,7 +36,7 @@ export default function NotificationsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white">
+        <div className="min-h-screen bg-bonk-dark text-white">
             {/* Desktop Header */}
             <DesktopHeader />
 
@@ -48,7 +48,7 @@ export default function NotificationsPage() {
 
             {/* Main Content */}
             {/* ⭐ MODIFICATO: Aggiunto pt-20 lg:pt-0 e FOMOTicker */}
-            <div className="pt-20 lg:pt-0 lg:ml-60 lg:mt-16">
+            <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
                 {/* ⭐ FOMOTicker visibile SOLO su mobile */}
                 <div className="lg:hidden">
                     <FOMOTicker />

@@ -71,11 +71,11 @@ export default function TokenDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-bonk-dark text-white">
         <DesktopHeader />
         <Header />
         <Sidebar />
-        <div className="lg:ml-60 lg:mt-16 flex items-center justify-center min-h-screen">
+        <div className="lg:ml-64 lg:mt-16 flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="text-4xl mb-4 animate-bounce">💎</div>
             <div className="text-xl font-bold">Loading token data...</div>
@@ -88,11 +88,11 @@ export default function TokenDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-bonk-dark text-white">
         <DesktopHeader />
         <Header />
         <Sidebar />
-        <div className="lg:ml-60 lg:mt-16 flex items-center justify-center min-h-screen">
+        <div className="lg:ml-64 lg:mt-16 flex items-center justify-center min-h-screen">
           <div className="text-center max-w-md">
             <div className="text-6xl mb-4">❌</div>
             <div className="text-xl font-bold mb-2">Error Loading Token</div>
@@ -110,30 +110,30 @@ export default function TokenDetailPage() {
   const getStatusBadge = () => {
     switch (state.battleStatus) {
       case BattleStatus.Created:
-        return { color: 'bg-green-500', label: 'NEW', action: 'QUALIFY' };
+        return { color: 'bg-bonk-green', label: 'NEW', action: 'QUALIFY' };
       case BattleStatus.Qualified:
-        return { color: 'bg-orange-500', label: 'QUALIFIED', action: 'FIND MATCH' };
+        return { color: 'bg-bonk-orange', label: 'QUALIFIED', action: 'FIND MATCH' };
       case BattleStatus.InBattle:
-        return { color: 'bg-orange-500 animate-pulse', label: '⚔️ IN BATTLE!!', action: null };
+        return { color: 'bg-bonk-orange animate-pulse', label: '⚔️ IN BATTLE!!', action: null };
       case BattleStatus.VictoryPending:
-        return { color: 'bg-yellow-500', label: '🏆 VICTORY!', action: null };
+        return { color: 'bg-bonk-gold text-black', label: '🏆 VICTORY!', action: null };
       case BattleStatus.Listed:
-        return { color: 'bg-gray-500', label: 'LISTED', action: null };
+        return { color: 'bg-bonk-border text-bonk-text', label: 'LISTED', action: null };
       default:
-        return { color: 'bg-gray-500', label: 'UNKNOWN', action: null };
+        return { color: 'bg-bonk-border text-bonk-text', label: 'UNKNOWN', action: null };
     }
   };
 
   const statusBadge = getStatusBadge();
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-bonk-dark text-white">
       <DesktopHeader />
       <Header />
       <Sidebar />
 
       {/* ⭐ MODIFICATO: Aggiunto pt-20 lg:pt-0 e FOMOTicker */}
-      <div className="pt-20 lg:pt-0 lg:ml-60 lg:mt-16">
+      <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
         {/* ⭐ FOMOTicker visibile SOLO su mobile */}
         <div className="lg:hidden">
           <FOMOTicker />
@@ -141,7 +141,7 @@ export default function TokenDetailPage() {
 
         <div className="max-w-[1200px] pl-8 pr-5 py-8">
           {/* Token Header */}
-          <div className="bg-gradient-to-br from-purple-900/20 to-pink-900/20 border-2 border-purple-500/30 rounded-3xl p-8 mb-6">
+          <div className="bg-bonk-card border-2 border-bonk-border rounded-3xl p-8 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-4xl font-bold mb-2">{mintAddress.substring(0, 8)}...</h1>
@@ -154,7 +154,7 @@ export default function TokenDetailPage() {
 
             {/* User Balance */}
             {publicKey && (
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-4">
+              <div className="bg-bonk-dark border border-bonk-border rounded-xl p-4 mb-4">
                 <div className="text-sm text-gray-400 mb-1">Your Balance</div>
                 <div className="text-2xl font-bold">{balanceFormatted?.toFixed(6) ?? 0} tokens</div>
               </div>
@@ -162,10 +162,10 @@ export default function TokenDetailPage() {
 
             {/* Battle Status Actions */}
             {state.battleStatus === BattleStatus.Listed && (
-              <div className="mt-6 bg-green-500/20 border-2 border-green-500/50 rounded-xl p-4">
+              <div className="mt-6 bg-bonk-green/20 border-2 border-bonk-green/50 rounded-xl p-4">
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
-                    <div className="text-green-400 font-bold text-lg mb-1">
+                    <div className="text-bonk-green font-bold text-lg mb-1">
                       🎉 Token Listed!
                     </div>
                     <div className="text-gray-300 text-sm">
@@ -177,9 +177,9 @@ export default function TokenDetailPage() {
             )}
 
             {state.battleStatus === BattleStatus.InBattle && (
-              <div className="mt-6 bg-orange-500/20 border-2 border-orange-500/50 rounded-xl p-4">
+              <div className="mt-6 bg-bonk-orange/20 border-2 border-bonk-orange/50 rounded-xl p-4">
                 <div>
-                  <div className="text-orange-400 font-bold text-lg mb-2">
+                  <div className="text-bonk-orange font-bold text-lg mb-2">
                     ⚔️ Battle in Progress!
                   </div>
                   <div className="text-gray-300 text-sm mb-2">
@@ -195,7 +195,7 @@ export default function TokenDetailPage() {
 
           {/* ⭐ VIEWS BOX */}
           <div className="mb-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <div className="bg-bonk-card border border-bonk-border rounded-2xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">👁️</div>
@@ -215,19 +215,19 @@ export default function TokenDetailPage() {
 
           {/* Token Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
               <div className="text-sm text-gray-400 mb-1">Market Cap</div>
               <div className="text-xl font-bold">${marketCapUsd?.toFixed(2) ?? '...'}</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
               <div className="text-sm text-gray-400 mb-1">SOL Collected</div>
               <div className="text-xl font-bold">{(state.solCollected / 1e9).toFixed(4)} SOL</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
               <div className="text-sm text-gray-400 mb-1">Tokens Sold</div>
               <div className="text-xl font-bold">{(state.tokensSold / 1e6).toFixed(2)}</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
               <div className="text-sm text-gray-400 mb-1">Volume</div>
               <div className="text-xl font-bold">{(state.totalTradeVolume / 1e9).toFixed(4)} SOL</div>
             </div>
@@ -235,14 +235,14 @@ export default function TokenDetailPage() {
 
           {/* Progress to Qualification */}
           {state.battleStatus === BattleStatus.Created && marketCapUsd !== null && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-6 mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-400">Progress to Qualification</span>
                 <span className="text-sm font-bold">${marketCapUsd.toFixed(0)} / $5,100</span>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-4">
+              <div className="w-full bg-bonk-border rounded-full h-4">
                 <div
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-4 rounded-full transition-all"
+                  className="bg-gradient-to-r from-bonk-green to-emerald-500 h-4 rounded-full transition-all"
                   style={{ width: `${Math.min((marketCapUsd / 5100) * 100, 100)}%` }}
                 />
               </div>
@@ -254,7 +254,7 @@ export default function TokenDetailPage() {
 
           {/* SOL Price */}
           {solPriceUsd && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+            <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-6">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-400">SOL Price (Oracle)</span>
                 <span className="text-lg font-bold">${solPriceUsd.toFixed(2)}</span>

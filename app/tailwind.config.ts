@@ -8,6 +8,23 @@ export default {
   ],
   theme: {
     extend: {
+      colors: {
+        'bonk-dark': '#181A20',       // Background principale
+        'bonk-card': '#1E2330',       // Cards e panels
+        'bonk-border': '#2A3142',     // Borders
+        'bonk-text': '#B8BFCC',       // Testo secondario
+        'bonk-orange': '#FF6B35',     // Accent arancione (battle)
+        'bonk-orange-bright': '#FF8A5B', // Arancione chiaro luminoso
+        'bonk-orange-light': '#FFB088', // Arancione chiaro per badges
+        'bonk-orange-dark': '#FF8A5B',   // Arancione chiaro per bottoni Start Battle
+        'bonk-orange-brand': '#D94F1C',  // Arancione vivo-scuro per brand/border
+        'bonk-green': '#4CAF50',      // Verde (qualified)
+        'bonk-gold': '#FFD700',       // Oro (victory/army)
+        'bonk-red': '#EF4444',        // Rosso (failed)
+        'bonk-purple': '#A855F7',     // Viola (premium)
+        'bonk-blue-dark': '#3B82F6',  // Azzurro visibile per "How it works?"
+        'bonk-gray-orange': 'rgba(255, 107, 53, 0.15)', // Grigio-arancione trasparente per sidebar active
+      },
       keyframes: {
         "shake-yellow": {
           "0%, 100%": {

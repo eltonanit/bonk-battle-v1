@@ -11,11 +11,11 @@ import { HALL_TOKENS } from '@/lib/hall/mock-data';
 
 export default function HallPage() {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-bonk-dark text-white">
       <DesktopHeader />
       <Header />
       <Sidebar />
-      <div className="lg:ml-60 lg:mt-16">
+      <div className="lg:ml-64 lg:mt-16">
         <Tagline />
         <div className="max-w-[1200px] pl-8 pr-5 py-10">
           <h1 className="text-5xl font-extrabold text-center mb-4 bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 bg-clip-text text-transparent">

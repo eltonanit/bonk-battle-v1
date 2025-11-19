@@ -80,24 +80,24 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-60 bg-[#090909] border-r border-white/10 z-50">
+    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 bg-bonk-dark border-r border-bonk-border z-50">
       {/* Logo - FIX */}
       {/* Logo */}
-      <div className="p-6 border-b border-white/10">
+      <div className="p-6 border-b border-bonk-border">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-[55px] h-[55px] rounded-lg flex items-center justify-center overflow-hidden">
             <Image
-              src="/L1.png"
-              alt="STONKS.FAN"
+              src="/BONK-LOGO.svg"
+              alt="Bonk Battle"
               width={55}
               height={55}
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-2xl font-extrabold">
-            <span className="text-white">STONKS</span>
-            <span className="text-[#00ff88]">.fan</span>
-          </span>
+          <div className="flex flex-col leading-tight">
+            <span className="text-xl font-extrabold text-white">Bonk</span>
+            <span className="text-xl font-extrabold text-white">Battle</span>
+          </div>
         </Link>
       </div>
 
@@ -110,8 +110,8 @@ export function Sidebar() {
             href={item.href}
             className={
               isActive(item.href)
-                ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-white/10 text-white relative'
-                : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white/60 hover:text-white hover:bg-white/5 relative'
+                ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-bonk-gray-orange text-white relative'
+                : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white hover:text-white hover:bg-bonk-card/50 relative'
             }
           >
             <span className="flex-shrink-0">
@@ -129,12 +129,12 @@ export function Sidebar() {
         ))}
 
         {/* Divider */}
-        <div className="border-t border-white/10 my-2" />
+        <div className="border-t border-bonk-border my-2" />
 
-        {/* How it works? */}
+        {/* How it works? - Solo testo azzurro */}
         <Link
           href="/how-it-works"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-blue-400 hover:text-blue-300 hover:bg-white/5"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-bonk-blue-dark hover:text-bonk-blue-dark hover:bg-bonk-card/50"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 flex-shrink-0">
             <circle cx="12" cy="12" r="10" />
@@ -144,24 +144,32 @@ export function Sidebar() {
           <span>How it works?</span>
         </Link>
 
-        {/* Launch a Coin Button - VERDE */}
+        {/* Start Battle Button - Arancione chiaro (no glow, swords icon) */}
         <Link
           href="/create"
-          className="flex items-center justify-center gap-2 mx-2 px-4 py-3 bg-[#14D99E] rounded-xl text-black font-bold text-[15px] hover:bg-[#12c08d] active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
+          className="flex items-center justify-center gap-2 mx-2 px-4 py-3 bg-bonk-orange-dark rounded-xl text-black font-semibold text-[15px] hover:bg-bonk-orange-dark/90 active:scale-95 transition-all"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="16" />
-            <line x1="8" y1="12" x2="16" y2="12" />
+          {/* Crossed Swords Icon */}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
+            <path d="M13 19l6-6" />
+            <path d="M16 16l5 5" />
+            <path d="M19 21v-2" />
+            <path d="M21 19h-2" />
+            <path d="M9.5 6.5L21 18V21h-3L6.5 9.5" />
+            <path d="M5 11l6-6" />
+            <path d="M8 8L3 3" />
+            <path d="M3 5v2" />
+            <path d="M5 3h2" />
           </svg>
-          <span>Launch a Coin</span>
+          <span>Start Battle</span>
         </Link>
 
         {/* Social Icons Row */}
         <div className="flex items-center justify-center gap-4 px-4 py-3">
           {/* X (Twitter) */}
           <a
-            href="https://x.com/stonksfan"
+            href="https://x.com/bonkbattle"
             target="_blank"
             rel="noopener noreferrer"
             className="opacity-60 hover:opacity-100 transition-opacity"
@@ -178,7 +186,7 @@ export function Sidebar() {
 
           {/* Reddit */}
           <a
-            href="https://reddit.com/r/stonksfan"
+            href="https://reddit.com/r/bonkbattle"
             target="_blank"
             rel="noopener noreferrer"
             className="opacity-60 hover:opacity-100 transition-opacity"
@@ -195,7 +203,7 @@ export function Sidebar() {
 
           {/* Telegram */}
           <a
-            href="https://t.me/stonksfan"
+            href="https://t.me/bonkbattle"
             target="_blank"
             rel="noopener noreferrer"
             className="opacity-60 hover:opacity-100 transition-opacity"

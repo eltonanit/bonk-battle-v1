@@ -10,12 +10,12 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
       <Sidebar />
       <DesktopHeader />
       <Header />
 
-      <div className="pt-20 lg:pt-0 lg:ml-60 lg:mt-16 max-w-full">
+      <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16 max-w-full">
 
         {/* ⭐ FOMOTicker + HoldersTicker visibili SOLO su mobile */}
         <div className="lg:hidden">

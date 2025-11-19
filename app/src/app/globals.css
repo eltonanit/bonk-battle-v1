@@ -20,6 +20,8 @@
   }
 
   body {
+    background-color: #181A20;
+    color: #FFFFFF;
     overflow-x: hidden;
     max-width: 100vw;
   }

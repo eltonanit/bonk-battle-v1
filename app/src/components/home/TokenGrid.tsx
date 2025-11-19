@@ -1,4 +1,6 @@
 ﻿'use client';
+// ⚠️ QUESTO È IL VECCHIO TOKENOGRID PER STONKS
+// ⚠️ Per BONK, usa: TokenGrid.BONK.tsx
 import { UpvoteButton } from '@/components/token/UpvoteButton';
 import { useEffect, useState } from 'react';
 import { fetchAllTokens, TokenLaunchData } from '@/lib/solana/fetch-all-tokens';
