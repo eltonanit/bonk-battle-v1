@@ -148,6 +148,10 @@ pub mod bonk_battle {
         battle_state.victory_timestamp = 0;
         battle_state.listing_timestamp = 0;
         battle_state.bump = ctx.bumps.token_battle_state;
+        // ⭐ SALVA METADATA
+        battle_state.name = name.clone();
+        battle_state.symbol = symbol.clone();
+        battle_state.uri = uri.clone();
 
         let seeds = &[b"battle_state", mint_key.as_ref(), &[battle_state.bump]];
         let signer_seeds = &[&seeds[..]];
@@ -739,19 +743,24 @@ impl Default for BattleStatus {
 #[account]
 #[derive(Default)]
 pub struct TokenBattleState {
-    pub mint: Pubkey,
-    pub sol_collected: u64,
-    pub tokens_sold: u64,
-    pub total_trade_volume: u64,
-    pub is_active: bool,
-    pub battle_status: BattleStatus,
-    pub opponent_mint: Pubkey,
-    pub creation_timestamp: i64,
-    pub last_trade_timestamp: i64,
-    pub battle_start_timestamp: i64,
-    pub victory_timestamp: i64,
-    pub listing_timestamp: i64,
-    pub bump: u8,
+    pub mint: Pubkey,                    // 32
+    pub sol_collected: u64,              // 8
+    pub tokens_sold: u64,                // 8
+    pub total_trade_volume: u64,         // 8
+    pub is_active: bool,                 // 1
+    pub battle_status: BattleStatus,     // 1
+    pub opponent_mint: Pubkey,           // 32
+    pub creation_timestamp: i64,         // 8
+    pub last_trade_timestamp: i64,       // 8
+    pub battle_start_timestamp: i64,     // 8
+    pub victory_timestamp: i64,          // 8
+    pub listing_timestamp: i64,          // 8
+    pub qualification_timestamp: i64,    // 8 ← GIÀ C'ERA NEL PARSING
+    pub bump: u8,                        // 1
+    // ⭐ NUOVI CAMPI METADATA
+    pub name: String,                    // 4 + 32 = 36
+    pub symbol: String,                  // 4 + 10 = 14
+    pub uri: String,                     // 4 + 200 = 204
 }
 
 #[account]
@@ -818,7 +827,7 @@ pub struct CreateBattleToken<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 200,
+        space = 8 + 32 + 8 + 8 + 8 + 1 + 1 + 32 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 36 + 14 + 204, // = 485 bytes
         seeds = [b"battle_state", mint.key().as_ref()],
         bump
     )]
