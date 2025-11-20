@@ -1,6 +1,6 @@
-# Hello Stonks
+# Hello bonks battle
 
-Welcome to the Stonks App! 🚀📈
+Welcome to the bonk battle  App! 🚀📈
 
 This is your modern stock portfolio tracking and analysis application.
 
@@ -31,4 +31,4 @@ Launches the test runner in interactive watch mode.
 
 ---
 
-**Hello Stonks!** 📊💰
+**Hello bonk battle!** 📊💰

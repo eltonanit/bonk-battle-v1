@@ -1,7 +1,6 @@
 [workspace]
-members = [
-    "programs/bonk_battle"
-]
+members = ["programs/bonk_battle"]
+resolver = "2"
 
 [profile.release]
 overflow-checks = true

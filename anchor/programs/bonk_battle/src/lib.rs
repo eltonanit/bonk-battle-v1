@@ -9,7 +9,7 @@ use anchor_lang::system_program;
 use anchor_lang::solana_program::rent::Rent;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface, Burn, MintTo, Transfer},
+    token_interface::{Mint, TokenAccount, TokenInterface, Burn, MintTo},
 };
 
 declare_id!("HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9");
@@ -875,8 +875,7 @@ pub struct BuyToken<'info> {
     pub contract_token_account: InterfaceAccount<'info, TokenAccount>,
     
     #[account(
-        init_if_needed,
-        payer = user,
+        mut,
         associated_token::mint = mint,
         associated_token::authority = user,
         associated_token::token_program = token_program,
@@ -1042,8 +1041,7 @@ pub struct WithdrawForListing<'info> {
     pub contract_token_account: InterfaceAccount<'info, TokenAccount>,
     
     #[account(
-        init_if_needed,
-        payer = keeper_authority,
+        mut,
         associated_token::mint = mint,
         associated_token::authority = keeper_authority,
         associated_token::token_program = token_program,
