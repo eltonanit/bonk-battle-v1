@@ -342,7 +342,7 @@ app.get('/api/leaderboard', async (req, res) => {
 // ==================================================================
 // START SERVER
 // ==================================================================
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log('\n' + '='.repeat(60))
     console.log(`✅ Server running on http://localhost:${PORT}`)
     console.log('='.repeat(60))
@@ -353,3 +353,21 @@ app.listen(PORT, () => {
     console.log('='.repeat(60))
     console.log('\n⏳ Waiting for Helius webhooks...\n')
 })
+
+// Prevent server from closing
+server.on('error', (error) => {
+    console.error('❌ Server error:', error)
+})
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught exception:', error)
+})
+
+process.on('unhandledRejection', (error) => {
+    console.error('❌ Unhandled rejection:', error)
+})
+
+// Keep alive
+setInterval(() => {
+    // Ping every 30 seconds to keep process alive
+}, 30000)

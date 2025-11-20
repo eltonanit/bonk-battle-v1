@@ -1,10 +1,19 @@
-﻿// ⚠️ BONK BATTLE PROGRAM ID (sostituito STONKS)
+﻿// ========================================================================
+// BONK BATTLE - SOLANA CONFIGURATION
+// ========================================================================
+
+// ✅ VERIFICATO: Program ID dal smart contract
 export const PROGRAM_ID = 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9';
 export const NETWORK = 'devnet';
-export const RPC_ENDPOINT = 'https://devnet.helius-rpc.com/?api-key=867cca8d-b431-4540-8f55-90c57e3e1c9e';
-// Treasury & Admin addresses (from smart contract)
-export const TREASURY = 'A84TUvSQLpMoTGqoqNbEuTHJSheVC5cTSjsv3EMwYLmn';
-export const ADMIN = 'BNSr8S88xncQGmWjVLW82MnKJcasEXDvaQqYmgKSuAXB';
+
+// ✅ FIX CRITICO: Usa variabile env corretta + Helius come fallback sicuro
+export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://devnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
+
+// ✅ FIX CRITICO: Treasury address dal smart contract (riga 21)
+export const TREASURY = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
+
+// ✅ VERIFICATO: Keeper authority dal smart contract (riga 22)
+export const ADMIN = 'Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH';
 
 // Bonding curve constants (match smart contract)
 export const TOKEN_DECIMALS = 6;

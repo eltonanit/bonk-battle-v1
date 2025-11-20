@@ -1,5 +1,6 @@
 ﻿/** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: false, // ⚠️ TEMPORANEO: disabilita Strict Mode per ridurre chiamate RPC doppie
   images: {
     remotePatterns: [
       {

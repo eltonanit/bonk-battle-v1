@@ -4,7 +4,6 @@ import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
-import { Tagline } from '@/components/home/Tagline';
 import { HallCarousel } from '@/components/hall/HallCarousel';
 import { HallRanking } from '@/components/hall/HallRanking';
 import { HALL_TOKENS } from '@/lib/hall/mock-data';
@@ -16,7 +15,6 @@ export default function HallPage() {
       <Header />
       <Sidebar />
       <div className="lg:ml-64 lg:mt-16">
-        <Tagline />
         <div className="max-w-[1200px] pl-8 pr-5 py-10">
           <h1 className="text-5xl font-extrabold text-center mb-4 bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 bg-clip-text text-transparent">
             🏛️ THE HALL

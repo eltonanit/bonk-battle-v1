@@ -1,6 +1,6 @@
 ﻿import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT } from '@/config/solana';
-import { deserializeTokenLaunch } from './deserialize';
+import { BONK_BATTLE_PROGRAM_ID, RPC_ENDPOINT } from './constants';
+import { BattleStatus } from './constants';
 
 export interface TokenLaunchData {
   pubkey: PublicKey;
@@ -26,105 +26,99 @@ export async function fetchAllTokens(): Promise<TokenLaunchData[]> {
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📊 FETCHING ALL TOKENS');
+    console.log('📊 FETCHING ALL BONK BATTLE TOKENS');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📍 Program ID:', PROGRAM_ID);
+    console.log('📍 Program ID:', BONK_BATTLE_PROGRAM_ID.toString());
 
-    // ⭐ FIX: Remove dataSize filter to find BOTH v1 (443) and v2 (439)
+    // ⭐ Get all TokenBattleState accounts (208 bytes)
     const accounts = await connection.getProgramAccounts(
-      new PublicKey(PROGRAM_ID),
+      BONK_BATTLE_PROGRAM_ID,
       {
-        // NO FILTERS! Get all accounts from this program
+        filters: [
+          {
+            dataSize: 208 // TokenBattleState size
+          }
+        ]
       }
     );
 
-    console.log(`📊 FOUND: ${accounts.length} total accounts`);
+    console.log(`📊 FOUND: ${accounts.length} total TokenBattleState accounts`);
 
     const tokens: TokenLaunchData[] = [];
-    let v1Count = 0;
-    let v2Count = 0;
-    let skippedCount = 0;
 
     for (const { pubkey, account } of accounts) {
       try {
-        const size = account.data.length;
+        const data = account.data;
+        let offset = 8; // Skip discriminator
 
-        // ⭐ Validate it's a TokenLaunch (not BuyerRecord or other)
-        if (size !== 439 && size !== 443) {
-          // Skip non-TokenLaunch accounts (BuyerRecord = 106 bytes, etc.)
-          skippedCount++;
-          continue;
-        }
+        // Parse TokenBattleState (208 bytes)
+        const mint = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
 
-        // Count versions
-        if (size === 443) v1Count++;
-        if (size === 439) v2Count++;
+        const solCollected = Number(data.readBigUInt64LE(offset)) / 1e9;
+        offset += 8;
 
-        // ⭐ Deserialize using the version-aware deserializer
-        const tokenLaunch = deserializeTokenLaunch(account.data, pubkey);
+        const tokensSold = Number(data.readBigUInt64LE(offset)) / 1e6;
+        offset += 8;
 
-        if (!tokenLaunch) {
-          console.warn(`⚠️ Failed to deserialize: ${pubkey.toString()}`);
-          continue;
-        }
+        const totalTradeVolume = Number(data.readBigUInt64LE(offset)) / 1e9;
+        offset += 8;
 
-        const progress = (tokenLaunch.solRaised / tokenLaunch.targetSol) * 100;
+        const isActive = data[offset] !== 0;
+        offset += 1;
 
-        const now = Math.floor(Date.now() / 1000);
-        const timeRemaining = Math.max(0, tokenLaunch.deadline - now);
+        const battleStatusRaw = data[offset];
+        offset += 1;
 
-        // ⭐ Parse metadata per imageUrl
-        let imageUrl: string | undefined;
-        try {
-          if (tokenLaunch.metadataUri) {
-            // ✅ Il metadataUri è GIÀ il JSON, non un URL!
-            // Prova a parsarlo direttamente
-            try {
-              const metadata = JSON.parse(tokenLaunch.metadataUri);
-              imageUrl = metadata.image || metadata.imageUrl;
-            } catch {
-              // Se non è JSON valido, prova a fetchare (potrebbe essere un URL)
-              const metadataResponse = await fetch(tokenLaunch.metadataUri);
-              if (metadataResponse.ok) {
-                const metadata = await metadataResponse.json();
-                imageUrl = metadata.image || metadata.imageUrl;
-              }
-            }
-          }
-        } catch (error) {
-          console.warn(`⚠️ Could not parse metadata for ${tokenLaunch.name}`);
-        }
+        const opponentMint = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
 
+        const creationTimestamp = Number(data.readBigInt64LE(offset));
+        offset += 8;
+
+        const qualificationTimestamp = Number(data.readBigInt64LE(offset));
+        offset += 8;
+
+        const battleStartTimestamp = Number(data.readBigInt64LE(offset));
+        offset += 8;
+
+        const battleEndTimestamp = Number(data.readBigInt64LE(offset));
+        offset += 8;
+
+        const listingTimestamp = Number(data.readBigInt64LE(offset));
+        offset += 8;
+
+        const bump = data[offset];
+
+        // ⭐ For now, create fake data to match old interface
+        // TODO: Fetch token metadata from mint address
         tokens.push({
-          pubkey: new PublicKey(tokenLaunch.pubkey),
-          creator: new PublicKey(tokenLaunch.creator),  // ⬅️ AGGIUNTO
-          mint: new PublicKey(tokenLaunch.mint),
-          name: tokenLaunch.name,
-          symbol: tokenLaunch.symbol,
-          tier: tokenLaunch.tier,
-          solRaised: tokenLaunch.solRaised,
-          targetSol: tokenLaunch.targetSol,
-          virtualSolInit: tokenLaunch.virtualSolInit,
-          timeRemaining,
-          progress: Math.min(progress, 100),
-          totalBuyers: tokenLaunch.totalBuyers,
-          metadataUri: tokenLaunch.metadataUri,
-          imageUrl,  // ⬅️ AGGIUNTO
-          createdAt: tokenLaunch.createdAt,
-          status: tokenLaunch.status,
+          pubkey,
+          creator: PublicKey.default, // TODO: Get from token metadata
+          mint,
+          name: mint.toString().slice(0, 8), // Temp: use mint prefix
+          symbol: 'TKN', // Temp
+          tier: 1, // Temp
+          solRaised: solCollected,
+          targetSol: 1, // Temp
+          virtualSolInit: 30,
+          timeRemaining: 0, // Temp
+          progress: Math.min((solCollected / 1) * 100, 100),
+          totalBuyers: 0, // Temp
+          metadataUri: '', // Temp
+          imageUrl: undefined,
+          createdAt: creationTimestamp,
+          status: battleStatusRaw,
         });
 
-        console.log(`✅ Loaded: ${tokenLaunch.name} ($${tokenLaunch.symbol}) - v${size === 443 ? '1' : '2'}`);
+        console.log(`✅ Loaded token: ${mint.toString()}`);
       } catch (error) {
-        console.error('❌ Error deserializing token:', pubkey.toString(), error);
+        console.error('❌ Error parsing token:', pubkey.toString(), error);
       }
     }
 
     console.log('\n📊 SUMMARY:');
-    console.log(`   V1 tokens (443 bytes): ${v1Count}`);
-    console.log(`   V2 tokens (439 bytes): ${v2Count}`);
-    console.log(`   Total loaded: ${tokens.length}`);
-    console.log(`   Skipped (other accounts): ${skippedCount}`);
+    console.log(`   Total tokens loaded: ${tokens.length}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     return tokens;

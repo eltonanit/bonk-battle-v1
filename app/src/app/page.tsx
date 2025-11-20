@@ -5,7 +5,7 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { HoldersTicker } from '@/components/global/HoldersTicker';
 import { Tagline } from '@/components/home/Tagline';
 import { HowItWorks } from '@/components/home/HowItWorks';
-import { TokenGrid } from '@/components/home/TokenGrid';
+import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
 export default function HomePage() {
@@ -26,7 +26,7 @@ export default function HomePage() {
         <Tagline />
 
         <HowItWorks />
-        <TokenGrid />
+        <TokenGridBonk />
       </div>
 
       <MobileBottomNav />

@@ -1,9 +1,9 @@
 // app/src/components/token/TradingPanel.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PublicKey } from '@solana/web3.js';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { buyToken } from '@/lib/solana/buy-token';
@@ -16,12 +16,22 @@ interface TradingPanelProps {
 
 export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
   const { publicKey, signTransaction } = useWallet();
+  const { connection } = useConnection();
   const [mode, setMode] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { balance, balanceFormatted } = useUserTokenBalance(mint);
   const { solPriceUsd } = usePriceOracle();
+  const [solBalance, setSolBalance] = useState<number | null>(null);
+
+  // Fetch SOL balance
+  useEffect(() => {
+    if (!publicKey || !connection) return;
+    connection.getBalance(publicKey).then((bal) => {
+      setSolBalance(bal / 1e9);
+    }).catch(console.error);
+  }, [publicKey, connection]);
 
   const handleBuy = async () => {
     if (!publicKey || !signTransaction) {
@@ -112,106 +122,97 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
   };
 
   return (
-    <div className="bg-bonk-card rounded-xl p-6">
-      {/* Mode Toggle */}
-      <div className="flex gap-2 mb-6">
+    <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
+      {/* Buy/Sell Toggle */}
+      <div className="flex gap-2 mb-4">
         <button
           onClick={() => setMode('buy')}
-          className={`flex-1 py-3 rounded-lg font-bold transition-all ${
-            mode === 'buy'
-              ? 'bg-bonk-green text-white'
-              : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
-          }`}
+          className={`flex-1 py-2 rounded-lg font-bold transition-all ${mode === 'buy'
+            ? 'bg-bonk-green text-black'
+            : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
+            }`}
         >
           Buy
         </button>
         <button
           onClick={() => setMode('sell')}
-          className={`flex-1 py-3 rounded-lg font-bold transition-all ${
-            mode === 'sell'
-              ? 'bg-bonk-red text-white'
-              : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
-          }`}
+          className={`flex-1 py-2 rounded-lg font-bold transition-all ${mode === 'sell'
+            ? 'bg-bonk-red text-white'
+            : 'bg-bonk-dark text-gray-400 hover:bg-bonk-dark/50'
+            }`}
         >
           Sell
         </button>
       </div>
 
+      {/* Settings Row */}
+      <div className="flex justify-between mb-4">
+        <button className="bg-bonk-dark border border-bonk-border rounded-lg px-3 py-1 text-xs text-gray-300">
+          Switch to {mode === 'buy' ? 'KINGS' : 'SOL'}
+        </button>
+        <button className="bg-bonk-dark border border-bonk-border rounded-lg px-3 py-1 text-xs text-gray-300">
+          Set max slippage
+        </button>
+      </div>
+
       {/* Balance Display */}
-      {mode === 'sell' && (
-        <div className="mb-4 p-3 bg-bonk-dark rounded-lg">
-          <div className="text-sm text-gray-400">Your Balance</div>
-          <div className="text-lg font-bold">
-            {balanceFormatted?.toFixed(6) ?? 0} tokens
-          </div>
-        </div>
-      )}
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-sm text-gray-400">balance:</span>
+        <span className="text-sm font-bold text-white">
+          {mode === 'buy' ? `${solBalance?.toFixed(4) ?? 0} SOL` : `${balanceFormatted?.toFixed(2) ?? 0} TOK`}
+        </span>
+      </div>
 
       {/* Amount Input */}
-      <div className="mb-4">
-        <label className="block text-sm text-gray-400 mb-2">
-          {mode === 'buy' ? 'SOL Amount' : 'Token Amount'}
-        </label>
+      <div className="relative mb-4">
         <input
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          placeholder={mode === 'buy' ? '0.1' : '1000'}
-          className="w-full bg-bonk-dark border border-bonk-border rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-bonk-green"
+          placeholder="0.00"
+          className="w-full bg-bonk-dark border border-bonk-border rounded-lg px-4 py-3 text-white text-right focus:outline-none focus:border-bonk-green"
           step={mode === 'buy' ? '0.01' : '0.000001'}
           disabled={loading}
         />
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <span className="text-gray-400 text-sm">SOL</span>
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500"></div>
+        </div>
       </div>
 
       {/* Quick Buttons */}
       {mode === 'buy' && (
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {[0.1, 0.5, 1, 5].map((val) => (
+        <div className="flex gap-2 mb-4">
+          <button onClick={() => setAmount('')} className="px-3 py-1 bg-bonk-dark rounded-lg text-xs text-gray-400">Reset</button>
+          {[0.1, 0.5, 1].map((val) => (
             <button
               key={val}
               onClick={() => setAmount(val.toString())}
-              className="py-2 bg-bonk-dark hover:bg-bonk-border rounded-lg font-semibold text-sm transition-all"
+              className="flex-1 py-1 bg-bonk-dark hover:bg-bonk-border rounded-lg text-xs font-bold transition-all"
               disabled={loading}
             >
-              {val}
+              {val} SOL
             </button>
           ))}
+          <button className="px-3 py-1 bg-bonk-dark rounded-lg text-xs text-gray-400">Max</button>
         </div>
-      )}
-
-      {mode === 'sell' && balance !== null && balance > 0 && (
-        <button
-          onClick={() => setAmount((balance / 1e6).toString())}
-          className="w-full mb-4 py-2 bg-bonk-dark hover:bg-bonk-border rounded-lg font-semibold transition-all"
-          disabled={loading}
-        >
-          MAX ({(balance / 1e6).toFixed(6)})
-        </button>
       )}
 
       {/* Submit Button */}
       <button
         onClick={mode === 'buy' ? handleBuy : handleSell}
         disabled={loading || !publicKey || !amount}
-        className={`w-full py-4 rounded-lg font-bold text-lg transition-all disabled:bg-bonk-border disabled:cursor-not-allowed ${
-          mode === 'buy'
-            ? 'bg-bonk-green hover:bg-bonk-green/90 text-white'
-            : 'bg-bonk-red hover:bg-bonk-red/90 text-white'
-        }`}
+        className={`w-full py-3 rounded-lg font-bold text-lg transition-all disabled:bg-bonk-border disabled:cursor-not-allowed ${mode === 'buy'
+          ? 'bg-bonk-green hover:bg-bonk-green/90 text-black'
+          : 'bg-bonk-red hover:bg-bonk-red/90 text-white'
+          }`}
       >
         {loading
           ? 'Processing...'
           : mode === 'buy'
-          ? 'Buy Tokens'
-          : 'Sell Tokens'}
+            ? 'Buy KINGS'
+            : 'Sell KINGS'}
       </button>
-
-      {/* Price Info */}
-      {solPriceUsd && (
-        <div className="mt-4 text-xs text-gray-400 text-center">
-          SOL Price: ${solPriceUsd.toFixed(2)}
-        </div>
-      )}
 
       {/* Wallet Connection Warning */}
       {!publicKey && (

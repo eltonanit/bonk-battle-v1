@@ -2,6 +2,7 @@
 import { Connection, PublicKey } from '@solana/web3.js';
 import { BONK_BATTLE_PROGRAM_ID, BattleStatus } from './constants';
 import { RPC_ENDPOINT } from '@/config/solana';
+import { supabase } from '@/lib/supabase';
 import type { ParsedTokenBattleState } from '@/types/bonk';
 
 /**
@@ -10,23 +11,69 @@ import type { ParsedTokenBattleState } from '@/types/bonk';
  */
 export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
   try {
+    // 1. Try to fetch from Supabase first
+    const { data: dbTokens, error: dbError } = await supabase
+      .from('tokens')
+      .select('*')
+      .order('creation_timestamp', { ascending: false });
+
+    if (!dbError && dbTokens && dbTokens.length > 0) {
+      console.log(`📦 Fetched ${dbTokens.length} tokens from Supabase cache`);
+
+      // Map DB fields back to ParsedTokenBattleState
+      return dbTokens.map(token => ({
+        mint: new PublicKey(token.mint),
+        solCollected: Number(token.sol_collected),
+        tokensSold: Number(token.tokens_sold),
+        totalTradeVolume: Number(token.total_trade_volume),
+        isActive: token.is_active,
+        battleStatus: token.battle_status as BattleStatus,
+        opponentMint: new PublicKey(token.opponent_mint),
+        creationTimestamp: Number(token.creation_timestamp),
+        qualificationTimestamp: Number(token.qualification_timestamp),
+        lastTradeTimestamp: Number(token.last_trade_timestamp),
+        battleStartTimestamp: Number(token.battle_start_timestamp),
+        victoryTimestamp: Number(token.victory_timestamp), // Handle naming diff if any
+        listingTimestamp: Number(token.listing_timestamp),
+        bump: token.bump,
+        // Add any missing fields with defaults or derived values
+        battleEndTimestamp: 0 // Not in DB yet, maybe derived?
+      }));
+    }
+
+    // 2. If Supabase is empty or error, trigger Sync API (fire and forget)
+    console.log('⚠️ Supabase cache miss or error, triggering sync...');
+
+    // Trigger sync in background (don't await)
+    fetch('/api/cron/sync').catch(err => console.error('Trigger sync failed:', err));
+
+    // 3. Fallback to direct RPC fetch (using existing logic)
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
-    console.log('🔍 Fetching all BONK Battle tokens...');
-    console.log('📍 Program ID:', BONK_BATTLE_PROGRAM_ID.toString());
+    console.log('🔍 Fetching all BONK Battle tokens from RPC (Fallback)...');
 
-    // Get all accounts owned by BONK BATTLE program
-    const accounts = await connection.getProgramAccounts(BONK_BATTLE_PROGRAM_ID, {
-      filters: [
-        {
-          // Filter by account size (TokenBattleState is ~200 bytes)
-          // Discriminator (8) + mint (32) + u64 fields + bools + enums + timestamps + bump
-          dataSize: 200, // Approximate size, adjust if needed
-        },
-      ],
-    });
+    // Get all TokenBattleState accounts with retry logic
+    let accounts = [];
+    let retries = 3;
+    let delay = 1000;
 
-    console.log(`📦 Found ${accounts.length} potential battle state accounts`);
+    while (retries > 0) {
+      try {
+        const response = await connection.getProgramAccounts(BONK_BATTLE_PROGRAM_ID, {
+          // Remove dataSize filter to allow for variable account sizes
+        });
+        accounts = response as any[]; // Cast to avoid readonly issue
+        break;
+      } catch (err: any) {
+        console.warn(`⚠️ Fetch failed, retrying in ${delay}ms... (${retries} retries left)`);
+        if (retries === 1) throw err;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retries--;
+        delay *= 2;
+      }
+    }
+
+    console.log(`📦 Found ${accounts.length} TokenBattleState accounts`);
 
     const parsedTokens: ParsedTokenBattleState[] = [];
 
@@ -34,10 +81,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
       try {
         const data = account.account.data;
 
-        // Check discriminator (first 8 bytes)
-        // For TokenBattleState, discriminator should match account discriminator
-        // Skip if data too small
-        if (data.length < 200) {
+        if (data.length < 100) {
           continue;
         }
 
@@ -106,8 +150,9 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         const opponentMint = readPublicKey();
         const creationTimestamp = readI64();
         const qualificationTimestamp = readI64();
+        const lastTradeTimestamp = readI64();
         const battleStartTimestamp = readI64();
-        const battleEndTimestamp = readI64();
+        const victoryTimestamp = readI64();
         const listingTimestamp = readI64();
         const bump = readU8();
 
@@ -121,8 +166,9 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
           opponentMint,
           creationTimestamp: Number(creationTimestamp),
           qualificationTimestamp: Number(qualificationTimestamp),
+          lastTradeTimestamp: Number(lastTradeTimestamp),
           battleStartTimestamp: Number(battleStartTimestamp),
-          battleEndTimestamp: Number(battleEndTimestamp),
+          victoryTimestamp: Number(victoryTimestamp),
           listingTimestamp: Number(listingTimestamp),
           bump,
         };
@@ -130,7 +176,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         parsedTokens.push(parsedState);
       } catch (parseError) {
         console.warn('⚠️ Failed to parse account:', parseError);
-        // Skip invalid accounts
         continue;
       }
     }
@@ -152,7 +197,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
  */
 export async function fetchActiveBonkTokens(): Promise<ParsedTokenBattleState[]> {
   const allTokens = await fetchAllBonkTokens();
-  return allTokens.filter((token) => token.isActive);
+  return allTokens.filter((token: ParsedTokenBattleState) => token.isActive);
 }
 
 /**

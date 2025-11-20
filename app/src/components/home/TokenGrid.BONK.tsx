@@ -30,9 +30,10 @@ export function TokenGridBonk() {
     }
 
     loadTokens();
-    // Auto-refresh every 2 minutes
-    const interval = setInterval(loadTokens, 120000);
-    return () => clearInterval(interval);
+    // ⚠️ DISABILITATO: Auto-refresh per evitare 429 rate limits
+    // TODO: Riattivare quando si ha RPC dedicato
+    // const interval = setInterval(loadTokens, 120000);
+    // return () => clearInterval(interval);
   }, []);
 
   const getFilteredTokens = (): ParsedTokenBattleState[] => {
@@ -72,33 +73,30 @@ export function TokenGridBonk() {
       <div className="flex gap-3 mb-6">
         <button
           onClick={() => setActiveFilter('new')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-            activeFilter === 'new'
-              ? 'bg-blue-500 text-white'
-              : 'bg-white/5 text-white/60 hover:bg-white/10'
-          }`}
+          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${activeFilter === 'new'
+            ? 'bg-blue-500 text-white'
+            : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
         >
           📘 New
         </button>
 
         <button
           onClick={() => setActiveFilter('battle')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-            activeFilter === 'battle'
-              ? 'bg-orange-500 text-white'
-              : 'bg-white/5 text-white/60 hover:bg-white/10'
-          }`}
+          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${activeFilter === 'battle'
+            ? 'bg-orange-500 text-white'
+            : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
         >
           ⚔️ Battle
         </button>
 
         <button
           onClick={() => setActiveFilter('fire')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-            activeFilter === 'fire'
-              ? 'bg-red-500 text-white'
-              : 'bg-white/5 text-white/60 hover:bg-white/10'
-          }`}
+          className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${activeFilter === 'fire'
+            ? 'bg-red-500 text-white'
+            : 'bg-white/5 text-white/60 hover:bg-white/10'
+            }`}
         >
           🔥 Fire
         </button>
@@ -131,18 +129,24 @@ export function TokenGridBonk() {
         <div className="text-center py-20">
           <div className="text-6xl mb-4">🎮</div>
           <div className="text-xl font-bold mb-2">No tokens found</div>
-          <div className="text-gray-400">
+          <div className="text-gray-400 mb-6">
             {activeFilter === 'new' && 'Be the first to create a BONK Battle token!'}
             {activeFilter === 'battle' && 'No tokens in battle right now. Create one to start!'}
             {activeFilter === 'fire' && 'No trading activity yet. Be the first to trade!'}
           </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-bonk-orange text-black font-bold rounded-lg hover:bg-bonk-orange-light transition-all"
+          >
+            Retry Loading
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTokens.map((token) => (
             <TokenCardBonk
               key={token.mint.toString()}
-              mintAddress={token.mint.toString()}
+              tokenState={token}
             />
           ))}
         </div>

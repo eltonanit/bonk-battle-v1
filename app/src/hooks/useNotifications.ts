@@ -28,7 +28,7 @@ export function useNotifications() {
         const { data, error } = await supabase
             .from('notifications')
             .select('*')
-            .eq('wallet_address', publicKey.toString())
+            .eq('user_wallet', publicKey.toString())
             .order('created_at', { ascending: false })
             .limit(50);
 
@@ -61,7 +61,7 @@ export function useNotifications() {
                     event: 'INSERT',
                     schema: 'public',
                     table: 'notifications',
-                    filter: `wallet_address=eq.${publicKey.toString()}`,
+                    filter: `user_wallet=eq.${publicKey.toString()}`,
                 },
                 (payload) => {
                     const newNotif = payload.new as Notification;
@@ -97,7 +97,7 @@ export function useNotifications() {
         await supabase
             .from('notifications')
             .update({ read: true })
-            .eq('wallet_address', publicKey.toString())
+            .eq('user_wallet', publicKey.toString())
             .eq('read', false);
 
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));

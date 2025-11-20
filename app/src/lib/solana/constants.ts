@@ -91,7 +91,9 @@ export const ADMIN_WALLET = new PublicKey(
  * Network Configuration
  */
 export const NETWORK = 'devnet' as const;
-export const RPC_ENDPOINT = 'https://devnet.helius-rpc.com/?api-key=867cca8d-b431-4540-8f55-90c57e3e1c9e';
+// ⚠️ TEMPORANEO: Usa RPC pubblico Solana (Helius ha rate limits anche con chiave dedicata)
+// TODO: Creare nuova chiave Helius BONK BATTLE o upgrade piano
+export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://api.devnet.solana.com';
 
 /**
  * Transaction Limits

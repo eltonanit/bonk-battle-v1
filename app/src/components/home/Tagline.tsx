@@ -1,9 +1,10 @@
 ﻿'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { fetchAllTokens } from '@/lib/solana/fetch-all-tokens';
+import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
+import { ParsedTokenBattleState } from '@/types/bonk';
 
 interface TaglineToken {
   mint: string;
@@ -15,12 +16,12 @@ interface TaglineToken {
   tier: number;
 }
 
-const SOL_PRICE_USD = 100;
+const SOL_PRICE_USD = 100; // TODO: Use oracle
 
 const FEATURED_IMAGES = [
-  '/tagline/1.png',
-  '/tagline/2.png',
-  '/tagline/3.png',
+  '/BONK-LOGO.svg',
+  '/BONK-LOGO.svg',
+  '/BONK-LOGO.svg',
 ];
 
 export function Tagline() {
@@ -32,31 +33,22 @@ export function Tagline() {
   useEffect(() => {
     async function loadTokens() {
       try {
-        const allTokens = await fetchAllTokens();
+        // Use the new BONK fetcher
+        const allTokens = await fetchAllBonkTokens();
 
         if (allTokens.length === 0) return;
 
         const taglineTokens: TaglineToken[] = allTokens.slice(0, 15).map((token) => {
-          const marketCap = (token.virtualSolInit + token.solRaised) * SOL_PRICE_USD;
-
-          let imageUrl = '';
-          try {
-            if (token.metadataUri.startsWith('{')) {
-              const metadata = JSON.parse(token.metadataUri);
-              imageUrl = metadata.image || '';
-            }
-          } catch (e) {
-            // ignore
-          }
+          const marketCap = (token.solCollected / 1e9) * 100 * SOL_PRICE_USD; // Approx
 
           return {
             mint: token.mint.toString(),
-            name: token.name,
-            symbol: token.symbol,
-            imageUrl,
-            progress: token.progress,
+            name: token.mint.toString().substring(0, 8), // Temp name
+            symbol: 'BONK', // Temp symbol
+            imageUrl: '', // Will be handled by component or default
+            progress: (token.solCollected / 1e9 / 85) * 100, // Approx progress
             marketCap,
-            tier: token.tier,
+            tier: 1,
           };
         });
 
@@ -67,8 +59,9 @@ export function Tagline() {
     }
 
     loadTokens();
-    const interval = setInterval(loadTokens, 120000);
-    return () => clearInterval(interval);
+    // Disable auto-refresh to save RPC calls for now
+    // const interval = setInterval(loadTokens, 120000);
+    // return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -139,26 +132,26 @@ export function Tagline() {
         <div className="order-2 lg:order-1">
           {/* ⭐ HEADER DESKTOP ONLY - CENTRATO */}
           <div className="hidden lg:flex flex-col items-center justify-center text-center mb-8">
-            {/* Titolo principale - VERDE LUMINOSO */}
+            {/* Titolo principale - ARANCIONE LUMINOSO */}
             <h2
               className="text-4xl font-extrabold mb-3 flex items-center gap-2"
               style={{
-                color: '#00FF88',
-                textShadow: '0 0 20px rgba(16, 185, 129, 0.5)'
+                color: '#FF8A5B',
+                textShadow: '0 0 20px rgba(255, 138, 91, 0.6)'
               }}
             >
-              WE MOON OR WE REFUND
-              <span className="text-4xl">🔥</span>
+              BATTLE TO THE TOP
+              <span className="text-4xl">⚔️</span>
             </h2>
 
             {/* Sottotitolo - GIALLO ANIMATO */}
             <p className="text-xl font-semibold mb-4 text-[#fbbf24] animate-pulse-glow">
-              The GameStop of memecoins
+              Only the strongest survive
             </p>
 
-            {/* Bottone verde */}
+            {/* Bottone arancione */}
             <Link href="/create">
-              <button className="bg-[#14D99E] text-black px-7 py-2 rounded-xl font-bold text-lg hover:bg-[#12c08d] transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
+              <button className="bg-bonk-orange-dark text-black px-7 py-2 rounded-xl font-bold text-lg hover:bg-bonk-orange-dark/90 transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
                 Launch a Coin
               </button>
             </Link>
@@ -279,8 +272,8 @@ export function Tagline() {
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`h-2 rounded-full transition-all ${index === currentImageIndex
-                      ? 'bg-green-400 w-6'
-                      : 'bg-white/40 hover:bg-white/60 w-2'
+                    ? 'bg-green-400 w-6'
+                    : 'bg-white/40 hover:bg-white/60 w-2'
                     }`}
                   aria-label={`Go to image ${index + 1}`}
                 />

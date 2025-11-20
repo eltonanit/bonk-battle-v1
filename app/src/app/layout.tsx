@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@/styles/animations.css";
 import { SolanaProvider } from "@/components/providers/SolanaProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "STONKS.FAN - Diamond Hands Win Together 💎🙌",
-  description: "The GameStop of Memecoins. Fair launch or refund. Only diamond hands. Paper hands can fuck off.",
+  title: "BONK BATTLE - Gladiator Tokens Fight to the Death 💎⚔️",
+  description: "Create tokens, reach targets, battle for supremacy. Winner takes 50% of loser's liquidity. Only the strongest survive.",
 };
 
 export default function RootLayout({
@@ -26,11 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      {/* ⭐ FIX: Aggiunto overflow-x-hidden per prevenire scroll orizzontale globale */}
       <body suppressHydrationWarning className={geistSans.variable + ' ' + geistMono.variable + ' antialiased bg-[#1a1b21] text-white min-h-screen overflow-x-hidden'}>
-        <SolanaProvider>
-          {children}
-        </SolanaProvider>
+        {/* ⭐ React Query Provider - wrappa tutto per caching globale */}
+        <QueryProvider>
+          <SolanaProvider>
+            {children}
+          </SolanaProvider>
+        </QueryProvider>
       </body>
     </html>
   );

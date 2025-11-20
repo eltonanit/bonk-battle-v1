@@ -42,6 +42,8 @@ export interface TokenBattleState {
   opponentMint: PublicKey;
   /** Unix timestamp when token was created */
   creationTimestamp: BN;
+  /** Unix timestamp when token qualified for battle */
+  qualificationTimestamp: BN;
   /** Unix timestamp of last trade */
   lastTradeTimestamp: BN;
   /** Unix timestamp when battle started */
@@ -311,15 +313,26 @@ export const ERROR_MESSAGES: Record<BonkBattleError, string> = {
 /**
  * Parsed account data for TokenBattleState
  */
-export interface ParsedTokenBattleState extends Omit<TokenBattleState, 'solCollected' | 'tokensSold' | 'totalTradeVolume' | 'creationTimestamp' | 'lastTradeTimestamp' | 'battleStartTimestamp' | 'victoryTimestamp' | 'listingTimestamp'> {
+export interface ParsedTokenBattleState {
+  mint: PublicKey;
   solCollected: number;
   tokensSold: number;
   totalTradeVolume: number;
+  isActive: boolean;
+  battleStatus: BattleStatus;
+  opponentMint: PublicKey;
   creationTimestamp: number;
+  qualificationTimestamp: number;
   lastTradeTimestamp: number;
   battleStartTimestamp: number;
   victoryTimestamp: number;
   listingTimestamp: number;
+  bump: number;
+  // Metadata (optional, populated from Supabase)
+  name?: string;
+  symbol?: string;
+  uri?: string;
+  image?: string;
 }
 
 /**

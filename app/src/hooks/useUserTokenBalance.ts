@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
+import { rpcQueue } from '@/lib/utils/request-queue';
 
 /**
  * User Token Balance Hook Result
@@ -52,6 +53,9 @@ export interface UseUserTokenBalanceResult {
  * }
  * ```
  */
+// Global promise map for deduplication
+const globalBalancePromises = new Map<string, Promise<number | null>>();
+
 export function useUserTokenBalance(
   mint: PublicKey | null,
   decimals: number = 6
@@ -63,11 +67,7 @@ export function useUserTokenBalance(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  /**
-   * Fetches the user's token balance
-   */
   const fetchBalance = useCallback(async () => {
-    // Reset if no mint or wallet
     if (!mint || !publicKey) {
       setBalance(null);
       setBalanceFormatted(null);
@@ -76,75 +76,99 @@ export function useUserTokenBalance(
       return;
     }
 
+    const key = `${mint.toString()}-${publicKey.toString()}`;
+
+    // Return existing promise if active
+    if (globalBalancePromises.has(key)) {
+      try {
+        setLoading(true);
+        const result = await globalBalancePromises.get(key);
+        if (result !== null && result !== undefined) {
+          setBalance(result);
+          setBalanceFormatted(result / Math.pow(10, decimals));
+        }
+        return;
+      } catch (err) {
+        // Fall through to new fetch
+      } finally {
+        setLoading(false);
+      }
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      // Get user's associated token account address
-      const userTokenAccount = getAssociatedTokenAddressSync(
-        mint,
-        publicKey,
-        false // allowOwnerOffCurve
-      );
+      const promise = rpcQueue.add(async () => {
+        const userTokenAccount = getAssociatedTokenAddressSync(
+          mint,
+          publicKey,
+          false
+        );
 
-      console.log('🔍 Fetching token balance for wallet:', publicKey.toString());
-      console.log('📍 Token Mint:', mint.toString());
-      console.log('📍 User Token Account:', userTokenAccount.toString());
+        console.log('🔍 Fetching token balance for wallet:', publicKey.toString());
 
-      // Fetch account info
-      const accountInfo = await connection.getAccountInfo(userTokenAccount);
+        let accountInfo = null;
+        let retries = 3;
+        let delay = 1000;
 
-      // Account doesn't exist - user has no tokens (balance = 0)
-      if (!accountInfo) {
-        console.log('ℹ️ Token account not found (user has no tokens)');
-        setBalance(0);
-        setBalanceFormatted(0);
+        while (retries > 0) {
+          try {
+            accountInfo = await connection.getAccountInfo(userTokenAccount);
+            break;
+          } catch (err: any) {
+            if (err.message?.includes('429')) {
+              console.warn(`⚠️ Rate limit hit (Balance), retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              retries--;
+              delay *= 2;
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        if (!accountInfo) {
+          return 0;
+        }
+
+        const data = accountInfo.data;
+        if (data.length < 72) throw new Error('Invalid token account data');
+
+        let amount = 0n;
+        for (let i = 0; i < 8; i++) {
+          amount |= BigInt(data[64 + i]) << BigInt(i * 8);
+        }
+
+        return Number(amount);
+      });
+
+      globalBalancePromises.set(key, promise);
+
+      const result = await promise;
+
+      // Clear promise after short delay to allow other components to use it
+      setTimeout(() => {
+        globalBalancePromises.delete(key);
+      }, 2000);
+
+      if (result !== null) {
+        setBalance(result);
+        setBalanceFormatted(result / Math.pow(10, decimals));
         setError(null);
-        setLoading(false);
-        return;
       }
-
-      // Parse token account data
-      const data = accountInfo.data;
-
-      // SPL Token Account structure:
-      // 0-32: mint (Pubkey)
-      // 32-64: owner (Pubkey)
-      // 64-72: amount (u64, little-endian)
-      // 72+: delegate, state, etc.
-
-      if (data.length < 72) {
-        throw new Error('Invalid token account data (too short)');
-      }
-
-      // Parse amount (u64 at offset 64)
-      let amount = 0n;
-      for (let i = 0; i < 8; i++) {
-        amount |= BigInt(data[64 + i]) << BigInt(i * 8);
-      }
-
-      const balanceRaw = Number(amount);
-      const balanceFmt = balanceRaw / Math.pow(10, decimals);
-
-      console.log('✅ Token balance fetched successfully:');
-      console.log('  Raw Balance:', balanceRaw);
-      console.log('  Formatted Balance:', balanceFmt.toFixed(decimals));
-
-      setBalance(balanceRaw);
-      setBalanceFormatted(balanceFmt);
-      setError(null);
 
     } catch (err) {
       console.error('❌ Error fetching token balance:', err);
       setError(err instanceof Error ? err : new Error('Unknown error'));
       setBalance(null);
       setBalanceFormatted(null);
+      globalBalancePromises.delete(key);
     } finally {
       setLoading(false);
     }
   }, [mint, publicKey, connection, decimals]);
 
-  // Initial fetch and re-fetch when wallet or mint changes
   useEffect(() => {
     fetchBalance();
   }, [fetchBalance]);
@@ -154,25 +178,16 @@ export function useUserTokenBalance(
     balanceFormatted,
     loading,
     error,
-    refetch: fetchBalance,
+    refetch: async () => {
+      // Force clear promise to ensure fresh fetch
+      if (mint && publicKey) {
+        globalBalancePromises.delete(`${mint.toString()}-${publicKey.toString()}`);
+      }
+      await fetchBalance();
+    },
   };
 }
 
-/**
- * Helper hook to check if user has sufficient balance
- *
- * @param mint - Token mint public key
- * @param requiredAmount - Required amount (raw with decimals)
- * @returns True if user has sufficient balance
- *
- * @example
- * ```typescript
- * const hasSufficientBalance = useHasSufficientBalance(mint, 1_000_000);
- * if (!hasSufficientBalance) {
- *   return <Alert>Insufficient balance</Alert>;
- * }
- * ```
- */
 export function useHasSufficientBalance(
   mint: PublicKey | null,
   requiredAmount: number
@@ -182,19 +197,6 @@ export function useHasSufficientBalance(
   return balance >= requiredAmount;
 }
 
-/**
- * Hook to get balances for multiple tokens at once
- *
- * @param mints - Array of token mint public keys
- * @param decimals - Token decimals (default: 6)
- * @returns Map of mint address to balance
- *
- * @example
- * ```typescript
- * const balances = useMultipleTokenBalances([mint1, mint2, mint3]);
- * console.log('Token 1 balance:', balances[mint1.toString()]);
- * ```
- */
 export function useMultipleTokenBalances(
   mints: PublicKey[],
   decimals: number = 6
@@ -210,44 +212,44 @@ export function useMultipleTokenBalances(
     }
 
     const fetchAllBalances = async () => {
-      const balanceMap: Record<string, number> = {};
+      try {
+        // Batch fetch all token accounts
+        const atas = mints.map(mint =>
+          getAssociatedTokenAddressSync(mint, publicKey, false)
+        );
 
-      for (const mint of mints) {
-        try {
-          const userTokenAccount = getAssociatedTokenAddressSync(
-            mint,
-            publicKey,
-            false
-          );
-
-          const accountInfo = await connection.getAccountInfo(userTokenAccount);
-
-          if (!accountInfo) {
-            balanceMap[mint.toString()] = 0;
-            continue;
-          }
-
-          const data = accountInfo.data;
-          if (data.length < 72) {
-            balanceMap[mint.toString()] = 0;
-            continue;
-          }
-
-          // Parse amount
-          let amount = 0n;
-          for (let i = 0; i < 8; i++) {
-            amount |= BigInt(data[64 + i]) << BigInt(i * 8);
-          }
-
-          balanceMap[mint.toString()] = Number(amount) / Math.pow(10, decimals);
-
-        } catch (err) {
-          console.error(`Error fetching balance for ${mint.toString()}:`, err);
-          balanceMap[mint.toString()] = 0;
+        // Split into chunks of 100 (RPC limit)
+        const chunks = [];
+        for (let i = 0; i < atas.length; i += 100) {
+          chunks.push(atas.slice(i, i + 100));
         }
-      }
 
-      setBalances(balanceMap);
+        const balanceMap: Record<string, number> = {};
+
+        for (const chunk of chunks) {
+          const accountInfos = await connection.getMultipleAccountsInfo(chunk);
+
+          accountInfos.forEach((info, index) => {
+            const mintAddress = mints[atas.indexOf(chunk[index])].toString();
+
+            if (!info || info.data.length < 72) {
+              balanceMap[mintAddress] = 0;
+              return;
+            }
+
+            let amount = 0n;
+            for (let i = 0; i < 8; i++) {
+              amount |= BigInt(info.data[64 + i]) << BigInt(i * 8);
+            }
+
+            balanceMap[mintAddress] = Number(amount) / Math.pow(10, decimals);
+          });
+        }
+
+        setBalances(balanceMap);
+      } catch (err) {
+        console.error('Error fetching multiple balances:', err);
+      }
     };
 
     fetchAllBalances();

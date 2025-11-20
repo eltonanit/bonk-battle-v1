@@ -14,7 +14,10 @@ import { RPC_ENDPOINT } from '@/config/solana';
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 export function SolanaProvider({ children }: { children: React.ReactNode }) {
-  const endpoint = useMemo(() => RPC_ENDPOINT, []);
+  const endpoint = useMemo(() => {
+    console.log('🔗 SolanaProvider usando RPC endpoint:', RPC_ENDPOINT);
+    return RPC_ENDPOINT;
+  }, []);
 
   const wallets = useMemo(
     () => [
