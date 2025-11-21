@@ -1,0 +1,232 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+// ========================================================================
+// TOKENS TABLE - Main token battle state
+// ========================================================================
+model Token {
+  mint                      String    @id @db.Text
+  solCollected              BigInt?   @map("sol_collected") @db.BigInt
+  tokensSold                BigInt?   @map("tokens_sold") @db.BigInt
+  totalTradeVolume          BigInt?   @map("total_trade_volume") @db.BigInt
+  isActive                  Boolean?  @map("is_active") @db.Boolean
+  battleStatus              Int?      @map("battle_status") @db.SmallInt
+  opponentMint              String?   @map("opponent_mint") @db.Text
+  creationTimestamp         BigInt?   @map("creation_timestamp") @db.BigInt
+  qualificationTimestamp    BigInt?   @map("qualification_timestamp") @db.BigInt
+  lastTradeTimestamp        BigInt?   @map("last_trade_timestamp") @db.BigInt
+  battleStartTimestamp      BigInt?   @map("battle_start_timestamp") @db.BigInt
+  victoryTimestamp          BigInt?   @map("victory_timestamp") @db.BigInt
+  listingTimestamp          BigInt?   @map("listing_timestamp") @db.BigInt
+  bump                      Int?      @db.SmallInt
+  name                      String?   @db.Text
+  symbol                    String?   @db.Text
+  uri                       String?   @db.Text
+  image                     String?   @db.Text
+  updatedAt                 DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  trades         Trade[]
+  holders        TokenHolder[]
+  activities     ActivityFeed[]
+  views          TokenView[]
+
+  @@map("tokens")
+}
+
+// ========================================================================
+// USERS TABLE
+// ========================================================================
+model User {
+  walletAddress        String    @id @map("wallet_address") @db.Text
+  username             String?   @db.Text
+  email                String?   @db.Text
+  avatarUrl            String?   @map("avatar_url") @db.Text
+  bio                  String?   @db.Text
+  twitter              String?   @db.Text
+  website              String?   @db.Text
+  points               BigInt    @default(0) @db.BigInt
+  tier                 Int       @default(1) @db.SmallInt
+  welcomeBonusClaimed  Boolean   @default(false) @map("welcome_bonus_claimed")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  pointsHistory    PointsHistory[]
+  notifications    Notification[]
+  trades           Trade[]
+  activities       ActivityFeed[]
+  followers        SocialFollow[]  @relation("UserFollowers")
+  following        SocialFollow[]  @relation("UserFollowing")
+  tokenHoldings    TokenHolder[]
+  tokenViews       TokenView[]
+
+  @@map("users")
+}
+
+// ========================================================================
+// PRICE ORACLE TABLE
+// ========================================================================
+model PriceOracle {
+  id               Int       @id @default(1)
+  solPriceUsd      Float     @map("sol_price_usd") @db.Real
+  lastUpdate       BigInt    @map("last_update") @db.BigInt
+  nextUpdate       BigInt    @map("next_update") @db.BigInt
+  updateCount      BigInt    @map("update_count") @db.BigInt
+  keeperAuthority  String    @map("keeper_authority") @db.Text
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("price_oracle")
+}
+
+// ========================================================================
+// ACTIVITY FEED TABLE
+// ========================================================================
+model ActivityFeed {
+  id           String    @id @default(uuid()) @db.Uuid
+  userWallet   String    @map("user_wallet") @db.Text
+  actionType   String    @map("action_type") @db.Text
+  tokenMint    String?   @map("token_mint") @db.Text
+  data         Json?     @db.JsonB
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user         User      @relation(fields: [userWallet], references: [walletAddress])
+  token        Token?    @relation(fields: [tokenMint], references: [mint])
+
+  @@index([userWallet])
+  @@index([tokenMint])
+  @@index([createdAt])
+  @@map("activity_feed")
+}
+
+// ========================================================================
+// POINTS HISTORY TABLE
+// ========================================================================
+model PointsHistory {
+  id           String    @id @default(uuid()) @db.Uuid
+  userWallet   String    @map("user_wallet") @db.Text
+  amount       Int       @db.Integer
+  reason       String    @db.Text
+  metadata     Json?     @db.JsonB
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user         User      @relation(fields: [userWallet], references: [walletAddress])
+
+  @@index([userWallet])
+  @@index([createdAt])
+  @@map("points_history")
+}
+
+// ========================================================================
+// NOTIFICATIONS TABLE
+// ========================================================================
+model Notification {
+  id           String    @id @default(uuid()) @db.Uuid
+  userWallet   String    @map("user_wallet") @db.Text
+  type         String    @db.Text
+  title        String    @db.Text
+  message      String    @db.Text
+  data         Json?     @db.JsonB
+  read         Boolean   @default(false)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  user         User      @relation(fields: [userWallet], references: [walletAddress])
+
+  @@index([userWallet])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ========================================================================
+// TRADES TABLE
+// ========================================================================
+model Trade {
+  id              String    @id @default(uuid()) @db.Uuid
+  tokenMint       String    @map("token_mint") @db.Text
+  userWallet      String    @map("user_wallet") @db.Text
+  tradeType       String    @map("trade_type") @db.Text // 'buy' | 'sell'
+  solAmount       BigInt    @map("sol_amount") @db.BigInt
+  tokenAmount     BigInt    @map("token_amount") @db.BigInt
+  pricePerToken   Float     @map("price_per_token") @db.Real
+  signature       String    @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  token           Token     @relation(fields: [tokenMint], references: [mint])
+  user            User      @relation(fields: [userWallet], references: [walletAddress])
+
+  @@index([tokenMint])
+  @@index([userWallet])
+  @@index([createdAt])
+  @@map("trades")
+}
+
+// ========================================================================
+// TOKEN HOLDERS TABLE
+// ========================================================================
+model TokenHolder {
+  id           String    @id @default(uuid()) @db.Uuid
+  tokenMint    String    @map("token_mint") @db.Text
+  walletAddress String   @map("wallet_address") @db.Text
+  balance      BigInt    @db.BigInt
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  token        Token     @relation(fields: [tokenMint], references: [mint])
+  user         User      @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@unique([tokenMint, walletAddress])
+  @@index([tokenMint])
+  @@index([walletAddress])
+  @@map("token_holders")
+}
+
+// ========================================================================
+// SOCIAL FOLLOWS TABLE
+// ========================================================================
+model SocialFollow {
+  id              String    @id @default(uuid()) @db.Uuid
+  followerWallet  String    @map("follower_wallet") @db.Text
+  followingWallet String    @map("following_wallet") @db.Text
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  follower        User      @relation("UserFollowers", fields: [followerWallet], references: [walletAddress])
+  following       User      @relation("UserFollowing", fields: [followingWallet], references: [walletAddress])
+
+  @@unique([followerWallet, followingWallet])
+  @@index([followerWallet])
+  @@index([followingWallet])
+  @@map("social_follows")
+}
+
+// ========================================================================
+// TOKEN VIEWS TABLE
+// ========================================================================
+model TokenView {
+  id             String    @id @default(uuid()) @db.Uuid
+  tokenMint      String    @map("token_mint") @db.Text
+  walletAddress  String    @map("wallet_address") @db.Text
+  lastViewedAt   DateTime  @default(now()) @map("last_viewed_at") @db.Timestamptz(6)
+
+  // Relations
+  token          Token     @relation(fields: [tokenMint], references: [mint])
+  user           User      @relation(fields: [walletAddress], references: [walletAddress])
+
+  @@unique([tokenMint, walletAddress])
+  @@index([tokenMint])
+  @@index([walletAddress])
+  @@map("token_views")
+}
