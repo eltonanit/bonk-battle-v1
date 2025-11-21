@@ -571,7 +571,7 @@ await fetch('/api/transactions', {
 - [TRANSITION_GUIDE.md](TRANSITION_GUIDE.md) - Guida completa
 
 **Smart Contract:**
-- Program ID: `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+- Program ID: `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
 - Treasury: `5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf`
 - Network: Devnet
 

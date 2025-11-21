@@ -7,7 +7,9 @@
       "Bash(powershell -Command \"Stop-Process -Id 24672 -Force\")",
       "Bash(netstat:*)",
       "Bash(findstr:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []

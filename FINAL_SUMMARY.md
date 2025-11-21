@@ -1,7 +1,7 @@
 # 🎮 BONK BATTLE - COMPLETE IMPLEMENTATION SUMMARY
 
 **Date:** 18/11/2025
-**Program ID:** `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+**Program ID:** `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
 **Network:** Solana Devnet
 **Status:** ✅ PRODUCTION READY
 
@@ -280,7 +280,7 @@ mc_usd = $5,000 + ($500 * progress)
 ## 🚀 DEPLOYMENT CHECKLIST
 
 ### **Smart Contract (Devnet):**
-- ✅ Program deployed: `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+- ✅ Program deployed: `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
 - ✅ IDL available: `anchor/target/idl/bonk_battle.json`
 - ⏳ Price oracle initialized (Keeper must run `initialize_price_oracle`)
 - ⏳ Daily price updates (Keeper cron job)
@@ -327,7 +327,7 @@ mc_usd = $5,000 + ($500 * progress)
 | Feature | STONKS | BONK |
 |---------|--------|------|
 | **System** | Tier-based (TIER 1-4) | Battle-based (5 statuses) |
-| **Program ID** | DxchSpAi... | HTNCkRMo... |
+| **Program ID** | DxchSpAi... | 6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq |
 | **Graduation** | Tier-specific ($5.5K - $50M) | Fixed $5,500 |
 | **Target** | Time-based countdowns | MC + Volume based |
 | **Rewards** | 98% refund if failed | Battle winner takes liquidity |
@@ -454,7 +454,7 @@ mc_usd = $5,000 + ($500 * progress)
 ### **Key Endpoints:**
 - Devnet RPC: `https://devnet.helius-rpc.com/?api-key=...`
 - Solscan: `https://solscan.io/account/[address]?cluster=devnet`
-- Program Explorer: `https://explorer.solana.com/address/HTNCkRMo...?cluster=devnet`
+- Program Explorer: `https://explorer.solana.com/address/6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq?cluster=devnet`
 
 ### **Developer Tools:**
 - Anchor CLI: `anchor build`, `anchor deploy`

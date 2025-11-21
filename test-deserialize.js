@@ -1,7 +1,7 @@
 const { Connection, PublicKey } = require('@solana/web3.js');
 
 async function testDeserialize() {
-  const PROGRAM_ID = 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9';
+  const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
   const RPC = 'https://devnet.helius-rpc.com/?api-key=867cca8d-b431-4540-8f55-90c57e3e1c9e';
 
   const connection = new Connection(RPC, 'confirmed');

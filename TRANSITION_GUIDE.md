@@ -20,7 +20,7 @@
 
 **Smart Contract BONK (Devnet):**
 ```
-Program ID: HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9
+Program ID: 6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq
 Treasury: 5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf
 Keeper: Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH
 ```
@@ -201,7 +201,7 @@ const programId = new PublicKey('54zTTRA9QVbGMk86dU7A51f51QjdvwD9gLPFNEt5kdYw')
 
 // DOPO:
 import idl from '@/anchor/target/idl/bonk_battle.json'
-const programId = new PublicKey('HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9')
+const programId = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq')
 ```
 
 #### 3. **Create Token Helper** ⭐⭐⭐
@@ -333,7 +333,7 @@ export async function sellToken(
 // app/src/lib/solana/pdas.ts
 import { PublicKey } from '@solana/web3.js'
 
-export const PROGRAM_ID = new PublicKey('HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9')
+export const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq')
 
 export function getBattleStatePDA(mint: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
@@ -674,7 +674,7 @@ C:\Users\Elton\Desktop\ELTON CODE\STONKS-APP
 ```
 
 **Solscan Devnet:**
-- Program: https://solscan.io/account/HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9?cluster=devnet
+- Program: https://solscan.io/account/6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq?cluster=devnet
 - Treasury: https://solscan.io/account/5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf?cluster=devnet
 
 **Documentazione:**

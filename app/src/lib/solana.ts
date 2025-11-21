@@ -26,7 +26,7 @@ export const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https:/
 
 // ✅ FIX: Program ID corretto per BONK BATTLE (non STONKS)
 export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9'
+  process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
 );
 
 /**

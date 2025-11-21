@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ✅ VERIFICATO: Program ID dal smart contract
-export const PROGRAM_ID = 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9';
+export const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
 export const NETWORK = 'devnet';
 
 // ✅ FIX CRITICO: Usa variabile env corretta + Helius come fallback sicuro

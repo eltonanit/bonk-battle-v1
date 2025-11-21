@@ -387,13 +387,13 @@ const handleSubmit = async (formData) => {
 - [anchor/target/idl/bonk_battle.json](../../../anchor/target/idl/bonk_battle.json) - IDL completo
 
 **Smart Contract:**
-- Program ID: `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+- Program ID: `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
 - Network: Devnet
 - Treasury: `5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf`
 - Keeper: `Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH`
 
 **Solscan:**
-- Program: https://solscan.io/account/HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9?cluster=devnet
+- Program: https://solscan.io/account/6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq?cluster=devnet
 
 ---
 

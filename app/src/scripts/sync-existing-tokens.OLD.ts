@@ -15,7 +15,7 @@ const supabase = createClient(
 
 // ⭐ USA VARIABILI D'AMBIENTE
 const BONK_BATTLE_PROGRAM_ID = new PublicKey(
-    process.env.NEXT_PUBLIC_PROGRAM_ID || 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9'
+    process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
 );
 const RPC_ENDPOINT =
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||

@@ -15,7 +15,7 @@
 export const PROGRAM_ID = 'DxchSpAi7A14f9o1LGPr18HikXEjMT6VXj1oy24VXAgN';
 
 // AFTER (BONK):
-export const PROGRAM_ID = 'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9';
+export const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
 ```
 
 **⚠️ IMPORTANTE:** Questo significa che tutte le chiamate a `PROGRAM_ID` ora usano il programma BONK BATTLE, non STONKS!

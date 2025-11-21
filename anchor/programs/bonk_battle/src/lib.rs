@@ -12,14 +12,14 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface, Burn, MintTo},
 };
 
-declare_id!("HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9");
+declare_id!("6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq");
 
 // =================================================================
 // SECURITY CONSTANTS - HARDCODED FOR BULLETPROOF OPERATION
 // =================================================================
 
 const TREASURY_WALLET: &str = "5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf";
-const KEEPER_AUTHORITY: &str = "Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH";
+const KEEPER_AUTHORITY: &str = "753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3";
 
 // =================================================================
 // OPTIMIZED BONDING CURVE PARAMETERS (MATHEMATICALLY PROVEN)

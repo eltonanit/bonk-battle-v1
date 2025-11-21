@@ -27,7 +27,7 @@ Questo progetto è una piattaforma di trading competitivo su Solana dove i token
 **Data:** 18/11/2025
 **Files Creati:**
 1. [`app/src/lib/solana/constants.ts`](app/src/lib/solana/constants.ts)
-   - Program ID BONK: `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+   - Program ID BONK: `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
    - PDA Seeds, Token Programs, System Programs
    - Bonding curve constants
    - Tier targets, Fees, Wallet addresses
@@ -269,7 +269,7 @@ docs/
 
 ## 📊 Smart Contract Info
 
-**Program ID:** `HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9`
+**Program ID:** `6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq`
 **Network:** Devnet
 **Treasury:** `5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf`
 **Keeper:** `Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH`
@@ -380,7 +380,7 @@ docs/
 - Solscan: https://solscan.io/
 
 **Smart Contract:**
-- Solscan Program: https://solscan.io/account/HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9?cluster=devnet
+- Solscan Program: https://solscan.io/account/6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq?cluster=devnet
 - IDL: `anchor/target/idl/bonk_battle.json`
 - Source: `anchor/programs/bonk_battle/src/lib.rs`
 

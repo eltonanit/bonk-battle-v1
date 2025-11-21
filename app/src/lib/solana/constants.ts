@@ -6,7 +6,7 @@ import { PublicKey } from '@solana/web3.js';
  * This is the deployed program address for the BONK BATTLE smart contract on Solana Devnet.
  */
 export const BONK_BATTLE_PROGRAM_ID = new PublicKey(
-  'HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9'
+  '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
 );
 
 /**
