@@ -787,10 +787,7 @@ pub struct InitializePriceOracle<'info> {
     )]
     pub price_oracle: Account<'info, PriceOracle>,
     
-    #[account(
-        mut,
-        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
-    )]
+    #[account(mut)]
     pub keeper_authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
@@ -806,9 +803,7 @@ pub struct UpdateSolPrice<'info> {
     )]
     pub price_oracle: Account<'info, PriceOracle>,
     
-    #[account(
-        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
-    )]
+    #[account(mut)]
     pub keeper_authority: Signer<'info>,
 }
 
@@ -1010,10 +1005,7 @@ pub struct FinalizeDuel<'info> {
     /// CHECK: Treasury wallet address is hardcoded and verified
     pub treasury_wallet: AccountInfo<'info>,
     
-    #[account(
-        mut,
-        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
-    )]
+    #[account(mut)]
     pub keeper_authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
@@ -1048,10 +1040,7 @@ pub struct WithdrawForListing<'info> {
     )]
     pub keeper_token_account: InterfaceAccount<'info, TokenAccount>,
     
-    #[account(
-        mut,
-        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
-    )]
+    #[account(mut)]
     pub keeper_authority: Signer<'info>,
     
     pub system_program: Program<'info, System>,
