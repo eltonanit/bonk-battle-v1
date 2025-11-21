@@ -12,7 +12,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface, Burn, MintTo},
 };
 
-declare_id!("HTNCkRMo8A8NFxDS8ANspLC16dgb1WpCSznsfb7BDdK9");
+declare_id!("6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq");
 
 // =================================================================
 // SECURITY CONSTANTS - HARDCODED FOR BULLETPROOF OPERATION
