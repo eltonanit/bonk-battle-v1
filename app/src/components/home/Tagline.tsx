@@ -19,9 +19,9 @@ interface TaglineToken {
 const SOL_PRICE_USD = 100; // TODO: Use oracle
 
 const FEATURED_IMAGES = [
-  '/BONK-LOGO.svg',
-  '/BONK-LOGO.svg',
-  '/BONK-LOGO.svg',
+  '/tagline/1.png',
+  '/tagline/1.png',
+  '/tagline/1.png',
 ];
 
 export function Tagline() {
@@ -43,9 +43,9 @@ export function Tagline() {
 
           return {
             mint: token.mint.toString(),
-            name: token.mint.toString().substring(0, 8), // Temp name
-            symbol: 'BONK', // Temp symbol
-            imageUrl: '', // Will be handled by component or default
+            name: token.name || token.mint.toString().substring(0, 8),
+            symbol: token.symbol || 'UNK',
+            imageUrl: token.image || '',
             progress: (token.solCollected / 1e9 / 85) * 100, // Approx progress
             marketCap,
             tier: 1,
@@ -159,7 +159,7 @@ export function Tagline() {
 
           {/* Titolo carousel */}
           <h3 className="text-base lg:text-lg font-bold text-green-400 mb-1">
-            🔥 Trending Tokens
+            🔥 Tokens 24H
           </h3>
 
           {/* Carousel tokens */}
@@ -172,57 +172,43 @@ export function Tagline() {
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {tokens.length > 0 ? (
-                tokens.map((token) => {
-                  const tierTargets: Record<number, string> = {
-                    1: '$5.5K',
-                    2: '$50K',
-                    3: '$250K',
-                    4: '$1M'
-                  };
-                  const target = tierTargets[token.tier] || '$50K';
+                tokens.map((token) => (
+                  <Link
+                    key={token.mint}
+                    href={`/token/${token.mint}`}
+                    className="flex-shrink-0 w-[240px] bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 hover:border-green-400/30 transition-all"
+                  >
+                    <div className="flex gap-4">
+                      <div className="flex-shrink-0">
+                        {token.imageUrl ? (
+                          <img
+                            src={token.imageUrl}
+                            alt={token.name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl">
+                            💎
+                          </div>
+                        )}
+                      </div>
 
-                  return (
-                    <Link
-                      key={token.mint}
-                      href={`/token/${token.mint}`}
-                      className="flex-shrink-0 w-[240px] bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 hover:border-green-400/30 transition-all"
-                    >
-                      <div className="flex gap-4">
-                        <div className="flex-shrink-0">
-                          {token.imageUrl ? (
-                            <img
-                              src={token.imageUrl}
-                              alt={token.name}
-                              className="w-16 h-16 rounded-lg object-cover"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl">
-                              💎
-                            </div>
-                          )}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div className="font-bold text-base truncate text-white">
+                          {token.name}
                         </div>
 
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div className="font-bold text-base truncate text-white">
-                            {token.name}
-                          </div>
+                        <div className="text-green-400 font-bold text-sm">
+                          {token.progress.toFixed(1)}%
+                        </div>
 
-                          <div className="text-green-400 font-bold text-sm">
-                            {token.progress.toFixed(1)}%
-                          </div>
-
-                          <div className="text-white/80 text-sm font-semibold">
-                            MC: {formatMarketCap(token.marketCap)}
-                          </div>
-
-                          <div className="text-[#fbbf24] text-sm font-bold">
-                            Target → {target}
-                          </div>
+                        <div className="text-white/80 text-sm font-semibold">
+                          MC: {formatMarketCap(token.marketCap)}
                         </div>
                       </div>
-                    </Link>
-                  );
-                })
+                    </div>
+                  </Link>
+                ))
               ) : (
                 <div className="text-white/60 text-sm">Loading tokens...</div>
               )}
@@ -232,8 +218,8 @@ export function Tagline() {
 
         {/* ===== RIGHT SIDE - SLIDER IMMAGINI (Order 1 mobile, 2 desktop) ===== */}
         <div className="order-1 lg:order-2">
-          <h3 className="text-base lg:text-lg font-bold text-green-400 mb-3">
-            ✨ The GameStop of memecoins
+          <h3 className="text-base lg:text-lg font-bold mb-3" style={{ color: '#FF8A5B' }}>
+            ✨CLASH OF MEMES: ENTER THE ARENA
           </h3>
 
           {/* ⭐ Container slider - ALTEZZA RIDOTTA per matchare sinistra */}

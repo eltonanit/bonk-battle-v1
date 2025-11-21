@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT } from '@/config/solana';
-import { fetchAllTokens } from '@/lib/solana/fetch-all-tokens';
+import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
+import { RPC_ENDPOINT } from '@/config/solana';
+import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -22,14 +23,14 @@ interface RealEvent {
 }
 
 const FOMO_TIER_COLORS = [
-  { tier: 1, color: '#FFFE03', target: '$50k' },     // Giallo
-  { tier: 2, color: '#88EEAD', target: '$500k' },    // Verde
-  { tier: 3, color: '#97C7FC', target: '$5M' }       // Azzurro
+  { tier: 1, color: '#FFFE03' },     // Giallo
+  { tier: 2, color: '#88EEAD' },    // Verde
+  { tier: 3, color: '#97C7FC' }       // Azzurro
 ];
 
 const CREATION_COLORS = [
-  { color: '#FFFE03', target: '$50k' },   // Giallo
-  { color: '#FF4500', target: '$50M' }    // Arancio
+  { color: '#FFFE03' },   // Giallo
+  { color: '#FF4500' }    // Arancio
 ];
 
 export function FOMOTicker() {
@@ -44,44 +45,48 @@ export function FOMOTicker() {
   useEffect(() => {
     async function loadExistingTokens() {
       try {
-        const allTokens = await fetchAllTokens();
+        const allTokens = await fetchAllBonkTokens();
 
         if (allTokens.length > 0) {
           const createdEvents: RealEvent[] = allTokens.map(token => {
-            const creatorFull = token.creator.toString();
-            const creatorShort = creatorFull.slice(0, 5); // Primi 5 caratteri
+            const mintStr = token.mint.toString();
+            const creatorShort = mintStr.slice(0, 4); // 4 characters from address
 
             return {
-              signature: token.pubkey.toString(),
-              mint: token.mint.toString(),
+              signature: mintStr,
+              mint: mintStr,
               type: 'created' as const,
               user: creatorShort,
-              userFull: creatorFull,
-              tokenName: token.name,
-              tokenSymbol: token.symbol,
-              tokenImage: token.imageUrl,
+              userFull: mintStr,
+              tokenName: token.name || mintStr.slice(0, 8),
+              tokenSymbol: token.symbol || 'UNK',
+              tokenImage: token.image,
               amount: 0,
-              tier: token.tier || 2,
-              timestamp: token.createdAt * 1000,
+              tier: 2,
+              timestamp: token.creationTimestamp * 1000,
             };
           });
 
           createdEvents.sort((a, b) => b.timestamp - a.timestamp);
           setCreateEvents(createdEvents.slice(0, 20));
 
-          const mockBuyEvents: RealEvent[] = allTokens.slice(0, 5).map((token, idx) => ({
-            signature: 'mock-buy-' + idx,
-            mint: token.mint.toString(),
-            type: 'bought' as const,
-            user: token.creator.toString().slice(0, 5), // Primi 5 caratteri
-            userFull: token.creator.toString(),
-            tokenName: token.name,
-            tokenSymbol: token.symbol,
-            tokenImage: token.imageUrl,
-            amount: 0.05 + (idx * 0.02),
-            tier: token.tier || 2,
-            timestamp: Date.now() - (idx * 1000),
-          }));
+          // Create mock buy events from recent tokens with activity
+          const mockBuyEvents: RealEvent[] = allTokens
+            .filter(token => token.totalTradeVolume > 0)
+            .slice(0, 5)
+            .map((token, idx) => ({
+              signature: 'mock-buy-' + idx,
+              mint: token.mint.toString(),
+              type: 'bought' as const,
+              user: token.mint.toString().slice(0, 4), // 4 characters from address
+              userFull: token.mint.toString(),
+              tokenName: token.name || token.mint.toString().slice(0, 8),
+              tokenSymbol: token.symbol || 'UNK',
+              tokenImage: token.image,
+              amount: (token.totalTradeVolume / 1e9) / 10, // Show a portion of volume
+              tier: 2,
+              timestamp: Date.now() - (idx * 1000),
+            }));
 
           setBuyEvents(mockBuyEvents);
         }
@@ -99,7 +104,7 @@ export function FOMOTicker() {
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
     const subscriptionId = connection.onLogs(
-      new PublicKey(PROGRAM_ID),
+      BONK_BATTLE_PROGRAM_ID,
       async (logs) => {
         try {
           const tx = await connection.getParsedTransaction(logs.signature, {
@@ -108,13 +113,14 @@ export function FOMOTicker() {
 
           if (!tx || !tx.meta) return;
 
-          const isBuy = logs.logs.some(log => log.includes('TokensPurchased'));
-          const isCreate = logs.logs.some(log => log.includes('TokenCreated'));
+          // Check for BONK BATTLE events
+          const isBuy = logs.logs.some(log => log.includes('TokensPurchased') || log.includes('buy'));
+          const isCreate = logs.logs.some(log => log.includes('TokenCreated') || log.includes('initialize'));
 
           if (!isBuy && !isCreate) return;
 
           const userFull = tx.transaction.message.accountKeys[0].pubkey.toString();
-          const userShort = userFull.slice(0, 5); // Primi 5 caratteri
+          const userShort = userFull.slice(0, 4); // 4 characters from address
 
           let solAmount = 0;
           if (isBuy) {
@@ -255,33 +261,29 @@ export function FOMOTicker() {
                 />
               </div>
 
+              <span className="whitespace-nowrap font-bold">
+                {fomoEvent.user}
+              </span>
+
               <span className="whitespace-nowrap">
-                {/* Desktop: versione completa */}
-                <span className="hidden lg:inline">
-                  {fomoEvent.user} bought {fomoEvent.amount.toFixed(2)} SOL of {fomoEvent.tokenSymbol}
-                </span>
-                {/* Mobile: versione compatta */}
-                <span className="lg:hidden">
-                  <span className="font-bold underline">{fomoEvent.user.slice(0, 3)}</span> bought {fomoEvent.amount.toFixed(2)} SOL of <span className="font-bold underline">${fomoEvent.tokenSymbol.slice(0, 3)}</span>
-                </span>
+                bought
+              </span>
+
+              <span className="whitespace-nowrap font-bold">
+                {fomoEvent.tokenSymbol}
               </span>
 
               {fomoEvent.tokenImage && (
-                <div className="w-4 h-4 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={fomoEvent.tokenImage}
                     alt={fomoEvent.tokenSymbol}
-                    width={20}
-                    height={20}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 </div>
               )}
-
-              {/* Desktop: freccia → */}
-              <span className="hidden lg:inline font-bold">→ TARGET:{fomoColor.target}</span>
-              {/* Mobile: due punti : */}
-              <span className="lg:hidden font-bold">: TARGET:{fomoColor.target}</span>
             </Link>
           )}
 
@@ -304,23 +306,29 @@ export function FOMOTicker() {
                 />
               </div>
 
+              <span className="whitespace-nowrap font-bold">
+                {creationEvent.user}
+              </span>
+
               <span className="whitespace-nowrap">
-                {creationEvent.user} created {creationEvent.tokenSymbol}
+                created
+              </span>
+
+              <span className="whitespace-nowrap font-bold">
+                {creationEvent.tokenSymbol}
               </span>
 
               {creationEvent.tokenImage && (
-                <div className="w-4 h-4 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={creationEvent.tokenImage}
                     alt={creationEvent.tokenSymbol}
-                    width={20}
-                    height={20}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 </div>
               )}
-
-              <span className="font-bold">→ TARGET:{creationColor.target}</span>
             </Link>
           )}
         </div>

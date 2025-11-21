@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import type { ParsedTokenBattleState } from '@/types/bonk';
 import { BattleStatus } from '@/types/bonk';
-import { useTokenMetadata } from '@/hooks/useTokenMetadata';
 import { useEffect, useState } from 'react';
 
 interface TokenCardBonkProps {
@@ -48,8 +47,13 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
   const marketCapUsd = (state.solCollected / 1e9) * 100; // Simplified calculation
   const mintAddress = state.mint.toString();
 
-  // ⭐ Fetch Metadata (Name, Symbol, Image)
-  const { metadata, loading: metadataLoading } = useTokenMetadata(mintAddress);
+  // ⭐ Use metadata from token state (already loaded from blockchain)
+  const metadata = state.name ? {
+    name: state.name,
+    symbol: state.symbol || 'TKN',
+    uri: state.uri || '',
+    image: state.image
+  } : null;
 
   // Status badge configuration
   const statusConfig = {

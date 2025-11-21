@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSearchParams } from 'next/navigation';
-import { Connection, PublicKey } from '@solana/web3.js';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
@@ -13,7 +12,6 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { BalancesTab } from '@/components/profile/BalancesTab';
 import { CoinsTab } from '@/components/profile/CoinsTab';
 import { RefundsTab } from '@/components/profile/RefundsTab';
-import { PROGRAM_ID, RPC_ENDPOINT } from '@/config/solana';
 
 function ProfileContent() {
   const { publicKey } = useWallet();
@@ -40,34 +38,15 @@ function ProfileContent() {
       if (!publicKey) return;
 
       try {
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        // Import fetchAllBonkTokens
+        const { fetchAllBonkTokens } = await import('@/lib/solana/fetch-all-bonk-tokens');
+        const allTokens = await fetchAllBonkTokens();
 
-        // ⭐ Fetch V1 tokens (443 bytes)
-        const accountsV1 = await connection.getProgramAccounts(
-          new PublicKey(PROGRAM_ID),
-          {
-            filters: [
-              { dataSize: 443 },
-              { memcmp: { offset: 8, bytes: publicKey.toBase58() } }
-            ]
-          }
-        );
+        // For now, show all tokens count
+        // TODO: Filter by creator when we have that field
+        setCreatedCoinsCount(allTokens.length);
 
-        // ⭐ Fetch V2 tokens (439 bytes)
-        const accountsV2 = await connection.getProgramAccounts(
-          new PublicKey(PROGRAM_ID),
-          {
-            filters: [
-              { dataSize: 439 },
-              { memcmp: { offset: 8, bytes: publicKey.toBase58() } }
-            ]
-          }
-        );
-
-        const totalCount = accountsV1.length + accountsV2.length;
-        setCreatedCoinsCount(totalCount);
-
-        console.log(`✅ Created tokens: ${accountsV1.length} v1 + ${accountsV2.length} v2 = ${totalCount}`);
+        console.log(`✅ Total BONK tokens: ${allTokens.length}`);
       } catch (error) {
         console.error('Error fetching created count:', error);
       }

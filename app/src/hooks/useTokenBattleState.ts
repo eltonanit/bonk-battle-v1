@@ -175,6 +175,38 @@ async function fetchTokenBattleState(
 
         // Parse bump (1 byte)
         const bump = data[offset];
+        offset += 1;
+
+        // ⭐ Parse metadata fields (String = 4-byte length + UTF-8 bytes)
+        const readString = (): string => {
+          const length = data.readUInt32LE(offset);
+          offset += 4;
+          const str = data.slice(offset, offset + length).toString('utf8');
+          offset += length;
+          return str;
+        };
+
+        const name = readString();
+        const symbol = readString();
+        const uri = readString();
+
+        // Parse image from URI if it's JSON
+        let image: string | undefined;
+        if (uri) {
+          try {
+            const metadata = JSON.parse(uri);
+            image = metadata.image;
+          } catch {
+            // URI is not JSON, might be a URL - try fetching it
+            try {
+              const response = await fetch(uri);
+              const metadata = await response.json();
+              image = metadata.image;
+            } catch {
+              // Failed to get image, keep undefined
+            }
+          }
+        }
 
         const parsedState: ParsedTokenBattleState = {
           mint: mintPubkey,
@@ -191,6 +223,11 @@ async function fetchTokenBattleState(
           listingTimestamp,
           qualificationTimestamp,
           bump,
+          // Metadata
+          name,
+          symbol,
+          uri,
+          image,
         };
 
         console.log('✅ Battle State fetched from RPC:', parsedState);

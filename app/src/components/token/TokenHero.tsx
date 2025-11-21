@@ -6,6 +6,14 @@ import { PublicKey } from '@solana/web3.js';
 import { Share2, Star } from 'lucide-react';
 import { useTokenMetadata } from '@/hooks/useTokenMetadata';
 
+interface Metadata {
+  name: string;
+  symbol: string;
+  uri?: string;
+  image?: string;
+  description?: string;
+}
+
 interface TokenHeroProps {
   token: {
     name: string;
@@ -16,24 +24,19 @@ interface TokenHeroProps {
     tier: number;
     mint: string;
   };
-}
-
-interface Metadata {
-  name: string;
-  symbol: string;
-  image?: string;
-  description?: string;
+  preloadedMetadata?: Metadata;
 }
 
 const EMOJI_FALLBACKS = ['🚀', '💎', '🐸', '🐕', '🦊', '😎', '🌙', '🎯', '🦍', '🐂'];
 
 // ...
 
-export function TokenHero({ token }: TokenHeroProps) {
-  const { metadata, loading } = useTokenMetadata(token.mint);
+export function TokenHero({ token, preloadedMetadata }: TokenHeroProps) {
+  const { metadata: fetchedMetadata, loading } = useTokenMetadata(token.mint);
   const [imageError, setImageError] = useState(false);
 
-  // No need for manual useEffect fetch anymore
+  // Use preloaded metadata if available, otherwise use fetched metadata
+  const metadata = preloadedMetadata || fetchedMetadata;
 
   const displayName = metadata?.name || token.name || 'Unknown';
   const displaySymbol = metadata?.symbol || token.symbol || 'UNK';

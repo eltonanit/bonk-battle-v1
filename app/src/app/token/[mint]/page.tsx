@@ -9,6 +9,7 @@ import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { useTokenBattleState } from '@/hooks/useTokenBattleState';
 import { usePriceOracle, useCalculateMarketCapUsd } from '@/hooks/usePriceOracle';
 import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
@@ -95,6 +96,11 @@ export default function TokenDetailPage() {
       <Sidebar />
 
       <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
+        {/* ⭐ FOMOTicker visibile SOLO su mobile */}
+        <div className="lg:hidden">
+          <FOMOTicker />
+        </div>
+
         <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
 
           {/* Main Grid Layout */}
@@ -103,15 +109,23 @@ export default function TokenDetailPage() {
             {/* LEFT COLUMN (Main Content) - 8 cols */}
             <div className="lg:col-span-8 space-y-6">
               {/* Token Header */}
-              <TokenHero token={{
-                name: mintAddress.slice(0, 8) + '...', // Temp: use mint prefix
-                symbol: 'BONK', // Temp
-                metadataUri: '', // TODO: Fetch from token metadata
-                creator: state.mint, // Temp: use mint as creator
-                createdAt: state.creationTimestamp,
-                tier: 1, // TODO: Get real tier
-                mint: mintAddress
-              }} />
+              <TokenHero
+                token={{
+                  name: state.name || mintAddress.slice(0, 8) + '...',
+                  symbol: state.symbol || 'UNK',
+                  metadataUri: state.uri || '',
+                  creator: state.mint,
+                  createdAt: state.creationTimestamp,
+                  tier: 1,
+                  mint: mintAddress
+                }}
+                preloadedMetadata={state.name ? {
+                  name: state.name,
+                  symbol: state.symbol || '',
+                  uri: state.uri || '',
+                  image: state.image
+                } : undefined}
+              />
 
 
 

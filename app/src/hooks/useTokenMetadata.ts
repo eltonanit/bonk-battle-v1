@@ -75,7 +75,7 @@ export function useTokenMetadata(mintAddress: string) {
                 }
 
                 // 2. Fallback to RPC if not in DB
-                // console.warn('⚠️ Metadata not in Supabase, falling back to RPC for', mintAddress);
+                console.warn('⚠️ Metadata not in Supabase, falling back to RPC for', mintAddress);
 
                 // Use queue to rate limit requests
                 await rpcQueue.add(async () => {
@@ -139,6 +139,8 @@ export function useTokenMetadata(mintAddress: string) {
 
                         const meta = { name, symbol, uri, image };
                         metadataCache[mintAddress] = meta;
+
+                        console.log('✅ Metadata loaded from RPC for', mintAddress, ':', meta);
 
                         if (isMounted) {
                             setMetadata(meta);

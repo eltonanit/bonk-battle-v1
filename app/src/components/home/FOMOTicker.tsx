@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT } from '@/config/solana';
-import { fetchAllTokens } from '@/lib/solana/fetch-all-tokens';
+import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
+import { RPC_ENDPOINT } from '@/config/solana';
+import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -22,15 +23,15 @@ interface RealEvent {
 }
 
 const FOMO_TIER_COLORS = [
-  { tier: 1, color: '#3b82f6', target: '$50k' },
-  { tier: 2, color: '#fb923c', target: '$500k' },
-  { tier: 3, color: '#10b981', target: '$5M' },
-  { tier: 4, isGradient: true, color: 'linear-gradient(135deg, #fbbf24, #f59e0b)', target: '$50M' }
+  { tier: 1, color: '#3b82f6' },
+  { tier: 2, color: '#fb923c' },
+  { tier: 3, color: '#10b981' },
+  { tier: 4, isGradient: true, color: 'linear-gradient(135deg, #fbbf24, #f59e0b)' }
 ];
 
 const CREATION_COLORS = [
-  { color: '#22D3EE', target: '$50k' },
-  { color: '#FCD34D', target: '$50M' }
+  { color: '#22D3EE' },
+  { color: '#FCD34D' }
 ];
 
 export function FOMOTicker() {
@@ -45,44 +46,48 @@ export function FOMOTicker() {
   useEffect(() => {
     async function loadExistingTokens() {
       try {
-        const allTokens = await fetchAllTokens();
+        const allTokens = await fetchAllBonkTokens();
 
         if (allTokens.length > 0) {
           const createdEvents: RealEvent[] = allTokens.map(token => {
-            const creatorFull = token.creator.toString();
-            const creatorShort = creatorFull.slice(0, 4);
+            const mintStr = token.mint.toString();
+            const creatorShort = mintStr.slice(0, 4);
 
             return {
-              signature: token.pubkey.toString(),
-              mint: token.mint.toString(),
+              signature: mintStr,
+              mint: mintStr,
               type: 'created' as const,
               user: creatorShort,
-              userFull: creatorFull,
-              tokenName: token.name,
-              tokenSymbol: token.symbol,
-              tokenImage: token.imageUrl,
+              userFull: mintStr,
+              tokenName: token.name || mintStr.slice(0, 8),
+              tokenSymbol: token.symbol || 'UNK',
+              tokenImage: token.image,
               amount: 0,
-              tier: token.tier || 2,
-              timestamp: token.createdAt * 1000,
+              tier: 2,
+              timestamp: token.creationTimestamp * 1000,
             };
           });
 
           createdEvents.sort((a, b) => b.timestamp - a.timestamp);
           setCreateEvents(createdEvents.slice(0, 20));
 
-          const mockBuyEvents: RealEvent[] = allTokens.slice(0, 5).map((token, idx) => ({
-            signature: 'mock-buy-' + idx,
-            mint: token.mint.toString(),
-            type: 'bought' as const,
-            user: token.creator.toString().slice(0, 4),
-            userFull: token.creator.toString(),
-            tokenName: token.name,
-            tokenSymbol: token.symbol,
-            tokenImage: token.imageUrl,
-            amount: 0.05 + (idx * 0.02),
-            tier: token.tier || 2,
-            timestamp: Date.now() - (idx * 1000),
-          }));
+          // Create buy events from tokens with volume
+          const mockBuyEvents: RealEvent[] = allTokens
+            .filter(token => token.totalTradeVolume > 0)
+            .slice(0, 5)
+            .map((token, idx) => ({
+              signature: 'mock-buy-' + idx,
+              mint: token.mint.toString(),
+              type: 'bought' as const,
+              user: token.mint.toString().slice(0, 4),
+              userFull: token.mint.toString(),
+              tokenName: token.name || token.mint.toString().slice(0, 8),
+              tokenSymbol: token.symbol || 'UNK',
+              tokenImage: token.image,
+              amount: (token.totalTradeVolume / 1e9) / 10,
+              tier: 2,
+              timestamp: Date.now() - (idx * 1000),
+            }));
 
           setBuyEvents(mockBuyEvents);
         }
@@ -100,7 +105,7 @@ export function FOMOTicker() {
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
     const subscriptionId = connection.onLogs(
-      new PublicKey(PROGRAM_ID),
+      BONK_BATTLE_PROGRAM_ID,
       async (logs) => {
         try {
           const tx = await connection.getParsedTransaction(logs.signature, {
@@ -109,8 +114,9 @@ export function FOMOTicker() {
 
           if (!tx || !tx.meta) return;
 
-          const isBuy = logs.logs.some(log => log.includes('TokensPurchased'));
-          const isCreate = logs.logs.some(log => log.includes('TokenCreated'));
+          // Check for BONK BATTLE events
+          const isBuy = logs.logs.some(log => log.includes('TokensPurchased') || log.includes('buy'));
+          const isCreate = logs.logs.some(log => log.includes('TokenCreated') || log.includes('initialize'));
 
           if (!isBuy && !isCreate) return;
 
@@ -348,62 +354,90 @@ export function FOMOTicker() {
           {buyEvents.length > 0 && fomoEvent && (
             <Link
               href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-3 flex-1 lg:max-w-md px-5 py-3 font-bold text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
+              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
               style={{
                 background: fomoColor.isGradient ? fomoColor.color : fomoColor.color,
                 borderRadius: 0,
               }}
             >
-              {fomoEvent.tokenImage ? (
-                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+              <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+                <Image
+                  src="/profilo.png"
+                  alt={fomoEvent.user}
+                  width={28}
+                  height={28}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <span className="whitespace-nowrap font-bold">
+                {fomoEvent.user}
+              </span>
+
+              <span className="whitespace-nowrap">
+                bought
+              </span>
+
+              <span className="whitespace-nowrap font-bold">
+                {fomoEvent.tokenSymbol}
+              </span>
+
+              {fomoEvent.tokenImage && (
+                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={fomoEvent.tokenImage}
-                    alt={fomoEvent.user}
-                    width={32}
-                    height={32}
+                    alt={fomoEvent.tokenSymbol}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 </div>
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-black/10 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                  {fomoEvent.user.toUpperCase()}
-                </div>
               )}
-
-              <span className="truncate">
-                {fomoEvent.user} bought {fomoEvent.amount.toFixed(4)} SOL of {fomoEvent.tokenSymbol} Target:{fomoColor.target}
-              </span>
             </Link>
           )}
 
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content hidden lg:flex items-center gap-3 flex-1 lg:max-w-md px-5 py-3 font-bold text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content hidden lg:flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (creationShake ? 'creation-shake' : '')}
               style={{
                 backgroundColor: creationColor.color,
                 borderRadius: 0,
               }}
             >
-              {creationEvent.tokenImage ? (
-                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+              <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+                <Image
+                  src="/profilo.png"
+                  alt={creationEvent.user}
+                  width={28}
+                  height={28}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+
+              <span className="whitespace-nowrap font-bold">
+                {creationEvent.user}
+              </span>
+
+              <span className="whitespace-nowrap">
+                created
+              </span>
+
+              <span className="whitespace-nowrap font-bold">
+                {creationEvent.tokenSymbol}
+              </span>
+
+              {creationEvent.tokenImage && (
+                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={creationEvent.tokenImage}
-                    alt={creationEvent.user}
-                    width={32}
-                    height={32}
+                    alt={creationEvent.tokenSymbol}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 </div>
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-white/20 border-2 border-black/10 flex items-center justify-center flex-shrink-0 text-xs font-bold">
-                  {creationEvent.user.toUpperCase()}
-                </div>
               )}
-
-              <span className="truncate">
-                {creationEvent.user} Created {creationEvent.tokenSymbol} Target:{creationColor.target}
-              </span>
             </Link>
           )}
         </div>

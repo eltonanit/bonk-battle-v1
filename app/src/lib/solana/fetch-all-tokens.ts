@@ -30,25 +30,39 @@ export async function fetchAllTokens(): Promise<TokenLaunchData[]> {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('📍 Program ID:', BONK_BATTLE_PROGRAM_ID.toString());
 
-    // ⭐ Get all TokenBattleState accounts (208 bytes)
+    // ⭐ Get all TokenBattleState accounts (NO dataSize filter to find all accounts)
     const accounts = await connection.getProgramAccounts(
-      BONK_BATTLE_PROGRAM_ID,
-      {
-        filters: [
-          {
-            dataSize: 208 // TokenBattleState size
-          }
-        ]
-      }
+      BONK_BATTLE_PROGRAM_ID
     );
 
-    console.log(`📊 FOUND: ${accounts.length} total TokenBattleState accounts`);
+    console.log(`📊 FOUND: ${accounts.length} total accounts from program`);
+
+    // Debug: show account sizes
+    if (accounts.length > 0) {
+      console.log(`📏 Account sizes found:`);
+      const sizes = new Set(accounts.map(a => a.account.data.length));
+      sizes.forEach(size => {
+        const count = accounts.filter(a => a.account.data.length === size).length;
+        console.log(`   - ${size} bytes: ${count} account(s)`);
+      });
+    }
 
     const tokens: TokenLaunchData[] = [];
+
+    // TokenBattleState discriminator from IDL: [54, 102, 185, 22, 231, 3, 228, 117]
+    const TOKEN_BATTLE_STATE_DISCRIMINATOR = Buffer.from([54, 102, 185, 22, 231, 3, 228, 117]);
 
     for (const { pubkey, account } of accounts) {
       try {
         const data = account.data;
+
+        // Check if this is a TokenBattleState account by discriminator
+        const accountDiscriminator = data.slice(0, 8);
+        if (!accountDiscriminator.equals(TOKEN_BATTLE_STATE_DISCRIMINATOR)) {
+          console.log(`⏭️  Skipping account ${pubkey.toString()} - not a TokenBattleState (size: ${data.length} bytes)`);
+          continue;
+        }
+
         let offset = 8; // Skip discriminator
 
         // Parse TokenBattleState (208 bytes)
