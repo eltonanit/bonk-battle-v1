@@ -37,7 +37,7 @@ export function DesktopHeader() {
     <header className="hidden lg:block fixed top-0 left-64 right-0 z-40 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
       <div className="h-16 flex items-center justify-between px-6">
         {/* FOMO Ticker - Left (espanso) */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1">
           <FOMOTicker />
         </div>
 

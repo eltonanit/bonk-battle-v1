@@ -112,6 +112,48 @@ export async function buyToken(
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
   const lamports = Math.floor(solAmount * 1e9);
 
+  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION
+  try {
+    // Fetch price oracle to get SOL price in USD
+    const [priceOraclePDA] = getPriceOraclePDA();
+    const priceOracleInfo = await connection.getAccountInfo(priceOraclePDA);
+
+    if (priceOracleInfo) {
+      // Parse SOL price from oracle (u64 at offset 8, with 6 decimals)
+      const data = priceOracleInfo.data;
+      let solPriceUsdRaw = 0n;
+      for (let i = 0; i < 8; i++) {
+        solPriceUsdRaw |= BigInt(data[8 + i]) << BigInt(i * 8);
+      }
+      const solPriceUsd = Number(solPriceUsdRaw) / 1_000_000;
+
+      // Calculate buy amount in USD
+      const buyAmountUsd = solAmount * solPriceUsd;
+
+      console.log(`💵 Buy amount: ${solAmount} SOL = $${buyAmountUsd.toFixed(2)} USD`);
+      console.log(`📊 SOL price: $${solPriceUsd.toFixed(2)}`);
+
+      // Minimum $10 USD required for qualification
+      const MIN_USD_FOR_QUALIFICATION = 10;
+
+      if (buyAmountUsd < MIN_USD_FOR_QUALIFICATION) {
+        const minSOL = MIN_USD_FOR_QUALIFICATION / solPriceUsd;
+        throw new Error(
+          `Minimum buy for qualification is $${MIN_USD_FOR_QUALIFICATION} USD ` +
+          `(~${minSOL.toFixed(3)} SOL at current price of $${solPriceUsd.toFixed(2)}/SOL)`
+        );
+      }
+
+      console.log(`✅ Buy amount meets qualification requirement ($${buyAmountUsd.toFixed(2)} >= $${MIN_USD_FOR_QUALIFICATION})`);
+    }
+  } catch (err) {
+    // If oracle check fails, log but continue (backwards compatibility)
+    console.warn('⚠️ Could not verify USD amount against price oracle:', err);
+    // Re-throw if it's our custom minimum USD error
+    if (err instanceof Error && err.message.includes('Minimum buy for qualification')) {
+      throw err;
+    }
+  }
   try {
     // ========================================================================
     // Step 1: Check user balance

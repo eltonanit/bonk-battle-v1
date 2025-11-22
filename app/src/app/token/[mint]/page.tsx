@@ -18,6 +18,7 @@ import { TradingPanel } from '@/components/token/TradingPanel';
 import { TokenHero } from '@/components/token/TokenHero';
 import { PriceChart } from '@/components/token/PriceChart';
 import { BondingCurveCard } from '@/components/token/BondingCurveCard';
+import { QualificationPopup } from '@/components/token/QualificationPopup'; 
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 
 export default function TokenDetailPage() {
@@ -91,6 +92,14 @@ export default function TokenDetailPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
+      {/* ⭐ Qualification Popup - mostra solo se token non qualificato */}
+      {state.battleStatus === BattleStatus.Created && (
+        <QualificationPopup
+          mint={mint}
+          onQualified={refetch}
+        />
+      )}
+
       <DesktopHeader />
       <Header />
       <Sidebar />

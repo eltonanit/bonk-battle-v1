@@ -315,6 +315,7 @@ export const ERROR_MESSAGES: Record<BonkBattleError, string> = {
  */
 export interface ParsedTokenBattleState {
   mint: PublicKey;
+  creator: PublicKey; // ⭐ NUOVO: wallet del creatore
   solCollected: number;
   tokensSold: number;
   totalTradeVolume: number;

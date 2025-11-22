@@ -41,6 +41,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
           return {
             mint: new PublicKey(token.mint),
+            creator: new PublicKey(token.creator || token.mint), // ⭐ NUOVO: fallback a mint se non c'è creator
             solCollected: token.sol_collected || 0,
             tokensSold: token.tokens_sold || 0,
             totalTradeVolume: token.total_trade_volume || 0,
@@ -179,6 +180,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
         // Parse all fields
         const mint = readPublicKey();
+        const creator = readPublicKey(); // ⭐ NUOVO: legge il creator
         const solCollected = readU64();
         const tokensSold = readU64();
         const totalTradeVolume = readU64();
@@ -234,6 +236,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
         const parsedState: ParsedTokenBattleState = {
           mint,
+          creator, // ⭐ NUOVO: wallet del creatore
           solCollected: Number(solCollected),
           tokensSold: Number(tokensSold),
           totalTradeVolume: Number(totalTradeVolume),
@@ -248,11 +251,11 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
           listingTimestamp: Number(listingTimestamp),
           battleEndTimestamp: 0, // Not in current struct
           bump,
-          // ⭐ NEW: Add metadata to parsed state
+          // ⭐ Metadata
           name,
           symbol,
           uri,
-          image, // ← Add image URL from metadata JSON
+          image,
         };
 
         parsedTokens.push(parsedState);

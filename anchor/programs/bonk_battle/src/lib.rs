@@ -136,6 +136,7 @@ pub mod bonk_battle {
         let battle_state = &mut ctx.accounts.token_battle_state;
 
         battle_state.mint = mint_key;
+        battle_state.creator = ctx.accounts.user.key(); // ⭐ SALVA IL CREATORE
         battle_state.sol_collected = 0;
         battle_state.tokens_sold = 0;
         battle_state.total_trade_volume = 0;
@@ -761,6 +762,7 @@ impl Default for BattleStatus {
 #[derive(Default)]
 pub struct TokenBattleState {
     pub mint: Pubkey,                    // 32
+    pub creator: Pubkey,                 // 32 ⭐ NUOVO: wallet del creatore
     pub sol_collected: u64,              // 8
     pub tokens_sold: u64,                // 8
     pub total_trade_volume: u64,         // 8
@@ -772,9 +774,9 @@ pub struct TokenBattleState {
     pub battle_start_timestamp: i64,     // 8
     pub victory_timestamp: i64,          // 8
     pub listing_timestamp: i64,          // 8
-    pub qualification_timestamp: i64,    // 8 ← GIÀ C'ERA NEL PARSING
+    pub qualification_timestamp: i64,    // 8
     pub bump: u8,                        // 1
-    // ⭐ NUOVI CAMPI METADATA
+    // ⭐ CAMPI METADATA
     pub name: String,                    // 4 + 32 = 36
     pub symbol: String,                  // 4 + 10 = 14
     pub uri: String,                     // 4 + 200 = 204

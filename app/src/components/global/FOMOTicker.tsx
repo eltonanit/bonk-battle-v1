@@ -11,7 +11,7 @@ import Image from 'next/image';
 interface RealEvent {
   signature: string;
   mint: string;
-  type: 'bought' | 'created';
+  type: 'bought' | 'created' | 'sell' | 'started_battle';
   user: string;
   userFull: string;
   tokenName: string;
@@ -22,15 +22,30 @@ interface RealEvent {
   timestamp: number;
 }
 
-const FOMO_TIER_COLORS = [
-  { tier: 1, color: '#FFFE03' },     // Giallo
-  { tier: 2, color: '#88EEAD' },    // Verde
-  { tier: 3, color: '#97C7FC' }       // Azzurro
+// Colori BUY (alterna verde/giallo/blu)
+const BUY_COLORS = [
+  '#4BDE81',  // Verde
+  '#EFFE16',  // Giallo
+  '#93EAEB'   // Blu
 ];
 
-const CREATION_COLORS = [
-  { color: '#FFFE03' },   // Giallo
-  { color: '#FF4500' }    // Arancio
+// Colori SELL (alterna rosso/rosso2)
+const SELL_COLORS = [
+  '#FAA6A3',  // Rosso
+  '#FDBA7E'   // Rosso 2
+];
+
+// Colori CREATED (alterna giallo/rosso2/arancione)
+const CREATED_COLORS = [
+  '#EFFE16',  // Giallo
+  '#FDBA7E',  // Rosso 2
+  '#FFA019'   // Arancione
+];
+
+// Colori STARTED BATTLE (alterna giallo/arancione)
+const STARTED_BATTLE_COLORS = [
+  '#EFFE16',  // Giallo
+  '#FFA019'   // Arancione
 ];
 
 export function FOMOTicker() {
@@ -47,49 +62,68 @@ export function FOMOTicker() {
       try {
         const allTokens = await fetchAllBonkTokens();
 
+        // ⭐ SEMPRE crea eventi, anche se vuoti (fallback)
+        let createdEvents: RealEvent[] = [];
+        let mockBuyEvents: RealEvent[] = [];
+
         if (allTokens.length > 0) {
-          const createdEvents: RealEvent[] = allTokens.map(token => {
+          // Crea eventi "created" da TUTTI i token
+          createdEvents = allTokens.map(token => {
             const mintStr = token.mint.toString();
-            const creatorShort = mintStr.slice(0, 4); // 4 characters from address
+            const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+            const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
 
             return {
               signature: mintStr,
               mint: mintStr,
               type: 'created' as const,
-              user: creatorShort,
-              userFull: mintStr,
+              user: creatorShort, // ⭐ MOSTRA IL CREATOR WALLET
+              userFull: creatorStr, // ⭐ CREATOR WALLET COMPLETO
               tokenName: token.name || mintStr.slice(0, 8),
               tokenSymbol: token.symbol || 'UNK',
               tokenImage: token.image,
-              amount: 0,
+              amount: (token.solCollected || 0) / 1e9,
               tier: 2,
               timestamp: token.creationTimestamp * 1000,
             };
           });
 
           createdEvents.sort((a, b) => b.timestamp - a.timestamp);
-          setCreateEvents(createdEvents.slice(0, 20));
 
-          // Create mock buy events from recent tokens with activity
-          const mockBuyEvents: RealEvent[] = allTokens
-            .filter(token => token.totalTradeVolume > 0)
-            .slice(0, 5)
-            .map((token, idx) => ({
-              signature: 'mock-buy-' + idx,
-              mint: token.mint.toString(),
+          // Crea eventi "buy" dai token con volume
+          const tokensWithVolume = allTokens.filter(token => token.totalTradeVolume > 0);
+
+          if (tokensWithVolume.length > 0) {
+            mockBuyEvents = tokensWithVolume.slice(0, 10).map((token, idx) => {
+              const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+              return {
+                signature: 'mock-buy-' + idx,
+                mint: token.mint.toString(),
+                type: 'bought' as const,
+                user: creatorStr.slice(0, 5), // ⭐ MOSTRA IL CREATOR WALLET
+                userFull: creatorStr, // ⭐ CREATOR WALLET COMPLETO
+                tokenName: token.name || token.mint.toString().slice(0, 8),
+                tokenSymbol: token.symbol || 'UNK',
+                tokenImage: token.image,
+                amount: (token.totalTradeVolume / 1e9) / 10,
+                tier: 2,
+                timestamp: Date.now() - (idx * 1000),
+              };
+            });
+          } else {
+            // ⭐ FALLBACK: Se non ci sono buy, usa i created come buy
+            mockBuyEvents = createdEvents.slice(0, 10).map((event, idx) => ({
+              ...event,
               type: 'bought' as const,
-              user: token.mint.toString().slice(0, 4), // 4 characters from address
-              userFull: token.mint.toString(),
-              tokenName: token.name || token.mint.toString().slice(0, 8),
-              tokenSymbol: token.symbol || 'UNK',
-              tokenImage: token.image,
-              amount: (token.totalTradeVolume / 1e9) / 10, // Show a portion of volume
-              tier: 2,
               timestamp: Date.now() - (idx * 1000),
             }));
-
-          setBuyEvents(mockBuyEvents);
+          }
         }
+
+        // ⭐ GARANTISCE sempre almeno 1 evento per ticker
+        setCreateEvents(createdEvents.length > 0 ? createdEvents.slice(0, 20) : []);
+        setBuyEvents(mockBuyEvents.length > 0 ? mockBuyEvents : []);
+
       } catch (error) {
         console.error('Error loading tokens:', error);
       } finally {
@@ -120,7 +154,7 @@ export function FOMOTicker() {
           if (!isBuy && !isCreate) return;
 
           const userFull = tx.transaction.message.accountKeys[0].pubkey.toString();
-          const userShort = userFull.slice(0, 4); // 4 characters from address
+          const userShort = userFull.slice(0, 5); // 5 characters from address
 
           let solAmount = 0;
           if (isBuy) {
@@ -231,23 +265,29 @@ export function FOMOTicker() {
   const fomoEvent = buyEvents[fomoIndex];
   const creationEvent = createEvents[creationIndex];
 
-  const fomoColor = fomoEvent
-    ? FOMO_TIER_COLORS.find(t => t.tier === fomoEvent.tier) || FOMO_TIER_COLORS[1]
-    : FOMO_TIER_COLORS[1];
+  // Debug log
+  console.log('🎯 FOMOTicker DEBUG:', {
+    buyEventsCount: buyEvents.length,
+    createEventsCount: createEvents.length,
+    hasFomoEvent: !!fomoEvent,
+    hasCreationEvent: !!creationEvent,
+  });
 
-  const creationColor = CREATION_COLORS[creationIndex % CREATION_COLORS.length];
+  // Determina il colore in base al tipo di evento
+  const getBuyColor = () => BUY_COLORS[fomoIndex % BUY_COLORS.length];
+  const getCreatedColor = () => CREATED_COLORS[creationIndex % CREATED_COLORS.length];
 
   return (
     <div className="mb-4 lg:mb-0">
       <div className="px-4 lg:px-6 py-2">
-        <div className="flex flex-col lg:flex-row gap-3 justify-start">
+        <div className="flex flex-col min-[400px]:flex-row gap-3 justify-start">
 
           {buyEvents.length > 0 && fomoEvent && (
             <Link
               href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
+              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
               style={{
-                background: fomoColor.color,
+                backgroundColor: getBuyColor(),
                 borderRadius: 0,
               }}
             >
@@ -261,7 +301,7 @@ export function FOMOTicker() {
                 />
               </div>
 
-              <span className="whitespace-nowrap font-bold">
+              <span className="whitespace-nowrap font-bold uppercase">
                 {fomoEvent.user}
               </span>
 
@@ -270,6 +310,10 @@ export function FOMOTicker() {
               </span>
 
               <span className="whitespace-nowrap font-bold">
+                {fomoEvent.amount.toFixed(2)} SOL
+              </span>
+
+              <span className="whitespace-nowrap font-bold uppercase">
                 {fomoEvent.tokenSymbol}
               </span>
 
@@ -290,9 +334,9 @@ export function FOMOTicker() {
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex ' + (creationShake ? 'creation-shake' : '')}
               style={{
-                backgroundColor: creationColor.color,
+                backgroundColor: getCreatedColor(),
                 borderRadius: 0,
               }}
             >
@@ -306,15 +350,19 @@ export function FOMOTicker() {
                 />
               </div>
 
-              <span className="whitespace-nowrap font-bold">
+              <span className="whitespace-nowrap font-bold uppercase">
                 {creationEvent.user}
               </span>
 
               <span className="whitespace-nowrap">
-                created
+                CREATED
               </span>
 
               <span className="whitespace-nowrap font-bold">
+                {creationEvent.amount.toFixed(2)} SOL
+              </span>
+
+              <span className="whitespace-nowrap font-bold uppercase">
                 {creationEvent.tokenSymbol}
               </span>
 
