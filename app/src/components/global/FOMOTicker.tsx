@@ -290,7 +290,7 @@ export function FOMOTicker() {
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content hidden lg:flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content flex items-center gap-1 lg:gap-1.5 px-1.5 py-0.5 lg:px-2 lg:py-1 text-xs lg:text-sm text-black hover:opacity-90 transition-opacity cursor-pointer ' + (creationShake ? 'creation-shake' : '')}
               style={{
                 backgroundColor: creationColor.color,
                 borderRadius: 0,
