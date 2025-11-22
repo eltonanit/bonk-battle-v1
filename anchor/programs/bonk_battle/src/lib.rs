@@ -36,7 +36,7 @@ const TARGET_MARKET_CAP_USD: u64 = 5_500; // $5,500 USD (uguale alla vittoria)
 const INITIAL_MARKET_CAP_USD: u64 = 5_000; // $5,000 USD
 
 // BATTLE THRESHOLDS - IN USD
-const QUALIFICATION_MC_USD: u64 = 5_100; // $5,100 per qualificarsi
+const MIN_BUY_FOR_QUALIFICATION_USD: u64 = 10; // $10 primo buy per qualificarsi
 const VICTORY_MC_USD: u64 = 5_500; // $5,500 per vittoria (ora allineato con graduation)
 const VICTORY_VOLUME_USD: u64 = 100; // $100 volume
 const MATCHMAKING_TOLERANCE_USD: u64 = 5_000; // $5,000 tolleranza
@@ -273,7 +273,7 @@ pub mod bonk_battle {
         // Update state
         let battle_state = &mut ctx.accounts.token_battle_state;
         let old_status = battle_state.battle_status.clone();
-        
+
         battle_state.sol_collected = battle_state
             .sol_collected
             .checked_add(amount_to_collect)
@@ -285,23 +285,24 @@ pub mod bonk_battle {
             .unwrap();
         battle_state.last_trade_timestamp = Clock::get()?.unix_timestamp;
 
-        let current_mc_usd = calculate_market_cap_usd(battle_state.sol_collected)?;
-        
-        if current_mc_usd >= QUALIFICATION_MC_USD && old_status == BattleStatus::Created {
-            battle_state.battle_status = BattleStatus::Qualified;
-            msg!("🎯 GLADIATOR QUALIFIED! MC: ${} USD", current_mc_usd);
-        }
-
+        // ✅ NUOVA LOGICA QUALIFICAZIONE
         let sol_price = ctx.accounts.price_oracle.sol_price_usd;
-        
-        if old_status == BattleStatus::Created && battle_state.battle_status == BattleStatus::Qualified {
+        let buy_amount_usd = calculate_lamports_to_usd(sol_amount, sol_price)?;
+
+        // Qualifica se primo buy >= $10 USD
+        if buy_amount_usd >= MIN_BUY_FOR_QUALIFICATION_USD && old_status == BattleStatus::Created {
+            battle_state.battle_status = BattleStatus::Qualified;
+            msg!("🎯 GLADIATOR QUALIFIED! First buy: ${} USD", buy_amount_usd);
+
             emit!(GladiatorQualified {
                 mint: battle_state.mint,
-                market_cap_usd: current_mc_usd,
+                market_cap_usd: calculate_market_cap_usd(battle_state.sol_collected)?,
                 sol_collected: battle_state.sol_collected,
                 timestamp: battle_state.last_trade_timestamp,
             });
         }
+
+        let current_mc_usd = calculate_market_cap_usd(battle_state.sol_collected)?;
 
         if battle_state.sol_collected >= SOL_FOR_GRADUATION {
             msg!(
@@ -321,9 +322,10 @@ pub mod bonk_battle {
         });
 
         msg!(
-            "💰 BUY: {} tokens for {} SOL. MC: ${} USD | Status: {:?}",
-            tokens_to_give / 1_000_000,
+            "💰 BUY: {} tokens for {} SOL ({} USD). MC: ${} USD | Status: {:?}",
+            tokens_to_give / 1_000_000_000,
             sol_amount / 1_000_000_000,
+            buy_amount_usd,
             current_mc_usd,
             battle_state.battle_status
         );
@@ -717,8 +719,23 @@ fn calculate_usd_to_lamports(usd_amount: u64, sol_price_usd: u64) -> Result<u64>
         .checked_mul(1_000_000_000).unwrap()
         .checked_mul(1_000_000).unwrap()
         .checked_div(sol_price_usd as u128).unwrap();
-    
+
     Ok(lamports as u64)
+}
+
+fn calculate_lamports_to_usd(lamports: u64, sol_price_usd: u64) -> Result<u64> {
+    // Converte lamports in USD
+    // lamports / 1e9 = SOL
+    // SOL × price = USD
+    let usd_value = (lamports as u128)
+        .checked_mul(sol_price_usd as u128)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_div(1_000_000_000)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_div(1_000_000)
+        .ok_or(BonkError::MathOverflow)? as u64;
+
+    Ok(usd_value)
 }
 
 // =================================================================
