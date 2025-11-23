@@ -385,7 +385,7 @@ export function FOMOTicker() {
           {buyEvents.length > 0 && fomoEvent && (
             <Link
               href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
+              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 pl-2 pr-1 py-1 lg:pl-3 lg:pr-2 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
               style={{
                 backgroundColor: getBuyColor(),
                 borderRadius: 0,
@@ -434,7 +434,7 @@ export function FOMOTicker() {
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content items-center gap-1 lg:gap-1.5 pl-2 pr-1 py-1 lg:pl-3 lg:pr-2 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex ' + (creationShake ? 'creation-shake' : '')}
               style={{
                 backgroundColor: getCreatedColor(),
                 borderRadius: 0,

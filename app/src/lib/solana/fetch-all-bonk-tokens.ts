@@ -13,8 +13,6 @@ import { fetchTokenMetadata } from './fetch-token-metadata';
 export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
   try {
     // 1. Get tokens from Supabase (cached old tokens)
-    console.log('📦 Checking Supabase for cached tokens...');
-
     const supabaseTokens: ParsedTokenBattleState[] = [];
 
     try {
@@ -24,7 +22,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         .order('updated_at', { ascending: false });
 
       if (!supabaseError && cachedTokens && cachedTokens.length > 0) {
-        console.log(`✅ Found ${cachedTokens.length} tokens in Supabase cache`);
 
         // Convert Supabase data to ParsedTokenBattleState format
         supabaseTokens.push(...cachedTokens.map((token: any) => {
@@ -62,18 +59,13 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
             image,
           };
         }));
-      } else {
-        console.log(`⚠️ Supabase error or no tokens: ${supabaseError?.message || 'No data'}`);
       }
     } catch (supabaseErr) {
-      console.warn('⚠️ Supabase query failed:', supabaseErr);
+      // Supabase failed, continue with blockchain only
     }
 
     // 2. ALWAYS read from blockchain to get fresh data
-    console.log('🔗 Reading from blockchain for latest tokens...');
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-
-    console.log('🔍 Fetching all BONK Battle tokens from RPC (Fallback)...');
 
     // Get all TokenBattleState accounts with retry logic
     let accounts = [];
@@ -88,24 +80,11 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         accounts = response as any[]; // Cast to avoid readonly issue
         break;
       } catch (err: any) {
-        console.warn(`⚠️ Fetch failed, retrying in ${delay}ms... (${retries} retries left)`);
         if (retries === 1) throw err;
         await new Promise(resolve => setTimeout(resolve, delay));
         retries--;
         delay *= 2;
       }
-    }
-
-    console.log(`📦 Found ${accounts.length} total accounts from program`);
-
-    // Debug: show account sizes
-    if (accounts.length > 0) {
-      console.log(`📏 Account sizes found:`);
-      const sizes = new Set(accounts.map((a: any) => a.account.data.length));
-      sizes.forEach(size => {
-        const count = accounts.filter((a: any) => a.account.data.length === size).length;
-        console.log(`   - ${size} bytes: ${count} account(s)`);
-      });
     }
 
     const parsedTokens: ParsedTokenBattleState[] = [];
@@ -120,7 +99,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         // Check if this is a TokenBattleState account by discriminator
         const accountDiscriminator = data.slice(0, 8);
         if (!accountDiscriminator.equals(TOKEN_BATTLE_STATE_DISCRIMINATOR)) {
-          console.log(`⏭️  Skipping account - not a TokenBattleState (size: ${data.length} bytes)`);
           continue;
         }
 
@@ -180,7 +158,10 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
         // Parse all fields
         const mint = readPublicKey();
-        const creator = readPublicKey(); // ⭐ NUOVO: legge il creator
+
+        // ⭐ Read creator field (all tokens should have this after contract update)
+        const creator = readPublicKey();
+
         const solCollected = readU64();
         const tokensSold = readU64();
         const totalTradeVolume = readU64();
@@ -211,8 +192,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         const symbol = readString();
         const uri = readString();
 
-        console.log(`📝 Token metadata: name="${name}", symbol="${symbol}", uri="${uri}"`);
-
         // ⭐ Parse image from URI (URI contains the metadata JSON directly, not a URL)
         let image: string | undefined;
         if (uri) {
@@ -220,16 +199,14 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
             // Try to parse URI as JSON first (it's the metadata object, not a URL)
             const metadata = JSON.parse(uri);
             image = metadata.image;
-            console.log(`🖼️ Image URL extracted from URI: ${image}`);
           } catch (jsonError) {
             // If it's not JSON, try fetching it as a URL (fallback)
             try {
               const response = await fetch(uri);
               const metadata = await response.json();
               image = metadata.image;
-              console.log(`🖼️ Image URL fetched from URI: ${image}`);
             } catch (fetchError) {
-              console.warn(`⚠️ Could not parse or fetch metadata from URI:`, jsonError);
+              // Could not get image
             }
           }
         }
@@ -249,7 +226,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
           battleStartTimestamp: Number(battleStartTimestamp),
           victoryTimestamp: Number(victoryTimestamp),
           listingTimestamp: Number(listingTimestamp),
-          battleEndTimestamp: 0, // Not in current struct
           bump,
           // ⭐ Metadata
           name,
@@ -260,12 +236,9 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
         parsedTokens.push(parsedState);
       } catch (parseError) {
-        console.warn('⚠️ Failed to parse account:', parseError);
         continue;
       }
     }
-
-    console.log(`✅ Successfully parsed ${parsedTokens.length} BONK Battle tokens from blockchain`);
 
     // 3. Merge: blockchain tokens + Supabase tokens (remove duplicates)
     const blockchainMints = new Set(parsedTokens.map(t => t.mint.toString()));
@@ -275,8 +248,6 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
       t => !blockchainMints.has(t.mint.toString())
     );
 
-    console.log(`🔀 Merging: ${parsedTokens.length} blockchain + ${supabaseOnlyTokens.length} Supabase-only = ${parsedTokens.length + supabaseOnlyTokens.length} total`);
-
     const allTokens = [...parsedTokens, ...supabaseOnlyTokens];
 
     // Sort by creation timestamp (newest first)
@@ -285,7 +256,8 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
     return allTokens;
   } catch (error) {
     console.error('❌ Error fetching BONK Battle tokens:', error);
-    throw error;
+    // Return empty array instead of throwing to prevent infinite loops
+    return [];
   }
 }
 

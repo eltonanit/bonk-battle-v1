@@ -73,6 +73,12 @@ export function FOMOTicker() {
             const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
             const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
 
+            console.log('🔍 Token:', {
+              mint: mintStr.slice(0, 8),
+              creator: creatorStr.slice(0, 8),
+              isSame: mintStr === creatorStr,
+            });
+
             return {
               signature: mintStr,
               mint: mintStr,
@@ -279,13 +285,13 @@ export function FOMOTicker() {
 
   return (
     <div className="mb-4 lg:mb-0">
-      <div className="px-4 lg:px-6 py-2">
-        <div className="flex flex-col min-[400px]:flex-row gap-3 justify-start">
+      <div className="px-3 lg:px-6 py-2">
+        <div className="flex flex-col min-[400px]:flex-row gap-2 lg:gap-3 justify-start items-start">
 
           {buyEvents.length > 0 && fomoEvent && (
             <Link
               href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
+              className={'fomo-ticker-content flex items-center gap-2 lg:gap-2 px-2 py-1 lg:px-2 lg:py-1 text-base lg:text-base text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
               style={{
                 backgroundColor: getBuyColor(),
                 borderRadius: 0,
@@ -334,7 +340,7 @@ export function FOMOTicker() {
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content items-center gap-1 lg:gap-1.5 px-2 py-1 lg:px-3 lg:py-1.5 text-xs lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content items-center gap-2 lg:gap-2 px-2 py-1 lg:px-2 lg:py-1 text-base lg:text-base text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex lg:w-auto ' + (creationShake ? 'creation-shake' : '')}
               style={{
                 backgroundColor: getCreatedColor(),
                 borderRadius: 0,

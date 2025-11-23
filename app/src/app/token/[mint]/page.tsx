@@ -104,7 +104,7 @@ export default function TokenDetailPage() {
       <Header />
       <Sidebar />
 
-      <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
+      <div className="pt-32 lg:pt-0 lg:ml-64 lg:mt-16">
         {/* ⭐ FOMOTicker visibile SOLO su mobile */}
         <div className="lg:hidden">
           <FOMOTicker />

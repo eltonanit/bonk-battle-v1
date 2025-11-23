@@ -2,6 +2,7 @@
 
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { HallCarousel } from '@/components/hall/HallCarousel';
@@ -14,7 +15,10 @@ export default function HallPage() {
       <DesktopHeader />
       <Header />
       <Sidebar />
-      <div className="lg:ml-64 lg:mt-16">
+      <div className="pt-32 lg:pt-0 lg:ml-64 lg:mt-16">
+        <div className="lg:hidden">
+          <FOMOTicker />
+        </div>
         <div className="max-w-[1200px] pl-8 pr-5 py-10">
           <h1 className="text-5xl font-extrabold text-center mb-4 bg-gradient-to-r from-yellow-400 via-green-400 to-yellow-400 bg-clip-text text-transparent">
             🏛️ THE HALL

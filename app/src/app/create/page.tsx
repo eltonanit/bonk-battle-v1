@@ -134,8 +134,8 @@ export default function CreatePage() {
             <Header />
             <Sidebar />
 
-            {/* ⭐ MODIFICATO: Aggiunto pt-20 mobile e FOMOTicker */}
-            <div className="pt-20 lg:pt-0 lg:ml-64 lg:mt-16">
+            {/* ⭐ MODIFICATO: Aggiunto pt-32 mobile per header a 2 righe + FOMOTicker */}
+            <div className="pt-32 lg:pt-0 lg:ml-64 lg:mt-16">
                 {/* ⭐ FOMOTicker visibile SOLO su mobile, sotto l'header */}
                 <div className="lg:hidden">
                     <FOMOTicker />

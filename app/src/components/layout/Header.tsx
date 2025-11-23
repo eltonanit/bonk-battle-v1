@@ -54,51 +54,36 @@ export function Header() {
   return (
     <>
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
-        <div className="px-5 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-[38px] h-[38px] rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-              <Image
-                src="/BONK-LOGO.svg"
-                alt="Bonk Battle"
-                width={48}
-                height={48}
-                className="w-full h-full object-contain"
-                priority
-              />
-            </div>
-            <span className="text-l font-extrabold leading-tight text-white">
-              Bonk Battle
-            </span>
-          </Link>
+        <div className="relative">
+          {/* Riga 1: Join ARMY + Start Battle + Login */}
+          <div className="px-3 py-2 flex items-center justify-end gap-1.5">
+            {/* Join ARMY Button - Giallo */}
+            <button className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
+              Join ARMY
+            </button>
 
-          {/* Right Side - Buttons */}
-          <div className="flex items-center gap-2">
-            {/* Start Battle Button */}
+            {/* Start Battle Button - Arancione */}
             <Link href="/create">
-              <button className="bg-bonk-orange-dark text-black px-3 py-2 rounded-lg font-semibold text-sm hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap">
+              <button className="bg-bonk-orange-dark text-black px-2.5 py-1.5 rounded-lg font-semibold text-xs hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap">
                 Start Battle
               </button>
             </Link>
 
-            {/* Login Button (quando NON loggato) o Profile (quando loggato) */}
+            {/* Login/Profile */}
             {!connected ? (
-              // ⭐ Log in Button - GIALLO/ORO
               <button
                 onClick={handleLogin}
-                className="bg-bonk-gold text-black px-3 py-2 rounded-lg font-bold text-sm hover:bg-bonk-gold/90 transition-colors whitespace-nowrap"
+                className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap"
               >
                 Log in
               </button>
             ) : (
-              // ⭐ Profile Button con immagine profilo (quando loggato)
               <div className="relative">
                 <button
                   onClick={() => setShowDropdown(!showDropdown)}
-                  className="flex items-center gap-2 bg-bonk-card border-2 border-bonk-orange-brand px-2 py-1.5 rounded-lg hover:bg-bonk-card/80 transition-colors"
+                  className="flex items-center gap-1 bg-transparent hover:bg-white/5 p-1 rounded-lg transition-colors"
                 >
-                  {/* ⭐ Immagine Profilo da /public/profilo.png */}
-                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-purple-500 to-pink-500">
+                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
                     <Image
                       src="/profilo.png"
                       alt="Profile"
@@ -107,18 +92,9 @@ export function Header() {
                       className="w-full h-full object-cover"
                     />
                   </div>
-
-                  {/* Wallet Address */}
-                  {publicKey && (
-                    <span className="text-xs font-medium text-white truncate max-w-[70px]">
-                      {publicKey.toString().substring(0, 4)}...{publicKey.toString().slice(-4)}
-                    </span>
-                  )}
-
-                  {/* Arrow Down Triangle - Verde */}
                   <svg
-                    className={`w-3 h-3 text-bonk-green transition-transform flex-shrink-0 ${showDropdown ? 'rotate-180' : ''}`}
-                    fill="currentColor"
+                    className={`w-3 h-3 transition-transform flex-shrink-0 ${showDropdown ? 'rotate-180' : ''}`}
+                    fill="#FF8A5B"
                     viewBox="0 0 20 20"
                   >
                     <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
@@ -159,13 +135,59 @@ export function Header() {
                 )}
               </div>
             )}
+          </div>
 
-            {/* Hamburger Button - Linee Verdi */}
+          {/* Logo Grande Centrale - Posizionato tra Riga 1 e Riga 2 */}
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10">
+            <Link href="/" className="flex items-center">
+              <div className="w-[60px] h-[60px] rounded-lg flex items-center justify-center overflow-hidden bg-bonk-dark/95 backdrop-blur-xl">
+                <Image
+                  src="/BONK-LOGO.svg"
+                  alt="Bonk Battle"
+                  width={60}
+                  height={60}
+                  className="w-full h-full object-contain"
+                  priority
+                />
+              </div>
+            </Link>
+          </div>
+
+          {/* Riga 2: 3 Notification Icons (center) + Hamburger Menu (right, orange) */}
+          <div className="px-3 py-2 flex items-center justify-between">
+            {/* Empty space on left for logo */}
+            <div className="w-[60px]" />
+
+            {/* 3 Notification Icons - Centered */}
+            <div className="flex items-center gap-4 justify-center flex-1">
+              {/* Feed/Followers Icon */}
+              <Link href="/feed-followers" className="p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/5 transition-colors">
+                <svg className="w-5 h-5 text-bonk-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </Link>
+
+              {/* Points Icon */}
+              <Link href="/points" className="p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/5 transition-colors">
+                <svg className="w-5 h-5 text-bonk-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </Link>
+
+              {/* Notifications Icon */}
+              <Link href="/notifications" className="p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/5 transition-colors relative">
+                <svg className="w-5 h-5 text-bonk-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </Link>
+            </div>
+
+            {/* Hamburger Menu - Right side with orange stripes */}
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
               className="p-2 hover:bg-white/5 rounded-lg transition-colors"
             >
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#14D99E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#FF8A5B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 {showMobileMenu ? (
                   <>
                     <line x1="18" y1="6" x2="6" y2="18" />
