@@ -6,6 +6,7 @@ import { PublicKey } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { buyToken } from '@/lib/solana/buy-token';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { Lightbulb, X } from 'lucide-react';
 
 interface QualificationPopupProps {
     mint: PublicKey;
@@ -23,10 +24,32 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
     const [error, setError] = useState<string | null>(null);
     const [solBalance, setSolBalance] = useState<number | null>(null);
 
-    // Calculate minimum SOL needed for $10 USD
+    // ⚠️ FIX: Calculate minimum SOL needed for $10 USD
     const minUSD = 10;
-    const minSOL = solPriceUsd ? minUSD / solPriceUsd : 0.079;
-    const minSOLFormatted = minSOL.toFixed(3);
+
+    // Debug: mostra il valore di solPriceUsd
+    console.log('🔍 solPriceUsd from hook:', solPriceUsd);
+
+    // Calcolo corretto: se SOL costa $126, serve 10/126 = 0.079 SOL per $10
+    let minSOL = 0.079; // Default fallback
+
+    if (solPriceUsd && solPriceUsd > 0) {
+        // Se solPriceUsd è già in USD (es. 126.82), usa diretto
+        if (solPriceUsd > 1) {
+            minSOL = minUSD / solPriceUsd;
+        }
+        // Se solPriceUsd è in micro-USD (es. 126820000), converti prima
+        else if (solPriceUsd < 1 && solPriceUsd > 0.001) {
+            minSOL = minUSD / solPriceUsd;
+        }
+        // Se è in formato sbagliato, usa fallback
+        else {
+            console.warn('⚠️ Unexpected solPriceUsd format:', solPriceUsd);
+            minSOL = 0.079;
+        }
+    }
+
+    console.log('💰 Calculated minSOL:', minSOL, 'for $', minUSD);
 
     // Fetch user's SOL balance
     useEffect(() => {
@@ -52,7 +75,7 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
         }
 
         if (solAmount < minSOL) {
-            setError(`Minimum buy is ${minSOLFormatted} SOL ($${minUSD})`);
+            setError(`Minimum buy is ${minSOL.toFixed(3)} SOL ($${minUSD})`);
             return;
         }
 
@@ -89,9 +112,6 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
             // Trigger callback to refresh token state
             onQualified();
 
-            // Popup will auto-close when parent component re-renders
-            // and sees battleStatus is no longer "Created"
-
         } catch (err) {
             console.error('❌ Qualification buy error:', err);
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -101,140 +121,123 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
         }
     };
 
-    const handleQuickAmount = (value: number) => {
-        setAmount(value.toString());
-        setError(null);
-    };
-
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-gradient-to-br from-bonk-card via-bonk-dark to-bonk-card border-2 border-bonk-green rounded-2xl p-6 max-w-md w-full shadow-2xl shadow-bonk-green/20 animate-slideUp">
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+            {/* ⭐ Responsive container: più piccolo su mobile, centrato su desktop */}
+            <div className="w-full max-w-[420px] md:max-w-md">
+                {/* Main Card con bordo bianco - ridotto padding */}
+                <div className="relative rounded-2xl md:rounded-3xl p-[2px] bg-gradient-to-br from-white via-gray-200 to-white">
+                    <div className="bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 rounded-2xl md:rounded-3xl p-4 md:p-6">
 
-                {/* Header */}
-                <div className="text-center mb-6">
-                    <div className="text-5xl mb-3 animate-bounce">🎮</div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Start Battle Now!</h2>
-                    <div className="text-gray-400 text-sm space-y-1">
-                        <p className="font-semibold text-bonk-green">First: Qualify your token</p>
-                        <p>How? Make your first buy</p>
-                    </div>
-                </div>
-
-                {/* Minimum Buy Info */}
-                <div className="bg-bonk-dark/50 border border-bonk-border rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-gray-400 text-sm">Minimum buy:</span>
-                        <div className="text-right">
-                            <div className="text-white font-bold">{minSOLFormatted} SOL</div>
-                            <div className="text-bonk-green text-xs">(${minUSD})</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Balance Display */}
-                {publicKey && solBalance !== null && (
-                    <div className="flex justify-between items-center mb-2 px-1">
-                        <span className="text-sm text-gray-400">Your balance:</span>
-                        <span className="text-sm font-bold text-white">
-                            {solBalance.toFixed(4)} SOL
-                        </span>
-                    </div>
-                )}
-
-                {/* Amount Input */}
-                <div className="relative mb-4">
-                    <input
-                        type="number"
-                        value={amount}
-                        onChange={(e) => {
-                            setAmount(e.target.value);
-                            setError(null);
-                        }}
-                        placeholder="0.00"
-                        className="w-full bg-bonk-dark border border-bonk-border rounded-lg px-4 py-3 text-white text-right text-lg focus:outline-none focus:border-bonk-green transition-colors"
-                        step="0.01"
-                        disabled={loading}
-                    />
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                        <span className="text-gray-400 text-sm font-semibold">SOL</span>
-                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500"></div>
-                    </div>
-                </div>
-
-                {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-4 gap-2 mb-4">
-                    <button
-                        onClick={() => setAmount('')}
-                        className="py-2 bg-bonk-dark hover:bg-bonk-border rounded-lg text-xs text-gray-400 transition-all"
-                        disabled={loading}
-                    >
-                        Reset
-                    </button>
-                    {[0.1, 0.5, 1].map((val) => (
+                        {/* Close Button - più piccolo */}
                         <button
-                            key={val}
-                            onClick={() => handleQuickAmount(val)}
-                            className={`py-2 rounded-lg text-xs font-bold transition-all ${parseFloat(amount) === val
-                                    ? 'bg-bonk-green text-black'
-                                    : 'bg-bonk-dark hover:bg-bonk-border text-white'
-                                }`}
+                            onClick={onClose}
                             disabled={loading}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {val} SOL
+                            <X className="w-5 h-5 md:w-6 md:h-6" />
                         </button>
-                    ))}
-                </div>
 
-                {/* Error Message */}
-                {error && (
-                    <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
-                        <p className="text-red-400 text-sm text-center">{error}</p>
+                        {/* Title - testo più piccolo */}
+                        <h1 className="text-2xl md:text-3xl font-bold text-orange-500 text-center mb-2">
+                            Start Battle Now!
+                        </h1>
+
+                        {/* Subtitle - spacing ridotto */}
+                        <p className="text-yellow-400 text-center font-medium text-sm mb-0.5">
+                            Qualify your token
+                        </p>
+                        <p className="text-gray-400 text-center text-xs md:text-sm mb-4 md:mb-6">
+                            Make your first buy
+                        </p>
+
+                        {/* Minimum Buy and Balance Section - spacing ridotto */}
+                        <div className="mb-3">
+                            <div className="flex justify-between items-center mb-1.5 text-sm">
+                                <span className="text-gray-400">Minimum buy:</span>
+                                <div className="text-right">
+                                    <span className="text-white font-semibold">
+                                        {minSOL.toFixed(3)} SOL
+                                    </span>
+                                    <span className="text-green-400 text-xs ml-1.5">
+                                        (${minUSD})
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* White Divider */}
+                            <div className="h-[1px] bg-white/50 mb-1.5"></div>
+
+                            <div className="flex justify-between items-center mb-2.5 text-sm">
+                                <span className="text-gray-400">Your balance:</span>
+                                <span className="text-white font-semibold">
+                                    {solBalance !== null ? solBalance.toFixed(4) : '-.----'} SOL
+                                </span>
+                            </div>
+
+                            {/* Input Field - più compatto */}
+                            <div className="bg-gray-800/50 border border-white rounded-xl p-3 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-300 font-medium text-sm">SOL</span>
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 via-purple-500 to-blue-600"></div>
+                                </div>
+                                <input
+                                    type="text"
+                                    value={amount}
+                                    onChange={(e) => {
+                                        setAmount(e.target.value);
+                                        setError(null);
+                                    }}
+                                    className="bg-transparent text-white text-xl md:text-2xl font-semibold text-right outline-none w-24 md:w-32"
+                                    placeholder="0.00"
+                                    disabled={loading}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Error Message - più compatto */}
+                        {error && (
+                            <div className="mb-3 p-2.5 bg-red-900/20 border border-red-500/50 rounded-xl">
+                                <p className="text-red-400 text-xs text-center leading-tight">{error}</p>
+                            </div>
+                        )}
+
+                        {/* Info Banner - più piccolo */}
+                        <div className="bg-green-900/20 border border-white/50 rounded-xl p-3 mb-4">
+                            <div className="flex items-center gap-2 text-green-400 text-xs">
+                                <Lightbulb className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>Buy now your token to start battle ! ⚔️🔥</span>
+                            </div>
+                        </div>
+
+                        {/* Buy Button - più compatto */}
+                        <button
+                            onClick={handleBuy}
+                            disabled={loading || !publicKey || !amount || amount === '0.00' || amount === ''}
+                            className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 disabled:from-slate-800 disabled:to-slate-900 disabled:cursor-not-allowed text-white font-bold text-base md:text-lg py-3 md:py-4 rounded-xl transition-all shadow-lg"
+                        >
+                            {loading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <svg className="animate-spin h-4 w-4 md:h-5 md:w-5" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                    </svg>
+                                    Processing...
+                                </span>
+                            ) : (
+                                'BUY & QUALIFY'
+                            )}
+                        </button>
+
+                        {/* Wallet Connection Warning - più piccolo */}
+                        {!publicKey && (
+                            <div className="mt-3 text-center text-xs text-yellow-400">
+                                ⚠️ Connect wallet to qualify
+                            </div>
+                        )}
+
                     </div>
-                )}
-
-                {/* Info Message */}
-                <div className="mb-4 p-3 bg-bonk-green/10 border border-bonk-green/30 rounded-lg">
-                    <p className="text-bonk-green text-xs text-center">
-                        💡 After buying, your token will be eligible for battles!
-                    </p>
                 </div>
-
-                {/* Buy Button */}
-                <button
-                    onClick={handleBuy}
-                    disabled={loading || !publicKey || !amount}
-                    className="w-full py-4 rounded-lg font-bold text-lg transition-all disabled:bg-bonk-border disabled:cursor-not-allowed bg-bonk-green hover:bg-bonk-green/90 text-black shadow-lg shadow-bonk-green/50 disabled:shadow-none"
-                >
-                    {loading ? (
-                        <span className="flex items-center justify-center gap-2">
-                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            Processing...
-                        </span>
-                    ) : (
-                        'BUY & QUALIFY'
-                    )}
-                </button>
-
-                {/* Wallet Connection Warning */}
-                {!publicKey && (
-                    <div className="mt-4 text-center text-sm text-yellow-500">
-                        ⚠️ Please connect your wallet to qualify
-                    </div>
-                )}
-
-                {/* Close hint */}
-                {onClose && (
-                    <button
-                        onClick={onClose}
-                        className="mt-4 w-full py-2 text-gray-500 hover:text-gray-300 text-sm transition-colors"
-                        disabled={loading}
-                    >
-                        Skip for now
-                    </button>
-                )}
             </div>
         </div>
     );
