@@ -1,19 +1,35 @@
 // app/src/lib/indexer/sync-single-token.ts
+// FIXED VERSION V4 - Variable length strings (no padding!)
+
 import { Connection, PublicKey } from '@solana/web3.js';
 import { supabase } from '@/lib/supabase';
 import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
 import { getBattleStatePDA } from '@/lib/solana/pdas';
 import { RPC_ENDPOINT } from '@/config/solana';
 
-const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
-
 /**
- * Sync a single token to Supabase
- * Called by webhook when token events occur
- * 
- * @param mint - Token mint address
- * @returns Success status
+ * TokenBattleState struct layout:
+ * - 8 bytes: discriminator
+ * - 32 bytes: mint
+ * - 32 bytes: creator
+ * - 8 bytes: sol_collected (u64)
+ * - 8 bytes: tokens_sold (u64)
+ * - 8 bytes: total_trade_volume (u64)
+ * - 1 byte: is_active (bool)
+ * - 1 byte: battle_status (u8)
+ * - 32 bytes: opponent_mint
+ * - 8 bytes: creation_timestamp (i64)
+ * - 8 bytes: last_trade_timestamp (i64)
+ * - 8 bytes: battle_start_timestamp (i64)
+ * - 8 bytes: victory_timestamp (i64)
+ * - 8 bytes: listing_timestamp (i64)
+ * - 8 bytes: qualification_timestamp (i64)
+ * - 1 byte: bump (u8)
+ * - String: name (4 + len bytes, VARIABLE!)
+ * - String: symbol (4 + len bytes, VARIABLE!)
+ * - String: uri (4 + len bytes, VARIABLE!)
  */
+
 export async function syncSingleToken(mint: string): Promise<{ success: boolean; error?: string }> {
     console.log(`🔄 Syncing single token: ${mint}`);
 
@@ -33,164 +49,189 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
         }
 
         const data = accountInfo.data;
+        console.log(`📦 Account data length: ${data.length} bytes`);
 
-        // Basic validation
-        if (data.length < 100) {
+        if (data.length < 200) {
             console.warn(`⚠️ Invalid account data size: ${data.length}`);
             return { success: false, error: 'Invalid data size' };
         }
 
-        // 3. Parse Battle State
+        // 3. Parse Battle State with CORRECT offsets
         let offset = 8; // Skip discriminator
 
+        // mint: Pubkey (32 bytes)
         const mintFromData = new PublicKey(data.slice(offset, offset + 32));
-        offset += 32;
+        offset += 32; // offset = 40
 
-        // Helper functions
-        const readU64 = () => {
+        // creator: Pubkey (32 bytes)
+        const creatorPubkey = new PublicKey(data.slice(offset, offset + 32));
+        const creator = creatorPubkey.toString();
+        offset += 32; // offset = 72
+
+        console.log(`👤 Creator from battle state: ${creator.slice(0, 8)}...`);
+
+        // Helper to read u64 safely
+        const readU64 = (): number => {
+            const bytes = data.slice(offset, offset + 8);
             let value = 0n;
             for (let i = 0; i < 8; i++) {
-                value |= BigInt(data[offset + i]) << BigInt(i * 8);
+                value |= BigInt(bytes[i]) << BigInt(i * 8);
             }
             offset += 8;
+            if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
+                return Number.MAX_SAFE_INTEGER;
+            }
             return Number(value);
         };
 
-        const readI64 = () => {
+        // Helper to read i64 (timestamp) safely
+        const readI64 = (): number => {
+            const bytes = data.slice(offset, offset + 8);
             let value = 0n;
             for (let i = 0; i < 8; i++) {
-                value |= BigInt(data[offset + i]) << BigInt(i * 8);
+                value |= BigInt(bytes[i]) << BigInt(i * 8);
             }
             offset += 8;
+
             if (value >= 0x8000000000000000n) {
                 value = value - 0x10000000000000000n;
             }
-            return Number(value);
+
+            const num = Number(value);
+
+            // Validate timestamp (between 2020 and 2100)
+            if (num < 1577836800 || num > 4102444800) {
+                return 0;
+            }
+            return num;
         };
 
-        const solCollected = readU64();
-        const tokensSold = readU64();
-        const totalTradeVolume = readU64();
+        // Helper to read Borsh String (4 byte length + variable content, NO PADDING!)
+        const readString = (): string => {
+            if (offset + 4 > data.length) {
+                console.warn(`⚠️ Not enough bytes for string length at offset ${offset}`);
+                return '';
+            }
 
-        const isActive = data[offset] !== 0;
+            const len = data.readUInt32LE(offset);
+            offset += 4;
+
+            // Sanity check: length should be reasonable
+            if (len === 0) {
+                return '';
+            }
+            if (len > 500 || offset + len > data.length) {
+                console.warn(`⚠️ Invalid string length ${len} at offset ${offset - 4}`);
+                return '';
+            }
+
+            const str = data.slice(offset, offset + len).toString('utf8').replace(/\0/g, '').trim();
+            offset += len; // Move only by ACTUAL length, not fixed padding!
+            return str;
+        };
+
+        // Parse numeric fields in CORRECT ORDER
+        const solCollected = readU64();      // offset 72 -> 80
+        const tokensSold = readU64();        // offset 80 -> 88
+        const totalTradeVolume = readU64();  // offset 88 -> 96
+
+        const isActive = data[offset] !== 0; // offset 96
         offset += 1;
 
-        const battleStatusRaw = data[offset];
+        const battleStatusRaw = data[offset]; // offset 97
         offset += 1;
 
-        const opponentMint = new PublicKey(data.slice(offset, offset + 32));
+        const opponentMint = new PublicKey(data.slice(offset, offset + 32)); // offset 98 -> 130
         offset += 32;
 
-        const creationTimestamp = readI64();
-        const qualificationTimestamp = readI64();
-        const lastTradeTimestamp = readI64();
-        const battleStartTimestamp = readI64();
-        const victoryTimestamp = readI64();
-        const listingTimestamp = readI64();
-        const bump = data[offset];
+        // Timestamps in CORRECT ORDER
+        const creationTimestamp = readI64();      // 130 -> 138
+        const lastTradeTimestamp = readI64();     // 138 -> 146
+        const battleStartTimestamp = readI64();   // 146 -> 154
+        const victoryTimestamp = readI64();       // 154 -> 162
+        const listingTimestamp = readI64();       // 162 -> 170
+        const qualificationTimestamp = readI64(); // 170 -> 178
+
+        const bump = data[offset]; // offset 178
+        offset += 1; // offset = 179
+
+        // Read variable-length strings
+        console.log(`📍 Reading name at offset: ${offset}`);
+        const name = readString();
+
+        console.log(`📍 Reading symbol at offset: ${offset}`);
+        const symbol = readString();
+
+        console.log(`📍 Reading uri at offset: ${offset}`);
+        const uri = readString();
 
         console.log(`✅ Parsed battle state for ${mint}`);
+        console.log(`   name: "${name}", symbol: "${symbol}"`);
+        console.log(`   uri: "${uri.slice(0, 50)}..."`);
+        console.log(`   sol_collected: ${solCollected}, tokens_sold: ${tokensSold}`);
+        console.log(`   creation_timestamp: ${creationTimestamp}`);
+        console.log(`   creator: ${creator.slice(0, 8)}...`);
 
-        // 4. Fetch Metadata (name, symbol, uri, image)
-        let name = '';
-        let symbol = '';
-        let uri = '';
+        // 4. Extract image from URI
         let image = '';
+        if (uri) {
+            try {
+                // URI might be a URL or direct JSON
+                if (uri.startsWith('http')) {
+                    // Fetch from URL
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 5000);
 
-        try {
-            const [metadataPDA] = PublicKey.findProgramAddressSync(
-                [
-                    Buffer.from('metadata'),
-                    METADATA_PROGRAM_ID.toBuffer(),
-                    mintPubkey.toBuffer(),
-                ],
-                METADATA_PROGRAM_ID
-            );
+                    const response = await fetch(uri, { signal: controller.signal });
+                    clearTimeout(timeout);
 
-            const metadataAccount = await connection.getAccountInfo(metadataPDA);
-            if (metadataAccount) {
-                const metaData = metadataAccount.data;
-                let metaOffset = 1 + 32 + 32; // Skip discriminator + update authority + mint
-
-                const nameLen = metaData.readUInt32LE(metaOffset);
-                metaOffset += 4;
-                name = metaData.slice(metaOffset, metaOffset + nameLen).toString('utf8').replace(/\0/g, '').trim();
-                metaOffset += nameLen;
-
-                const symbolLen = metaData.readUInt32LE(metaOffset);
-                metaOffset += 4;
-                symbol = metaData.slice(metaOffset, metaOffset + symbolLen).toString('utf8').replace(/\0/g, '').trim();
-                metaOffset += symbolLen;
-
-                const uriLen = metaData.readUInt32LE(metaOffset);
-                metaOffset += 4;
-                uri = metaData.slice(metaOffset, metaOffset + uriLen).toString('utf8').replace(/\0/g, '').trim();
-
-                // Fetch image from URI (optional)
-                if (uri) {
-                    try {
-                        const response = await fetch(uri);
-                        const metadata = await response.json();
-                        image = metadata.image || '';
-                    } catch (err) {
-                        console.warn(`⚠️ Failed to fetch metadata JSON from ${uri}`);
-                    }
+                    const metadata = await response.json();
+                    image = metadata.image || '';
+                    console.log(`✅ Fetched image from URL`);
+                } else if (uri.startsWith('{')) {
+                    // URI contains JSON directly
+                    const metadata = JSON.parse(uri);
+                    image = metadata.image || '';
+                    console.log(`✅ Parsed image from JSON URI`);
                 }
-
-                console.log(`✅ Fetched metadata: ${name} (${symbol})`);
+            } catch (err) {
+                console.warn(`⚠️ Failed to extract image from URI`);
             }
-        } catch (metaErr) {
-            console.warn(`⚠️ Failed to fetch metadata for ${mint}:`, metaErr);
         }
 
-        // 5. Get creator from first signature (fee payer)
-        let creator = '';
-        try {
-            const signatures = await connection.getSignaturesForAddress(mintPubkey, { limit: 1000 });
-            if (signatures.length > 0) {
-                // Last signature is the oldest (creation)
-                const creationSig = signatures[signatures.length - 1];
-                const tx = await connection.getTransaction(creationSig.signature, {
-                    maxSupportedTransactionVersion: 0
-                });
-
-                if (tx?.transaction?.message) {
-                    const message = tx.transaction.message;
-                    // Get fee payer (first account)
-                    if ('staticAccountKeys' in message && message.staticAccountKeys.length > 0) {
-                        creator = message.staticAccountKeys[0].toString();
-                    } else if ('accountKeys' in message && message.accountKeys.length > 0) {
-                        creator = message.accountKeys[0].toString();
-                    }
-                }
-            }
-        } catch (creatorErr) {
-            console.warn(`⚠️ Failed to fetch creator for ${mint}:`, creatorErr);
-        }
-
-        // 6. Upsert to Supabase
+        // 5. Upsert to Supabase
         const tokenData = {
             mint: mint,
-            sol_collected: solCollected,
-            tokens_sold: tokensSold,
-            total_trade_volume: totalTradeVolume,
-            is_active: isActive,
-            battle_status: battleStatusRaw,
-            opponent_mint: opponentMint.toString(),
-            creation_timestamp: creationTimestamp,
-            qualification_timestamp: qualificationTimestamp,
-            last_trade_timestamp: lastTradeTimestamp,
-            battle_start_timestamp: battleStartTimestamp,
-            victory_timestamp: victoryTimestamp,
-            listing_timestamp: listingTimestamp,
-            bump: bump,
             name: name || null,
             symbol: symbol || null,
             uri: uri || null,
             image: image || null,
             creator: creator || null,
+            sol_collected: solCollected,
+            tokens_sold: tokensSold,
+            total_trade_volume: totalTradeVolume,
+            is_active: isActive,
+            battle_status: battleStatusRaw,
+            opponent_mint: opponentMint.toString() !== '11111111111111111111111111111111'
+                ? opponentMint.toString()
+                : null,
+            creation_timestamp: creationTimestamp || null,
+            qualification_timestamp: qualificationTimestamp || null,
+            last_trade_timestamp: lastTradeTimestamp || null,
+            battle_start_timestamp: battleStartTimestamp || null,
+            victory_timestamp: victoryTimestamp || null,
+            listing_timestamp: listingTimestamp || null,
+            bump: bump,
             updated_at: new Date().toISOString()
         };
+
+        console.log(`📝 Upserting:`, {
+            mint: tokenData.mint.slice(0, 8) + '...',
+            name: tokenData.name,
+            symbol: tokenData.symbol,
+            creator: tokenData.creator?.slice(0, 8) + '...',
+            sol_collected: tokenData.sol_collected
+        });
 
         const { error } = await supabase
             .from('tokens')

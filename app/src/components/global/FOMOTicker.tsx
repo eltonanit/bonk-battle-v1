@@ -73,11 +73,11 @@ export function FOMOTicker() {
             const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
             const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
 
-            console.log('🔍 Token:', {
-              mint: mintStr.slice(0, 8),
-              creator: creatorStr.slice(0, 8),
-              isSame: mintStr === creatorStr,
-            });
+            // console.log('🔍 Token:', {
+            //   mint: mintStr.slice(0, 8),
+            //   creator: creatorStr.slice(0, 8),
+            //   isSame: mintStr === creatorStr,
+            // });
 
             return {
               signature: mintStr,
@@ -271,13 +271,13 @@ export function FOMOTicker() {
   const fomoEvent = buyEvents[fomoIndex];
   const creationEvent = createEvents[creationIndex];
 
-  // Debug log
-  console.log('🎯 FOMOTicker DEBUG:', {
-    buyEventsCount: buyEvents.length,
-    createEventsCount: createEvents.length,
-    hasFomoEvent: !!fomoEvent,
-    hasCreationEvent: !!creationEvent,
-  });
+  // Debug log (disabled - causes spam)
+  // console.log('🎯 FOMOTicker DEBUG:', {
+  //   buyEventsCount: buyEvents.length,
+  //   createEventsCount: createEvents.length,
+  //   hasFomoEvent: !!fomoEvent,
+  //   hasCreationEvent: !!creationEvent,
+  // });
 
   // Determina il colore in base al tipo di evento
   const getBuyColor = () => BUY_COLORS[fomoIndex % BUY_COLORS.length];

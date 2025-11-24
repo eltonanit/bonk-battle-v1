@@ -12,6 +12,7 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
 import { BONK_BATTLE_PROGRAM_ID } from './constants';
 import { getBattleStatePDA, getPriceOraclePDA } from './pdas';
@@ -54,6 +55,8 @@ export interface BuyTokenResult {
   solAmount: number;
   /** Estimated tokens received (actual amount determined by bonding curve) */
   estimatedTokens?: number;
+  /** Number of tokens actually received (parsed from event logs if available) */
+  tokensReceived?: number;
 }
 
 /**
@@ -61,8 +64,8 @@ export interface BuyTokenResult {
  *
  * This function:
  * 1. Derives all necessary PDAs (battle_state, contract_token_account, user_token_account, price_oracle)
- * 2. Builds the buy_token instruction with SOL amount
- * 3. Creates user's token account if needed (init_if_needed)
+ * 2. Creates user's Associated Token Account if it doesn't exist
+ * 3. Builds the buy_token instruction with SOL amount
  * 4. Executes the transaction and transfers tokens to user
  *
  * The actual number of tokens received is calculated by the bonding curve formula on-chain
@@ -154,6 +157,7 @@ export async function buyToken(
       throw err;
     }
   }
+
   try {
     // ========================================================================
     // Step 1: Check user balance
@@ -202,6 +206,16 @@ export async function buyToken(
     );
     console.log('📍 User Token Account:', userTokenAccount.toString());
 
+    // ⭐ CHECK if user ATA exists
+    const userTokenAccountInfo = await connection.getAccountInfo(userTokenAccount);
+    const needsATACreation = !userTokenAccountInfo;
+
+    if (needsATACreation) {
+      console.log('⚠️ User token account does not exist, will create it in this transaction');
+    } else {
+      console.log('✅ User token account already exists');
+    }
+
     // Price Oracle PDA: seeds = ["price_oracle"]
     const [priceOraclePDA] = getPriceOraclePDA();
     console.log('📍 Price Oracle PDA:', priceOraclePDA.toString());
@@ -244,17 +258,29 @@ export async function buyToken(
     console.log('✅ Buy instruction built');
 
     // ========================================================================
-    // Step 5: Build transaction with compute budget
+    // Step 5: Build transaction with compute budget and ATA creation
     // ========================================================================
     const instructions = [];
 
-    // Add compute budget (buying involves bonding curve calculations)
+    // Add compute budget (buying involves bonding curve calculations + possible ATA creation)
     instructions.push(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 })
     );
     console.log('✅ Added compute budget (400k units)');
 
-    // Add buy instruction
+    // ⭐ CREATE USER ATA IF NEEDED (idempotent - safe even if already exists)
+    if (needsATACreation) {
+      const createATAInstruction = createAssociatedTokenAccountIdempotentInstruction(
+        wallet,              // payer
+        userTokenAccount,    // associatedToken (the ATA we're creating)
+        wallet,              // owner (who owns the ATA)
+        mint                 // mint (token type)
+      );
+      instructions.push(createATAInstruction);
+      console.log('✅ Added create ATA instruction (will be created in this tx)');
+    }
+
+    // Add buy instruction (this now expects ATA to exist, which it will after previous instruction)
     instructions.push(buyInstruction);
 
     // Get recent blockhash

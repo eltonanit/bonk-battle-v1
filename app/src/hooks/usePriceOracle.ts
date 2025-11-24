@@ -59,8 +59,27 @@ async function fetchPriceOracle(): Promise<PriceOracleData> {
     if (oracleData && !supabaseError) {
       console.log('⚡ Price Oracle fetched from Supabase cache');
 
+      // 🔧 FIX: Determina se il valore è già in USD o è raw
+      const rawValue = Number(oracleData.sol_price_usd);
+
+      let solPriceUsd: number;
+
+      if (rawValue > 1000) {
+        // Valore è in micro-USD (formato raw), converti
+        solPriceUsd = rawValue / 1_000_000;
+        console.log('✅ Converted from micro-USD:', rawValue, '→', solPriceUsd);
+      } else if (rawValue > 1) {
+        // Valore è già in USD, usa diretto
+        solPriceUsd = rawValue;
+        console.log('✅ Already in USD:', solPriceUsd);
+      } else {
+        // Valore è sbagliato (< 1), usa fallback RPC
+        console.warn('⚠️ Invalid price in Supabase:', rawValue, '- falling back to RPC');
+        throw new Error('Invalid Supabase price, fallback to RPC');
+      }
+
       return {
-        solPriceUsd: Number(oracleData.sol_price_usd) / 1_000_000, // Convert to USD
+        solPriceUsd,
         lastUpdate: Number(oracleData.last_update_timestamp),
         nextUpdate: Number(oracleData.next_update_timestamp),
         updateCount: Number(oracleData.update_count),

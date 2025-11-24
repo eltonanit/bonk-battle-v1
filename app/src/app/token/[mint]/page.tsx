@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -25,6 +25,9 @@ export default function TokenDetailPage() {
   const params = useParams();
   const mintAddress = params.mint as string;
   const { publicKey } = useWallet();
+
+  // ⭐ Stato per tracciare se popup è stato chiuso
+  const [qualificationPopupDismissed, setQualificationPopupDismissed] = useState(false);
 
   // Parse mint PublicKey
   const mint = new PublicKey(mintAddress);
@@ -92,11 +95,17 @@ export default function TokenDetailPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
-      {/* ⭐ Qualification Popup - mostra solo se token non qualificato */}
-      {state.battleStatus === BattleStatus.Created && (
+      {/* ⭐ Qualification Popup - mostra solo se non qualificato E non dismissed */}
+      {state.battleStatus === BattleStatus.Created && !qualificationPopupDismissed && (
         <QualificationPopup
           mint={mint}
-          onQualified={refetch}
+          onQualified={() => {
+            refetch();
+            setQualificationPopupDismissed(true);
+          }}
+          onClose={() => {
+            setQualificationPopupDismissed(true);
+          }}
         />
       )}
 
