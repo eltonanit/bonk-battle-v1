@@ -19,7 +19,7 @@ import { syncTokensToSupabase } from '@/lib/indexer/sync-tokens';
  * Or use external cron service (cron-job.org, EasyCron):
  * - URL: https://your-domain.vercel.app/api/cron/sync-tokens
  * - Method: GET
- * - Schedule: Every 10 minutes (*/10 * * * *)
+ * - Schedule: Every 10 minutes
  * - Authorization: Bearer YOUR_CRON_SECRET
  */
 

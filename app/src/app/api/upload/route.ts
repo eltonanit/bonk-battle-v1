@@ -3,6 +3,15 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
+// Increase body size limit for Vercel
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 // Cloudflare R2 client
 const r2Client = process.env.R2_ACCESS_KEY_ID ? new S3Client({
     region: 'auto',

@@ -195,7 +195,10 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
                     console.log(`✅ Parsed image from JSON URI`);
                 }
             } catch (err) {
-                console.warn(`⚠️ Failed to extract image from URI`);
+                // Silently ignore timeout errors for image fetch
+                if (!(err instanceof Error && err.name === 'TimeoutError')) {
+                    console.warn(`⚠️ Failed to extract image from URI`);
+                }
             }
         }
 

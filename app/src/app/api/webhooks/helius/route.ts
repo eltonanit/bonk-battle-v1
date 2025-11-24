@@ -122,34 +122,37 @@ export async function POST(request: NextRequest) {
         console.log(`🪙 Mints to sync: ${mintArray.join(', ')}`);
 
         // ============================================
-        // CRITICAL: Respond IMMEDIATELY, sync in background!
+        // Sync tokens (await to ensure completion on Vercel)
         // ============================================
 
-        // Start syncs in background (fire and forget)
-        for (const mint of mintArray) {
-            // Don't await! Let it run in background
-            syncSingleToken(mint)
-                .then(result => {
+        const results = await Promise.all(
+            mintArray.map(async (mint) => {
+                try {
+                    const result = await syncSingleToken(mint);
                     if (result.success) {
-                        console.log(`✅ Background sync completed: ${mint}`);
+                        console.log(`✅ Synced: ${mint}`);
                     } else {
-                        console.error(`❌ Background sync failed: ${mint} - ${result.error}`);
+                        console.error(`❌ Failed: ${mint} - ${result.error}`);
                     }
-                })
-                .catch(err => {
-                    console.error(`❌ Background sync error: ${mint}`, err);
-                });
-        }
+                    return { mint, success: result.success };
+                } catch (err) {
+                    console.error(`❌ Error syncing ${mint}:`, err);
+                    return { mint, success: false };
+                }
+            })
+        );
 
-        // Respond immediately (within milliseconds!)
+        const successCount = results.filter(r => r.success).length;
+
+        // Respond with sync results
         const duration = Date.now() - startTime;
-        console.log(`⚡ Webhook responded in ${duration}ms (sync running in background)`);
+        console.log(`⚡ Webhook completed in ${duration}ms`);
 
         return NextResponse.json({
             success: true,
-            queued: mintArray.length,
+            synced: successCount,
+            total: mintArray.length,
             mints: mintArray,
-            message: 'Sync queued in background',
             duration
         });
 

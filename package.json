@@ -1,6 +1,12 @@
 {
+  "scripts": {
+    "update-price": "npx ts-node scripts/update-sol-price.ts"
+  },
   "devDependencies": {
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.11.5"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.76.1"
