@@ -42,7 +42,7 @@ export function DesktopHeader() {
         </div>
 
         {/* Buttons - Right */}
-        <div className="flex items-center gap-3 flex-shrink-0 ml-6">
+        <div className="flex items-center gap-3 flex-shrink-0 ml-3">
           {/* Join ARMY Button - Giallo/Oro (quando loggato) */}
           {connected && (
             <>

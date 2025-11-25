@@ -14,7 +14,7 @@ export default function HomePage() {
       <DesktopHeader />
       <Header />
 
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
+      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-12 max-w-full">
 
         {/* ⭐ FOMOTicker + HoldersTicker visibili SOLO su mobile */}
         <div className="lg:hidden">

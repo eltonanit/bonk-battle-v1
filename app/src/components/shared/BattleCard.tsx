@@ -57,12 +57,12 @@ export function BattleCard({
         <div className="flex items-center justify-between">
           {/* Token A Image */}
           <Link href={`/token/${tokenA.mint}`}>
-            <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
+            <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
               <Image
                 src={getTokenImage(tokenA)}
                 alt={tokenA.symbol}
-                width={56}
-                height={56}
+                width={128}
+                height={128}
                 className="w-full h-full object-cover"
                 unoptimized
               />
@@ -71,24 +71,22 @@ export function BattleCard({
 
           {/* Score Center */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] lg:text-xs text-white/70 font-semibold mb-0.5 lg:mb-1">SCORE</span>
-            <div className="flex items-center gap-1.5 lg:gap-3">
-              <span className="text-xs lg:text-lg font-bold text-orange-400">{tokenA.symbol}</span>
-              <span className="text-lg lg:text-2xl font-black text-yellow-400 mx-1 lg:mx-2">
+            <span className="text-xs lg:text-sm text-white/70 font-semibold mb-1 lg:mb-2">SCORE</span>
+            <div className="flex items-center gap-2 lg:gap-3">
+              <span className="text-2xl lg:text-3xl font-black text-yellow-400">
                 {scoreA} - {scoreB}
               </span>
-              <span className="text-xs lg:text-lg font-bold text-orange-400">{tokenB.symbol}</span>
             </div>
           </div>
 
           {/* Token B Image */}
           <Link href={`/token/${tokenB.mint}`}>
-            <div className="w-10 h-10 lg:w-14 lg:h-14 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
+            <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
               <Image
                 src={getTokenImage(tokenB)}
                 alt={tokenB.symbol}
-                width={56}
-                height={56}
+                width={128}
+                height={128}
                 className="w-full h-full object-cover"
                 unoptimized
               />
@@ -103,8 +101,8 @@ export function BattleCard({
           {/* Left Token Stats */}
           <div className="flex-1 pr-2 lg:pr-4">
             <Link href={`/token/${tokenA.mint}`}>
-              <p className="text-xs lg:text-sm text-white/90 font-medium mb-2 lg:mb-3 truncate hover:text-orange-400 transition-colors">
-                {tokenA.name}
+              <p className="text-xs lg:text-sm text-orange-400 font-bold mb-2 lg:mb-3 truncate hover:text-orange-300 transition-colors uppercase">
+                ${tokenA.symbol}
               </p>
             </Link>
 
@@ -155,8 +153,8 @@ export function BattleCard({
           {/* Right Token Stats */}
           <div className="flex-1 pl-2 lg:pl-4">
             <Link href={`/token/${tokenB.mint}`}>
-              <p className="text-xs lg:text-sm text-white/90 font-medium mb-2 lg:mb-3 truncate text-right hover:text-orange-400 transition-colors">
-                {tokenB.name}
+              <p className="text-xs lg:text-sm text-orange-400 font-bold mb-2 lg:mb-3 truncate text-right hover:text-orange-300 transition-colors uppercase">
+                ${tokenB.symbol}
               </p>
             </Link>
 

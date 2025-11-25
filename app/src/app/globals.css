@@ -94,92 +94,132 @@
 
 @keyframes shakeHorizontal {
   0% {
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) rotate(0deg);
     box-shadow: 0 0 0 rgba(255, 160, 25, 0);
   }
 
-  3% {
-    transform: translateX(-48vw) scale(1.1);
-    box-shadow: 0 0 50px rgba(255, 160, 25, 1);
+  2% {
+    transform: translateX(-45vw) scale(1.2) rotate(-3deg);
+    box-shadow: 0 0 80px rgba(255, 160, 25, 1);
   }
 
-  9% {
-    transform: translateX(48vw) scale(1.15);
-    box-shadow: 0 0 60px rgba(255, 160, 25, 1);
+  4% {
+    transform: translateX(50vw) scale(1.25) rotate(3deg);
+    box-shadow: 0 0 90px rgba(255, 160, 25, 1);
+  }
+
+  6% {
+    transform: translateX(-48vw) scale(1.18) rotate(-2deg);
+    box-shadow: 0 0 85px rgba(255, 160, 25, 1);
+  }
+
+  8% {
+    transform: translateX(52vw) scale(1.22) rotate(4deg);
+    box-shadow: 0 0 95px rgba(255, 160, 25, 1);
+  }
+
+  10% {
+    transform: translateX(-50vw) scale(1.2) rotate(-3deg);
+    box-shadow: 0 0 90px rgba(255, 160, 25, 1);
+  }
+
+  12% {
+    transform: translateX(48vw) scale(1.25) rotate(2deg);
+    box-shadow: 0 0 100px rgba(255, 160, 25, 1);
   }
 
   15% {
-    transform: translateX(-46vw) scale(1.1);
-    box-shadow: 0 0 55px rgba(255, 160, 25, 1);
+    transform: translateX(-46vw) scale(1.15) rotate(-4deg);
+    box-shadow: 0 0 85px rgba(255, 160, 25, 1);
   }
 
-  21% {
-    transform: translateX(46vw) scale(1.15);
-    box-shadow: 0 0 60px rgba(255, 160, 25, 1);
+  18% {
+    transform: translateX(49vw) scale(1.2) rotate(3deg);
+    box-shadow: 0 0 90px rgba(255, 160, 25, 1);
   }
 
-  27% {
-    transform: translateX(-44vw) scale(1.1);
-    box-shadow: 0 0 50px rgba(255, 160, 25, 1);
+  22% {
+    transform: translateX(-47vw) scale(1.18) rotate(-2deg);
+    box-shadow: 0 0 80px rgba(255, 160, 25, 1);
   }
 
-  33% {
-    transform: translateX(44vw) scale(1.12);
-    box-shadow: 0 0 55px rgba(255, 160, 25, 1);
+  26% {
+    transform: translateX(46vw) scale(1.22) rotate(4deg);
+    box-shadow: 0 0 95px rgba(255, 160, 25, 1);
   }
 
-  39% {
-    transform: translateX(-42vw) scale(1.08);
-    box-shadow: 0 0 45px rgba(255, 160, 25, 0.9);
+  30% {
+    transform: translateX(-44vw) scale(1.15) rotate(-3deg);
+    box-shadow: 0 0 75px rgba(255, 160, 25, 1);
+  }
+
+  35% {
+    transform: translateX(45vw) scale(1.2) rotate(2deg);
+    box-shadow: 0 0 85px rgba(255, 160, 25, 1);
+  }
+
+  40% {
+    transform: translateX(-40vw) scale(1.12) rotate(-2deg);
+    box-shadow: 0 0 70px rgba(255, 160, 25, 0.9);
   }
 
   45% {
-    transform: translateX(42vw) scale(1.1);
-    box-shadow: 0 0 50px rgba(255, 160, 25, 1);
+    transform: translateX(42vw) scale(1.15) rotate(3deg);
+    box-shadow: 0 0 75px rgba(255, 160, 25, 1);
   }
 
-  51% {
-    transform: translateX(-38vw) scale(1.06);
-    box-shadow: 0 0 40px rgba(255, 160, 25, 0.8);
+  50% {
+    transform: translateX(-38vw) scale(1.1) rotate(-2deg);
+    box-shadow: 0 0 65px rgba(255, 160, 25, 0.9);
   }
 
-  57% {
-    transform: translateX(38vw) scale(1.08);
-    box-shadow: 0 0 45px rgba(255, 160, 25, 0.9);
+  55% {
+    transform: translateX(36vw) scale(1.12) rotate(2deg);
+    box-shadow: 0 0 70px rgba(255, 160, 25, 0.9);
   }
 
-  63% {
-    transform: translateX(-32vw) scale(1.04);
-    box-shadow: 0 0 35px rgba(255, 160, 25, 0.7);
+  60% {
+    transform: translateX(-32vw) scale(1.08) rotate(-1deg);
+    box-shadow: 0 0 60px rgba(255, 160, 25, 0.8);
   }
 
-  69% {
-    transform: translateX(32vw) scale(1.05);
-    box-shadow: 0 0 40px rgba(255, 160, 25, 0.8);
+  65% {
+    transform: translateX(30vw) scale(1.1) rotate(2deg);
+    box-shadow: 0 0 65px rgba(255, 160, 25, 0.8);
+  }
+
+  70% {
+    transform: translateX(-25vw) scale(1.06) rotate(-1deg);
+    box-shadow: 0 0 50px rgba(255, 160, 25, 0.7);
   }
 
   75% {
-    transform: translateX(-24vw) scale(1.03);
-    box-shadow: 0 0 30px rgba(255, 160, 25, 0.6);
+    transform: translateX(22vw) scale(1.05) rotate(1deg);
+    box-shadow: 0 0 45px rgba(255, 160, 25, 0.6);
   }
 
-  81% {
-    transform: translateX(24vw) scale(1.02);
-    box-shadow: 0 0 25px rgba(255, 160, 25, 0.5);
+  80% {
+    transform: translateX(-18vw) scale(1.03) rotate(-1deg);
+    box-shadow: 0 0 35px rgba(255, 160, 25, 0.5);
   }
 
-  87% {
-    transform: translateX(-15vw) scale(1.01);
-    box-shadow: 0 0 15px rgba(255, 160, 25, 0.4);
+  85% {
+    transform: translateX(12vw) scale(1.02) rotate(1deg);
+    box-shadow: 0 0 25px rgba(255, 160, 25, 0.4);
   }
 
-  93% {
-    transform: translateX(8vw) scale(1);
-    box-shadow: 0 0 10px rgba(255, 160, 25, 0.2);
+  90% {
+    transform: translateX(-8vw) scale(1.01) rotate(0deg);
+    box-shadow: 0 0 15px rgba(255, 160, 25, 0.3);
+  }
+
+  95% {
+    transform: translateX(4vw) scale(1) rotate(0deg);
+    box-shadow: 0 0 8px rgba(255, 160, 25, 0.2);
   }
 
   100% {
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) rotate(0deg);
     box-shadow: 0 0 0 rgba(255, 160, 25, 0);
   }
 }
@@ -197,7 +237,7 @@
 }
 
 .ticker-shake {
-  animation: shakeHorizontal 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  animation: shakeHorizontal 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55) !important;
   z-index: 10 !important;
   position: relative !important;
 }
@@ -208,4 +248,44 @@
 .ticker-content {
   will-change: transform;
   backface-visibility: hidden;
+}
+
+/* ⭐ OVERRIDE SOLANA WALLET ADAPTER PURPLE STYLES */
+.wallet-adapter-button {
+  background-color: #14D99E !important;
+  color: #000000 !important;
+}
+
+.wallet-adapter-button:not([disabled]):hover {
+  background-color: #12c48e !important;
+}
+
+.wallet-adapter-button[disabled] {
+  background-color: #0a9070 !important;
+  opacity: 0.6 !important;
+}
+
+/* Remove default purple background */
+.wallet-adapter-button-trigger {
+  background-color: #14D99E !important;
+}
+
+/* ⭐ HIDE "Select Wallet" TEXT COMPLETELY */
+.wallet-adapter-button-start-icon {
+  margin-right: 0 !important;
+}
+
+.wallet-adapter-button:not(.wallet-adapter-button-connected) {
+  font-size: 0 !important;
+}
+
+.wallet-adapter-button:not(.wallet-adapter-button-connected)::before {
+  content: "Connect Wallet" !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+}
+
+/* Hide the original text but show icon */
+.wallet-adapter-button .wallet-adapter-button-start-icon {
+  font-size: 20px !important;
 }

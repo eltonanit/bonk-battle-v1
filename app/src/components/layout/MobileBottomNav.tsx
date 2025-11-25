@@ -23,13 +23,6 @@ export function MobileBottomNav() {
 
   return (
     <>
-      {/* Wallet Button se disconnesso */}
-      {!connected && (
-        <div className="lg:hidden fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-0 right-0 px-5 py-3 z-[999]">
-          <WalletMultiButtonDynamic className="!w-full !bg-[#14D99E] !text-black !border-none !px-6 !py-4 !rounded-lg !text-base !font-bold !shadow-lg !shadow-emerald-500/30 active:!scale-[0.98] !transition-all" />
-        </div>
-      )}
-
       {/* Bottom Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[rgba(21,22,27,0.95)] backdrop-blur-xl border-t border-white/15 pb-[env(safe-area-inset-bottom)] z-[1000] shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
         <div className="flex items-center justify-around max-w-[600px] mx-auto px-3 py-2">
