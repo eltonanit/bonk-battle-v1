@@ -58,9 +58,16 @@ export default {
             transform: "translateX(-5px) scale(1.03)",
           },
         },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-2px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(2px)" },
+        },
       },
       animation: {
         "shake-yellow": "shake-yellow 0.8s ease-in-out",
+        "shake": "shake 0.5s ease-in-out infinite",
+        "pulse": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },

@@ -1,10 +1,18 @@
 // app/src/app/api/webhooks/helius/route.ts
 // FIXED: Immediate response + background sync to avoid Helius timeout
+// UPDATED: Added P/L tracking - saves trades to user_trades table
 
 import { NextRequest, NextResponse } from 'next/server';
 import { syncSingleToken } from '@/lib/indexer/sync-single-token';
+import { createClient } from '@supabase/supabase-js';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
+
+// Supabase client per salvare trades (usa service role per write access)
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface HeliusWebhookEvent {
     accountData?: {
@@ -46,6 +54,55 @@ interface HeliusWebhookEvent {
 }
 
 /**
+ * Salva un trade nel database per P/L tracking
+ */
+async function saveUserTrade(params: {
+    walletAddress: string;
+    tokenMint: string;
+    signature: string;
+    tradeType: 'buy' | 'sell';
+    solAmount: number;
+    tokenAmount: number;
+    slot: number;
+    timestamp: number;
+}) {
+    try {
+        // Fetch SOL price (con fallback)
+        let solPriceUsd = 240;
+        try {
+            const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+            const data = await res.json();
+            solPriceUsd = data?.solana?.usd || 240;
+        } catch { /* use fallback */ }
+
+        const tradeValueUsd = (params.solAmount / 1e9) * solPriceUsd;
+        const tokenPriceSol = params.tokenAmount > 0 ? params.solAmount / params.tokenAmount : 0;
+
+        const { error } = await supabase.from('user_trades').insert({
+            wallet_address: params.walletAddress,
+            token_mint: params.tokenMint,
+            signature: params.signature,
+            trade_type: params.tradeType,
+            sol_amount: params.solAmount,
+            token_amount: params.tokenAmount,
+            sol_price_usd: solPriceUsd,
+            token_price_sol: tokenPriceSol,
+            trade_value_usd: tradeValueUsd,
+            block_time: new Date(params.timestamp * 1000),
+            slot: params.slot,
+        });
+
+        if (error && error.code !== '23505') { // Ignora duplicati (23505 = unique violation)
+            console.error('❌ Error saving trade:', error);
+        } else if (!error) {
+            console.log(`💾 Trade saved: ${params.tradeType.toUpperCase()} ${params.tokenMint.slice(0, 8)}... | ${(params.solAmount / 1e9).toFixed(4)} SOL | $${tradeValueUsd.toFixed(2)}`);
+        }
+    } catch (err) {
+        console.error('❌ saveUserTrade error:', err);
+    }
+}
+
+/**
  * POST /api/webhooks/helius
  * Receives real-time events from Helius when tokens are created/traded
  * 
@@ -79,6 +136,7 @@ export async function POST(request: NextRequest) {
 
         // Extract unique mint addresses from events
         const mints = new Set<string>();
+        let tradesSaved = 0;
 
         for (const event of payload) {
             // From tokenTransfers
@@ -105,7 +163,31 @@ export async function POST(request: NextRequest) {
 
             // Detect event type for logging
             const eventType = detectEventType(event);
-            console.log(`🔍 Event type: ${eventType}`);
+            console.log(`🔍 Event type: ${eventType} | Signature: ${event.signature.slice(0, 8)}...`);
+
+            // === SAVE TRADE FOR P/L TRACKING ===
+            if ((eventType === 'token_bought' || eventType === 'token_sold') && event.tokenTransfers?.length) {
+                const transfer = event.tokenTransfers[0];
+                const solTransfer = event.nativeTransfers?.find(nt =>
+                    eventType === 'token_bought'
+                        ? nt.fromUserAccount === event.feePayer
+                        : nt.toUserAccount === event.feePayer
+                );
+
+                if (transfer && solTransfer) {
+                    await saveUserTrade({
+                        walletAddress: event.feePayer,
+                        tokenMint: transfer.mint,
+                        signature: event.signature,
+                        tradeType: eventType === 'token_bought' ? 'buy' : 'sell',
+                        solAmount: Math.abs(solTransfer.amount),
+                        tokenAmount: Math.floor(transfer.tokenAmount * 1e6), // Convert to raw
+                        slot: event.slot,
+                        timestamp: event.timestamp,
+                    });
+                    tradesSaved++;
+                }
+            }
         }
 
         const mintArray = Array.from(mints);
@@ -115,6 +197,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: 'No mints to sync',
+                tradesSaved,
                 duration: Date.now() - startTime
             });
         }
@@ -146,12 +229,13 @@ export async function POST(request: NextRequest) {
 
         // Respond with sync results
         const duration = Date.now() - startTime;
-        console.log(`⚡ Webhook completed in ${duration}ms`);
+        console.log(`⚡ Webhook completed in ${duration}ms | Trades saved: ${tradesSaved}`);
 
         return NextResponse.json({
             success: true,
             synced: successCount,
             total: mintArray.length,
+            tradesSaved,
             mints: mintArray,
             duration
         });
@@ -174,6 +258,7 @@ export async function GET() {
         status: 'healthy',
         endpoint: 'helius-webhook',
         program: PROGRAM_ID,
+        features: ['token-sync', 'pl-tracking'],
         timestamp: new Date().toISOString()
     });
 }

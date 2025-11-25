@@ -142,7 +142,15 @@ export default function CreatePage() {
                 </div>
 
                 <div className="max-w-[1200px] pl-8 pr-5 py-10">
-                    <h1 className="text-3xl font-bold mb-10">Create Battle Token</h1>
+                    {/* Header Section */}
+                    <div className="mb-10">
+                        <h1 className="text-4xl lg:text-5xl font-extrabold mb-3 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                            Start Battle Here
+                        </h1>
+                        <p className="text-xl text-white/80 font-semibold">
+                            First: Create a Coin
+                        </p>
+                    </div>
 
                     <form onSubmit={handleCreateToken}>
                         <section>
@@ -283,7 +291,7 @@ export default function CreatePage() {
                             disabled={isCreating || !publicKey}
                             className="mt-10 w-full max-w-xs bg-bonk-orange-dark text-black px-8 py-4 rounded-lg font-semibold text-lg hover:bg-bonk-orange-dark/90 disabled:bg-bonk-border disabled:cursor-not-allowed transition-all hover:scale-105"
                         >
-                            {isCreating ? 'Starting Battle...' : 'Start Battle'}
+                            {isCreating ? 'Creating Coin...' : 'Create Coin'}
                         </button>
                     </form>
                 </div>
