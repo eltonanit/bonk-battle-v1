@@ -80,7 +80,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 bg-bonk-dark border-r border-bonk-border z-50">
+    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-56 bg-bonk-dark border-r border-bonk-border z-50">
       {/* Logo - FIX */}
       {/* Logo */}
       <div className="p-6 border-b border-bonk-border">

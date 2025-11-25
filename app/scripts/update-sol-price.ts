@@ -86,8 +86,8 @@ async function fetchSolPrice(): Promise<number> {
  * Load keeper keypair from file
  */
 function loadKeeperKeypair(): Keypair {
-  // ⭐ HARDCODED PATH - BONK BATTLE Keeper authorized for price oracle
-  const keeperPath = 'C:\\Users\\Elton\\bonk-battle-contract\\keeper\\keeper-wallet.json';
+  // ⭐ CORRECT KEEPER - matches on-chain price_oracle authority
+  const keeperPath = path.join(__dirname, 'price-keeper.json');
 
   console.log(`🔍 Looking for keypair at: ${keeperPath}`);
 
@@ -101,8 +101,8 @@ function loadKeeperKeypair(): Keypair {
   console.log(`🔑 Loaded keypair from: ${keeperPath}`);
   console.log(`🔑 Pubkey: ${keypair.publicKey.toString()}`);
 
-  // Verify it's the correct keeper
-  const expectedKeeper = 'Gp7pm7dgZWcepQh9X1U91HqGmL1tdyJxABbheDThdY2D';
+  // Verify it's the correct keeper (ON-CHAIN authority!)
+  const expectedKeeper = '6b2sGwy1YUSH4QpaP73iSAA4fgo2Qmr8kZ9eeN7eDRRy';
   if (keypair.publicKey.toString() !== expectedKeeper) {
     throw new Error(`Wrong keeper! Expected ${expectedKeeper}, got ${keypair.publicKey.toString()}`);
   }
@@ -246,12 +246,11 @@ async function main() {
       throw new Error('Insufficient keeper balance! Need at least 0.01 SOL');
     }
 
-    // 4. Update on-chain (DISABLED - keeper authority mismatch)
-    // const signature = await updatePriceOnChain(connection, keeper, solPriceUsd);
+    // 4. Update on-chain
+    const signature = await updatePriceOnChain(connection, keeper, solPriceUsd);
 
     // 5. Update Supabase
     await updatePriceInSupabase(solPriceUsd);
-    const signature = 'skipped';
 
     // Done!
     console.log('\n═══════════════════════════════════════════════════════════');

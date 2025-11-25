@@ -13,7 +13,7 @@ export default function FeedFollowersPage() {
       <Header />
       <Sidebar />
 
-      <div className="pt-32 lg:pt-0 lg:ml-64 lg:mt-16">
+      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="lg:hidden">
           <FOMOTicker />
         </div>

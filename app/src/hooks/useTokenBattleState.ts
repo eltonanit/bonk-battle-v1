@@ -56,7 +56,7 @@ async function fetchTokenBattleState(
         totalTradeVolume: Number(tokenData.total_trade_volume),
         isActive: tokenData.is_active,
         battleStatus: tokenData.battle_status as BattleStatus,
-        opponentMint: new PublicKey(tokenData.opponent_mint),
+        opponentMint: tokenData.opponent_mint ? new PublicKey(tokenData.opponent_mint) : null,
         creationTimestamp: Number(tokenData.creation_timestamp),
         qualificationTimestamp: Number(tokenData.qualification_timestamp),
         lastTradeTimestamp: Number(tokenData.last_trade_timestamp),

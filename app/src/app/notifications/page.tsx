@@ -48,7 +48,7 @@ export default function NotificationsPage() {
 
             {/* Main Content */}
             {/* ⭐ MODIFICATO: Aggiunto pt-32 mobile per header a 2 righe + FOMOTicker */}
-            <div className="pt-32 lg:pt-0 lg:ml-64 lg:mt-16">
+            <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
                 {/* ⭐ FOMOTicker visibile SOLO su mobile */}
                 <div className="lg:hidden">
                     <FOMOTicker />
