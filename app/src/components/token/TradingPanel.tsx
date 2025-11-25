@@ -175,8 +175,8 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
           disabled={loading}
         />
         <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-          <span className="text-gray-400 text-sm">SOL</span>
-          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500"></div>
+          <img src="/solana-icon.png" alt="Solana" className="w-6 h-6" />
+          <span className="text-gray-400 text-sm font-medium">SOL</span>
         </div>
       </div>
 

@@ -32,12 +32,12 @@ export function MobileBottomNav() {
 
       {/* Bottom Navigation */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[rgba(21,22,27,0.95)] backdrop-blur-xl border-t border-white/15 pb-[env(safe-area-inset-bottom)] z-[1000] shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-around max-w-[600px] mx-auto px-5 py-2">
+        <div className="flex items-center justify-around max-w-[600px] mx-auto px-3 py-2">
 
           {/* HOME */}
           <Link
             href="/"
-            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${isActive('/') && pathname === '/'
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/') && pathname === '/'
                 ? 'text-white bg-white/10'
                 : 'text-white/60'
               }`}
@@ -54,7 +54,7 @@ export function MobileBottomNav() {
           {/* CREATE */}
           <Link
             href="/create"
-            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${isActive('/create')
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
                 ? 'text-white bg-white/10'
                 : 'text-white/60'
               }`}
@@ -69,10 +69,24 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Create</span>
           </Link>
 
+          {/* BATTLE - CENTRALE IN ARANCIONE */}
+          <Link
+            href="/hall"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/hall')
+                ? 'text-[#FFA019] bg-[#FFA019]/10'
+                : 'text-[#FFA019]'
+              }`}
+          >
+            <span className="w-8 h-8" style={{ filter: 'brightness(0) saturate(100%) invert(57%) sepia(81%) saturate(1562%) hue-rotate(358deg) brightness(102%) contrast(101%)' }}>
+              <img src="/icons8-battaglia-100.png" alt="Battle" className="w-full h-full object-contain" />
+            </span>
+            <span className="text-[11px] font-bold">Start</span>
+          </Link>
+
           {/* PROFILE */}
           <Link
             href="/profile"
-            className={`flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${isActive('/profile')
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
                 ? 'text-white bg-white/10'
                 : 'text-white/60'
               }`}
@@ -86,10 +100,10 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Profile</span>
           </Link>
 
-          {/* ⭐ NOTIFICATIONS - Link to page */}
+          {/* NOTIFICATIONS */}
           <Link
             href="/notifications"
-            className={`relative flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all ${isActive('/notifications')
+            className={`relative flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/notifications')
                 ? 'text-white bg-white/10'
                 : 'text-white/60'
               }`}

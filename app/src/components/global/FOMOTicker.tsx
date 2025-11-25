@@ -212,7 +212,7 @@ export function FOMOTicker() {
       setFomoShake(true);
       setFomoIndex(prev => (prev + 1) % buyEvents.length);
       setTimeout(() => setFomoShake(false), 600);
-    }, 3000);
+    }, 2500); // ✅ Aumentata frequenza: 3000ms → 2500ms
 
     return () => clearInterval(interval);
   }, [buyEvents.length]);
@@ -229,7 +229,7 @@ export function FOMOTicker() {
       setCreationShake(true);
       setCreationIndex(prev => (prev + 1) % createEvents.length);
       setTimeout(() => setCreationShake(false), 600);
-    }, 4000);
+    }, 3500); // ✅ Aumentata frequenza: 4000ms → 3500ms
 
     return () => clearInterval(interval);
   }, [createEvents.length]);
@@ -284,52 +284,52 @@ export function FOMOTicker() {
   const getCreatedColor = () => CREATED_COLORS[creationIndex % CREATED_COLORS.length];
 
   return (
-    <div className="mb-4 lg:mb-0">
-      <div className="px-3 lg:px-6 py-2">
-        <div className="flex flex-col min-[400px]:flex-row gap-2 lg:gap-3 justify-start items-start">
+    <div className="mb-2 lg:mb-0">
+      <div className="px-1 lg:px-4 py-1 lg:py-1.5">
+        <div className="flex flex-col min-[400px]:flex-row gap-2 lg:gap-2 justify-center lg:justify-start items-center lg:items-start">
 
           {buyEvents.length > 0 && fomoEvent && (
             <Link
               href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-2 lg:gap-2 px-2 py-1 lg:px-2 lg:py-1 text-base lg:text-base text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
+              className={'fomo-ticker-content flex items-center gap-1.5 lg:gap-1.5 px-2 py-1 lg:px-2 lg:py-1 text-sm lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
               style={{
                 backgroundColor: getBuyColor(),
                 borderRadius: 0,
               }}
             >
-              <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+              <div className="w-5 h-5 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                 <Image
                   src="/profilo.png"
                   alt={fomoEvent.user}
-                  width={28}
-                  height={28}
+                  width={20}
+                  height={20}
                   className="w-full h-full object-cover"
                 />
               </div>
 
-              <span className="whitespace-nowrap font-bold uppercase">
+              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
                 {fomoEvent.user}
               </span>
 
-              <span className="whitespace-nowrap">
+              <span className="whitespace-nowrap text-xs lg:text-xs">
                 bought
               </span>
 
-              <span className="whitespace-nowrap font-bold">
+              <span className="whitespace-nowrap font-bold text-xs lg:text-xs">
                 {fomoEvent.amount.toFixed(2)} SOL
               </span>
 
-              <span className="whitespace-nowrap font-bold uppercase">
+              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
                 {fomoEvent.tokenSymbol}
               </span>
 
               {fomoEvent.tokenImage && (
-                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={fomoEvent.tokenImage}
                     alt={fomoEvent.tokenSymbol}
-                    width={24}
-                    height={24}
+                    width={16}
+                    height={16}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -340,45 +340,45 @@ export function FOMOTicker() {
           {createEvents.length > 0 && creationEvent && (
             <Link
               href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content items-center gap-2 lg:gap-2 px-2 py-1 lg:px-2 lg:py-1 text-base lg:text-base text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex lg:w-auto ' + (creationShake ? 'creation-shake' : '')}
+              className={'creation-ticker-content items-center gap-1.5 lg:gap-1.5 px-2 py-1 lg:px-2 lg:py-1 text-sm lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex lg:w-auto ' + (creationShake ? 'creation-shake' : '')}
               style={{
                 backgroundColor: getCreatedColor(),
                 borderRadius: 0,
               }}
             >
-              <div className="w-6 h-6 lg:w-7 lg:h-7 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/10">
+              <div className="w-5 h-5 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                 <Image
                   src="/profilo.png"
                   alt={creationEvent.user}
-                  width={28}
-                  height={28}
+                  width={20}
+                  height={20}
                   className="w-full h-full object-cover"
                 />
               </div>
 
-              <span className="whitespace-nowrap font-bold uppercase">
+              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
                 {creationEvent.user}
               </span>
 
-              <span className="whitespace-nowrap">
+              <span className="whitespace-nowrap text-xs lg:text-xs">
                 CREATED
               </span>
 
-              <span className="whitespace-nowrap font-bold">
+              <span className="whitespace-nowrap font-bold text-xs lg:text-xs">
                 {creationEvent.amount.toFixed(2)} SOL
               </span>
 
-              <span className="whitespace-nowrap font-bold uppercase">
+              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
                 {creationEvent.tokenSymbol}
               </span>
 
               {creationEvent.tokenImage && (
-                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
                     src={creationEvent.tokenImage}
                     alt={creationEvent.tokenSymbol}
-                    width={24}
-                    height={24}
+                    width={16}
+                    height={16}
                     className="w-full h-full object-cover"
                   />
                 </div>

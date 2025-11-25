@@ -2,7 +2,6 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
-import { HoldersTicker } from '@/components/global/HoldersTicker';
 import { Tagline } from '@/components/home/Tagline';
 import { HowItWorks } from '@/components/home/HowItWorks';
 import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
@@ -20,7 +19,7 @@ export default function HomePage() {
         {/* ⭐ FOMOTicker + HoldersTicker visibili SOLO su mobile */}
         <div className="lg:hidden">
           <FOMOTicker />
-          <HoldersTicker />
+          
         </div>
 
         <Tagline />

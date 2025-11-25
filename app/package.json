@@ -9,7 +9,8 @@
         "lint": "eslint",
         "listener": "tsx src/scripts/listener.ts",
         "server": "node server.js",
-        "update-price": "tsx scripts/update-sol-price.ts"
+        "update-price": "tsx scripts/update-sol-price.ts",
+        "sync-old-tokens": "tsx src/scripts/sync-old-tokens.ts"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.907.0",

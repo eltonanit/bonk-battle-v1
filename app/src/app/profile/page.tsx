@@ -12,21 +12,22 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { BalancesTab } from '@/components/profile/BalancesTab';
 import { CoinsTab } from '@/components/profile/CoinsTab';
 import { RefundsTab } from '@/components/profile/RefundsTab';
+import { YourArmyTab } from '@/components/profile/YourArmyTab';
 
 function ProfileContent() {
   const { publicKey } = useWallet();
   const searchParams = useSearchParams();
 
-  // ⭐ NUOVO: Support ?tab=refunds query param
-  const initialTab = (searchParams.get('tab') as 'balances' | 'coins' | 'refunds') || 'balances';
+  // ⭐ NUOVO: Support ?tab query param
+  const initialTab = (searchParams.get('tab') as 'balances' | 'coins' | 'refunds' | 'army') || 'balances';
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'coins' | 'refunds'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'balances' | 'coins' | 'refunds' | 'army'>(initialTab);
   const [createdCoinsCount, setCreatedCoinsCount] = useState(0);
 
   // ⭐ NUOVO: Update tab quando cambia URL
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'balances' || tab === 'coins' || tab === 'refunds') {
+    if (tab === 'balances' || tab === 'coins' || tab === 'refunds' || tab === 'army') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -82,6 +83,15 @@ function ProfileContent() {
               Coins
             </button>
             <button
+              onClick={() => setActiveTab('army')}
+              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'army'
+                ? 'text-white border-orange-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
+            >
+              Your Army
+            </button>
+            <button
               onClick={() => setActiveTab('refunds')}
               className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'refunds'
                 ? 'text-white border-green-500'
@@ -96,6 +106,7 @@ function ProfileContent() {
         <div>
           {activeTab === 'balances' && <BalancesTab />}
           {activeTab === 'coins' && <CoinsTab />}
+          {activeTab === 'army' && <YourArmyTab />}
           {activeTab === 'refunds' && <RefundsTab />}
         </div>
       </div>

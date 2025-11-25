@@ -1,210 +1,188 @@
 ﻿'use client';
 
-import { deserializeTokenLaunch } from '@/lib/solana/deserialize';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT } from '@/config/solana';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { BattleStatus } from '@/types/bonk';
+import { RPC_ENDPOINT } from '@/config/solana';
 import Image from 'next/image';
 import Link from 'next/link';
 
-interface Position {
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface BonkPosition {
   mint: string;
   tokenName: string;
   tokenSymbol: string;
   tokenImage: string;
-  tokenLaunchPDA: string;
-  tier: number;
-  targetSol: number;
-  timeRemaining: number;
-  tokensOwned: number;
-  solInvested: number;
-  buyPrice: number;
-  currentPrice: number;
-  pnl: number;
-  pnlPercent: number;
-  currentValueUSD: number;
+  battleStatus: BattleStatus;
+  solCollected: number;       // Total SOL in pool (lamports)
+  userTokenBalance: bigint;   // User's token balance (raw)
+  tokensSold: bigint;         // Total tokens sold (raw)
+  boughtValueUsd: number;     // User's share in USD
+  currentValueUsd: number;    // Current value in USD
 }
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const DEFAULT_SOL_PRICE = 240;
+const BONK_BATTLE_PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function BalancesTab() {
   const { publicKey } = useWallet();
-  const [positions, setPositions] = useState<Position[]>([]);
+  const [positions, setPositions] = useState<BonkPosition[]>([]);
   const [loading, setLoading] = useState(true);
+  const [solPrice, setSolPrice] = useState(DEFAULT_SOL_PRICE);
 
-  useEffect(() => {
+  const fetchPositions = useCallback(async () => {
     if (!publicKey) {
+      setPositions([]);
       setLoading(false);
       return;
     }
-
-    fetchPositions();
-  }, [publicKey]);
-
-  async function fetchPositions() {
-    if (!publicKey) return;
 
     try {
       setLoading(true);
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔍 SEARCHING BUYER RECORDS');
+      console.log('🔍 FETCHING BONK BATTLE POSITIONS');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('👤 Wallet:', publicKey.toBase58());
-      console.log('📍 Program ID:', PROGRAM_ID);
 
-      // ⭐ FIX: buyer è a offset 40, non 8!
-      const buyerRecords = await connection.getProgramAccounts(
-        new PublicKey(PROGRAM_ID),
-        {
-          filters: [
-            {
-              dataSize: 106 // BuyerRecord size
-            },
-            {
-              memcmp: {
-                offset: 40, // ← CORRETTO! buyer è a offset 40-72
-                bytes: publicKey.toBase58()
-              }
-            }
-          ]
+      // 1. Get SOL price from oracle
+      let currentSolPrice = DEFAULT_SOL_PRICE;
+      try {
+        const [priceOraclePDA] = PublicKey.findProgramAddressSync(
+          [Buffer.from('price_oracle')],
+          BONK_BATTLE_PROGRAM_ID
+        );
+        const oracleInfo = await connection.getAccountInfo(priceOraclePDA);
+        if (oracleInfo && oracleInfo.data.length >= 16) {
+          let price = 0n;
+          for (let i = 0; i < 8; i++) {
+            price |= BigInt(oracleInfo.data[8 + i]) << BigInt(i * 8);
+          }
+          const parsed = Number(price) / 1_000_000;
+          if (parsed > 0 && parsed < 10000) {
+            currentSolPrice = parsed;
+          }
         }
-      );
+      } catch (e) {
+        console.warn('Could not fetch SOL price, using default');
+      }
+      setSolPrice(currentSolPrice);
+      console.log('💰 SOL Price:', currentSolPrice);
 
-      console.log(`📊 FOUND: ${buyerRecords.length} BuyerRecord accounts`);
+      // 2. Fetch ALL BONK tokens using the working function
+      const allBonkTokens = await fetchAllBonkTokens();
+      console.log(`📊 Found ${allBonkTokens.length} BONK tokens total`);
 
-      if (buyerRecords.length === 0) {
-        console.warn('⚠️ NO BUYER RECORDS FOUND!');
-        setPositions([]);
-        return;
+      // 3. Get user's token accounts
+      const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
+        programId: TOKEN_PROGRAM_ID,
+      });
+
+      // Parse user balances into a map: mint -> balance
+      const userBalances = new Map<string, bigint>();
+
+      for (const { account } of tokenAccounts.value) {
+        const data = account.data;
+        const mint = new PublicKey(data.slice(0, 32)).toBase58();
+
+        let balance = 0n;
+        for (let i = 0; i < 8; i++) {
+          balance |= BigInt(data[64 + i]) << BigInt(i * 8);
+        }
+
+        if (balance > 0n) {
+          userBalances.set(mint, balance);
+        }
       }
 
-      const positionsData = await Promise.all(
-        buyerRecords.map(async ({ account, pubkey }) => {
-          try {
-            const data = account.data;
+      console.log(`👛 User has ${userBalances.size} tokens with balance`);
 
-            // ⭐ FIX: Leggi nell'ordine corretto!
-            const tokenLaunchPDA = new PublicKey(data.slice(8, 40));   // launch PRIMO
-            const buyer = new PublicKey(data.slice(40, 72));          // buyer SECONDO
-            const solSpent = Number(data.readBigUInt64LE(72)) / 1e9;
-            const tokensReceived = Number(data.readBigUInt64LE(80)) / 1e6;
-            const refundClaimed = data.readUInt8(88) === 1;
+      // 4. Match BONK tokens with user balances
+      const bonkPositions: BonkPosition[] = [];
 
-            // Skip if refund already claimed (no tokens)
-            if (refundClaimed) {
-              console.log('⏭️ Skipping refunded position:', tokenLaunchPDA.toString());
-              return null;
-            }
+      for (const token of allBonkTokens) {
+        const mintStr = token.mint.toString();
+        const userBalance = userBalances.get(mintStr);
 
-            // Skip if no tokens
-            if (tokensReceived === 0) {
-              console.log('⏭️ Skipping empty position:', tokenLaunchPDA.toString());
-              return null;
-            }
+        if (!userBalance || userBalance === 0n) {
+          continue; // User doesn't own this token
+        }
 
-            console.log('📍 TokenLaunch PDA:', tokenLaunchPDA.toString());
-            console.log('   SOL spent:', solSpent);
-            console.log('   Tokens received:', tokensReceived);
+        // Calculate user's share of the pool
+        const solCollectedLamports = token.solCollected;
+        const solCollectedSOL = solCollectedLamports / 1e9;
+        const tokensSold = BigInt(token.tokensSold);
 
-            // Fetch TokenLaunch account
-            const launchAccount = await connection.getAccountInfo(tokenLaunchPDA);
+        console.log(`\n🎮 Token: ${token.symbol || mintStr.slice(0, 8)}`);
+        console.log(`   SOL collected: ${solCollectedSOL.toFixed(4)} SOL`);
+        console.log(`   Tokens sold: ${tokensSold.toString()}`);
+        console.log(`   User balance: ${userBalance.toString()}`);
 
-            if (!launchAccount || !launchAccount.data || launchAccount.data.length === 0) {
-              console.warn('⚠️ TokenLaunch account empty/closed:', tokenLaunchPDA.toString());
-              return null;
-            }
+        // User's share = (userBalance / tokensSold) * solCollected
+        let userSolShare = 0;
+        if (tokensSold > 0n) {
+          userSolShare = (Number(userBalance) / Number(tokensSold)) * solCollectedSOL;
+        }
 
-            // ⭐ Validate account size (should be ~439-500 bytes)
-            if (launchAccount.data.length < 200) {
-              console.error(`❌ Invalid TokenLaunch size: ${launchAccount.data.length} bytes`);
-              console.error('   This account may be corrupted or is not a TokenLaunch');
-              return null;
-            }
+        const boughtValueUsd = userSolShare * currentSolPrice;
+        const currentValueUsd = boughtValueUsd; // Same for now
 
-            // Deserialize TokenLaunch
-            const tokenLaunch = deserializeTokenLaunch(launchAccount.data, tokenLaunchPDA);
+        console.log(`   User SOL share: ${userSolShare.toFixed(4)} SOL`);
+        console.log(`   Value: $${boughtValueUsd.toFixed(2)}`);
 
-            if (!tokenLaunch) {
-              console.error('❌ Failed to deserialize TokenLaunch');
-              return null;
-            }
+        bonkPositions.push({
+          mint: mintStr,
+          tokenName: token.name || mintStr.slice(0, 8),
+          tokenSymbol: token.symbol || mintStr.slice(0, 4).toUpperCase(),
+          tokenImage: token.image || '',
+          battleStatus: token.battleStatus,
+          solCollected: solCollectedLamports,
+          userTokenBalance: userBalance,
+          tokensSold,
+          boughtValueUsd,
+          currentValueUsd,
+        });
+      }
 
-            // Extract image from metadata
-            let image = '';
-            try {
-              const metadata = JSON.parse(tokenLaunch.metadataUri);
-              image = metadata.image || '';
-            } catch (e) {
-              console.warn('⚠️ Failed to parse metadata:', e);
-            }
+      console.log(`\n✅ Found ${bonkPositions.length} user positions`);
 
-            // Calculations
-            const buyPrice = solSpent / tokensReceived;
-            const currentVirtualSol = tokenLaunch.virtualSolInit + tokenLaunch.solRaised;
-            const currentPrice = calculatePrice(currentVirtualSol, tokenLaunch.constantK);
-            const currentValue = tokensReceived * currentPrice;
-            const pnl = currentValue - solSpent;
-            const pnlPercent = ((currentValue / solSpent) - 1) * 100;
-            const now = Math.floor(Date.now() / 1000);
-            const timeRemaining = Math.max(0, tokenLaunch.deadline - now);
-            const currentValueUSD = currentValue * 100; // Assuming SOL = $100
-            const pnlUSD = pnl * 100;
+      // Sort by value (highest first)
+      bonkPositions.sort((a, b) => b.currentValueUsd - a.currentValueUsd);
 
-            console.log('✅ Position:', tokenLaunch.name);
-            console.log('   Tokens:', tokensReceived);
-            console.log('   P&L:', pnlUSD.toFixed(2), 'USD');
-
-            return {
-              mint: tokenLaunch.mint,
-              tokenName: tokenLaunch.name,
-              tokenSymbol: tokenLaunch.symbol,
-              tokenImage: image,
-              tokenLaunchPDA: tokenLaunchPDA.toString(),
-              tier: tokenLaunch.tier,
-              targetSol: tokenLaunch.targetSol,
-              timeRemaining,
-              tokensOwned: tokensReceived,
-              solInvested: solSpent,
-              buyPrice,
-              currentPrice,
-              pnl: pnlUSD,
-              pnlPercent,
-              currentValueUSD,
-            };
-          } catch (error) {
-            console.error('❌ Error parsing position:', error);
-            return null;
-          }
-        })
-      );
-
-      const validPositions = positionsData.filter(Boolean) as Position[];
-      setPositions(validPositions);
-      console.log(`\n✅ FINAL: ${validPositions.length} valid positions loaded\n`);
+      setPositions(bonkPositions);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     } catch (error) {
-      console.error('❌ Error fetching positions:', error);
+      console.error('❌ Error:', error);
+      setPositions([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [publicKey]);
 
-  function calculatePrice(virtualSol: number, constantK: string): number {
-    const k = BigInt(constantK);
-    const x = BigInt(Math.floor(virtualSol * 1e9));
-    const y = k / x;
-    return Number(x) / Number(y);
-  }
+  useEffect(() => {
+    fetchPositions();
+    const interval = setInterval(fetchPositions, 60000);
+    return () => clearInterval(interval);
+  }, [fetchPositions]);
 
-  function formatTime(seconds: number): string {
-    if (seconds <= 0) return 'Ended';
-    const hours = Math.floor(seconds / 3600);
-    const days = Math.floor(hours / 24);
-    if (days > 0) return `${days} day${days > 1 ? 's' : ''} left`;
-    return `${hours} hour${hours !== 1 ? 's' : ''} left`;
-  }
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (!publicKey) {
     return (
@@ -216,10 +194,17 @@ export function BalancesTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white/5 rounded-2xl p-6 animate-pulse">
-            <div className="h-20 bg-white/5 rounded"></div>
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white/5 rounded-xl p-4 animate-pulse">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/10 rounded-full" />
+                <div className="h-5 bg-white/10 rounded w-16" />
+              </div>
+              <div className="h-5 bg-white/10 rounded w-20" />
+              <div className="h-5 bg-white/10 rounded w-24" />
+            </div>
           </div>
         ))}
       </div>
@@ -229,70 +214,130 @@ export function BalancesTab() {
   if (positions.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-400 mb-4">No positions yet</p>
+        <div className="text-4xl mb-4">🏟️</div>
+        <p className="text-gray-400 mb-4">No BONK BATTLE positions yet</p>
         <Link
           href="/"
-          className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700"
+          className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 rounded-lg font-bold hover:opacity-90 transition"
         >
-          Buy Your First Token
+          🔥 Enter the Arena
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {positions.map((position) => (
-        <Link
-          key={position.mint}
-          href={`/token/${position.mint}`}
-          className="block bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0">
-                {position.tokenImage ? (
-                  <Image
-                    src={position.tokenImage}
-                    alt={position.tokenName}
-                    fill
-                    className="object-cover"
-                  />
+    <div className="space-y-3">
+      {/* Header Row */}
+      <div className="grid grid-cols-3 px-4 py-2 text-xs text-gray-500 uppercase tracking-wide">
+        <div>Token</div>
+        <div className="text-center">Bought</div>
+        <div className="text-right">Now</div>
+      </div>
+
+      {/* Positions */}
+      {positions.map((position) => {
+        const pnl = position.currentValueUsd - position.boughtValueUsd;
+        const isProfit = pnl >= 0;
+        const pnlPercent = position.boughtValueUsd > 0
+          ? ((pnl / position.boughtValueUsd) * 100)
+          : 0;
+
+        return (
+          <Link
+            key={position.mint}
+            href={`/token/${position.mint}`}
+            className="block bg-[#0a0a0a] border border-white/10 rounded-xl p-4 hover:border-orange-500/50 transition-all"
+          >
+            <div className="grid grid-cols-3 items-center">
+              {/* Column 1: Token Image + Symbol */}
+              <div className="flex items-center gap-3">
+                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-600 to-red-600 flex-shrink-0">
+                  {position.tokenImage ? (
+                    <Image
+                      src={position.tokenImage}
+                      alt={position.tokenSymbol}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-lg font-bold">
+                      {position.tokenSymbol.slice(0, 2)}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <span className="font-bold text-lg block">{position.tokenSymbol}</span>
+                  {position.tokenName && position.tokenName !== position.tokenSymbol && (
+                    <span className="text-xs text-gray-500 block truncate max-w-[100px]">
+                      {position.tokenName}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Column 2: Bought At */}
+              <div className="text-center">
+                <span className="text-white font-medium">
+                  ${position.boughtValueUsd.toFixed(2)}
+                </span>
+              </div>
+
+              {/* Column 3: Current Value + Arrow */}
+              <div className="flex items-center justify-end gap-2">
+                {isProfit ? (
+                  <svg
+                    className="w-5 h-5 text-green-400 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 10l7-7m0 0l7 7m-7-7v18"
+                    />
+                  </svg>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl">
-                    {position.tokenSymbol.charAt(0)}
-                  </div>
+                  <svg
+                    className="w-5 h-5 text-red-400 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                    />
+                  </svg>
                 )}
-              </div>
-
-              <div>
-                <h3 className="text-xl font-bold mb-1">{position.tokenName}</h3>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-gray-400">MC ${(position.currentValueUSD * 1000).toFixed(0)}</span>
-                  <span className={`font-bold ${position.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {position.pnl >= 0 ? '+' : ''}${position.pnl.toFixed(0)} ({position.pnl >= 0 ? '+' : ''}{position.pnlPercent.toFixed(0)}%)
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-semibold">
-                    TARGET: ${(position.targetSol * 100).toFixed(0)}
-                  </span>
+                <div className="text-right">
+                  <div className={`font-bold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                    ${position.currentValueUsd.toFixed(2)}
+                  </div>
+                  {pnlPercent !== 0 && (
+                    <div className={`text-xs ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                      {isProfit ? '+' : ''}{pnlPercent.toFixed(1)}%
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
+          </Link>
+        );
+      })}
 
-            <div className="text-right">
-              <div className="flex items-center gap-2 justify-end mb-2">
-                <span className="text-sm">⏰</span>
-                <span className="text-sm text-gray-400">{formatTime(position.timeRemaining)}</span>
-              </div>
-              <div className="text-gray-400 text-sm">
-                Invested: <span className="text-white font-semibold">${(position.solInvested * 100).toFixed(0)}</span>
-              </div>
-            </div>
-          </div>
-        </Link>
-      ))}
+      {/* Refresh */}
+      <button
+        onClick={() => fetchPositions()}
+        disabled={loading}
+        className="w-full py-3 text-gray-500 hover:text-gray-300 transition text-sm"
+      >
+        🔄 Refresh
+      </button>
     </div>
   );
 }

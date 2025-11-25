@@ -59,7 +59,7 @@ export function Sidebar() {
     },
     {
       href: '/hall',
-      label: 'The Hall',
+      label: 'Matches',
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />

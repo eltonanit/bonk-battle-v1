@@ -28,9 +28,9 @@ export function DesktopHeader() {
     setShowDropdown(false);
   };
 
-  // ⭐ Formatta l'address per desktop (più lettere)
+  // ⭐ Formatta l'address per desktop (solo prime 4)
   const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    return address.slice(0, 4);
   };
 
   return (

@@ -49,26 +49,38 @@ async function fetchTokenBattleState(
     if (tokenData && !supabaseError) {
       console.log('⚡ Battle State fetched from Supabase cache');
 
+      // ⭐ Parse image from URI if it's JSON
+      let image: string | undefined = tokenData.image;
+      if (!image && tokenData.uri) {
+        try {
+          const metadata = JSON.parse(tokenData.uri);
+          image = metadata.image;
+        } catch {
+          // URI is not JSON, keep undefined
+        }
+      }
+
       return {
         mint: new PublicKey(tokenData.mint),
-        solCollected: Number(tokenData.sol_collected),
-        tokensSold: Number(tokenData.tokens_sold),
-        totalTradeVolume: Number(tokenData.total_trade_volume),
-        isActive: tokenData.is_active,
-        battleStatus: tokenData.battle_status as BattleStatus,
-        opponentMint: tokenData.opponent_mint ? new PublicKey(tokenData.opponent_mint) : null,
-        creationTimestamp: Number(tokenData.creation_timestamp),
-        qualificationTimestamp: Number(tokenData.qualification_timestamp),
-        lastTradeTimestamp: Number(tokenData.last_trade_timestamp),
-        battleStartTimestamp: Number(tokenData.battle_start_timestamp),
-        victoryTimestamp: Number(tokenData.victory_timestamp),
-        listingTimestamp: Number(tokenData.listing_timestamp),
-        bump: tokenData.bump,
+        creator: new PublicKey(tokenData.creator || tokenData.mint), // ⭐ FIX: usa mint come fallback
+        solCollected: Number(tokenData.sol_collected || 0),
+        tokensSold: Number(tokenData.tokens_sold || 0),
+        totalTradeVolume: Number(tokenData.total_trade_volume || 0),
+        isActive: tokenData.is_active ?? true,
+        battleStatus: (tokenData.battle_status ?? 0) as BattleStatus,
+        opponentMint: new PublicKey(tokenData.opponent_mint || PublicKey.default.toString()), // ⭐ FIX: PublicKey.default se null
+        creationTimestamp: Number(tokenData.creation_timestamp || 0),
+        qualificationTimestamp: Number(tokenData.qualification_timestamp || 0),
+        lastTradeTimestamp: Number(tokenData.last_trade_timestamp || 0),
+        battleStartTimestamp: Number(tokenData.battle_start_timestamp || 0),
+        victoryTimestamp: Number(tokenData.victory_timestamp || 0),
+        listingTimestamp: Number(tokenData.listing_timestamp || 0),
+        bump: Number(tokenData.bump || 0),
         // Metadata
         name: tokenData.name,
         symbol: tokenData.symbol,
         uri: tokenData.uri,
-        image: tokenData.image,
+        image: image,
       };
     }
 
@@ -103,6 +115,10 @@ async function fetchTokenBattleState(
 
         // Parse mint (32 bytes)
         const mintPubkey = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+
+        // Parse creator (32 bytes) - ⭐ NUOVO
+        const creator = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
         // Helper to parse u64 (little-endian)
@@ -210,6 +226,7 @@ async function fetchTokenBattleState(
 
         const parsedState: ParsedTokenBattleState = {
           mint: mintPubkey,
+          creator, // ⭐ NUOVO
           solCollected,
           tokensSold,
           totalTradeVolume,
