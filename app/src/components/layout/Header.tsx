@@ -58,9 +58,11 @@ export function Header() {
           {/* Riga 1: Join ARMY + Start Battle + Login */}
           <div className="px-3 py-2 flex items-center justify-end gap-1.5">
             {/* Join ARMY Button - Giallo */}
-            <button className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
-              Join ARMY
-            </button>
+            <Link href="/armies">
+              <button className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
+                Join ARMY
+              </button>
+            </Link>
 
             {/* Start Battle Button - Arancione */}
             <Link href="/create">

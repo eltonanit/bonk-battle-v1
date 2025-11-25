@@ -20,6 +20,11 @@ interface RealEvent {
   amount: number;
   tier: number;
   timestamp: number;
+  // For battle events
+  opponentMint?: string;
+  opponentName?: string;
+  opponentSymbol?: string;
+  opponentImage?: string;
 }
 
 // Colori BUY (alterna verde/giallo/blu)
@@ -49,12 +54,9 @@ const STARTED_BATTLE_COLORS = [
 ];
 
 export function FOMOTicker() {
-  const [buyEvents, setBuyEvents] = useState<RealEvent[]>([]);
-  const [createEvents, setCreateEvents] = useState<RealEvent[]>([]);
-  const [fomoIndex, setFomoIndex] = useState(0);
-  const [creationIndex, setCreationIndex] = useState(0);
-  const [fomoShake, setFomoShake] = useState(false);
-  const [creationShake, setCreationShake] = useState(false);
+  const [allEvents, setAllEvents] = useState<RealEvent[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,8 +67,49 @@ export function FOMOTicker() {
         // ⭐ SEMPRE crea eventi, anche se vuoti (fallback)
         let createdEvents: RealEvent[] = [];
         let mockBuyEvents: RealEvent[] = [];
+        let battleEventsData: RealEvent[] = [];
 
         if (allTokens.length > 0) {
+          // ⭐ Crea eventi BATTLE (token con opponentMint valido)
+          const battlingTokens = allTokens.filter(token => {
+            const opponentStr = token.opponentMint?.toString();
+            return opponentStr && opponentStr !== '11111111111111111111111111111111' && token.battleStatus === 2; // 2 = InBattle
+          });
+
+          const processed = new Set<string>();
+          for (const token of battlingTokens) {
+            const mintStr = token.mint.toString();
+            if (processed.has(mintStr)) continue;
+
+            const opponentMint = token.opponentMint?.toString();
+            if (!opponentMint) continue;
+
+            const opponent = allTokens.find(t => t.mint.toString() === opponentMint);
+            if (!opponent) continue;
+
+            battleEventsData.push({
+              signature: `battle-${mintStr}-${opponentMint}`,
+              mint: mintStr,
+              type: 'started_battle',
+              user: 'BATTLE',
+              userFull: 'BATTLE',
+              tokenName: token.name || token.symbol || mintStr.slice(0, 8),
+              tokenSymbol: token.symbol || 'UNK',
+              tokenImage: token.image,
+              amount: 0,
+              tier: 3,
+              timestamp: Date.now(),
+              opponentMint: opponentMint,
+              opponentName: opponent.name || opponent.symbol || opponentMint.slice(0, 8),
+              opponentSymbol: opponent.symbol || 'UNK',
+              opponentImage: opponent.image,
+            });
+
+            processed.add(mintStr);
+            processed.add(opponentMint);
+          }
+
+
           // Crea eventi "created" da TUTTI i token
           createdEvents = allTokens.map(token => {
             const mintStr = token.mint.toString();
@@ -126,9 +169,14 @@ export function FOMOTicker() {
           }
         }
 
-        // ⭐ GARANTISCE sempre almeno 1 evento per ticker
-        setCreateEvents(createdEvents.length > 0 ? createdEvents.slice(0, 20) : []);
-        setBuyEvents(mockBuyEvents.length > 0 ? mockBuyEvents : []);
+        // ⭐ Combina tutti gli eventi in un unico array
+        const combined: RealEvent[] = [
+          ...battleEventsData,  // Battle events first
+          ...createdEvents.slice(0, 20),  // Created events
+          ...mockBuyEvents,  // Buy events (if any)
+        ];
+
+        setAllEvents(combined);
 
       } catch (error) {
         console.error('Error loading tokens:', error);
@@ -183,11 +231,8 @@ export function FOMOTicker() {
             timestamp: Date.now(),
           };
 
-          if (isBuy) {
-            setBuyEvents(prev => [newEvent, ...prev].slice(0, 50));
-          } else {
-            setCreateEvents(prev => [newEvent, ...prev].slice(0, 50));
-          }
+          // Add to combined events
+          setAllEvents(prev => [newEvent, ...prev].slice(0, 50));
         } catch (error) {
           console.error('Error parsing event:', error);
         }
@@ -200,39 +245,23 @@ export function FOMOTicker() {
     };
   }, []);
 
+  // Single ticker rotation for all events
   useEffect(() => {
-    if (buyEvents.length === 0) return;
+    if (allEvents.length === 0) return;
 
     const interval = setInterval(() => {
-      const element = document.querySelector('.fomo-ticker-content');
+      const element = document.querySelector('.ticker-content');
       if (element) {
         void (element as HTMLElement).offsetWidth;
       }
 
-      setFomoShake(true);
-      setFomoIndex(prev => (prev + 1) % buyEvents.length);
-      setTimeout(() => setFomoShake(false), 600);
-    }, 2500); // ✅ Aumentata frequenza: 3000ms → 2500ms
+      setShake(true);
+      setCurrentIndex(prev => (prev + 1) % allEvents.length);
+      setTimeout(() => setShake(false), 600);
+    }, 1500); // 1.5 secondi per evento
 
     return () => clearInterval(interval);
-  }, [buyEvents.length]);
-
-  useEffect(() => {
-    if (createEvents.length === 0) return;
-
-    const interval = setInterval(() => {
-      const element = document.querySelector('.creation-ticker-content');
-      if (element) {
-        void (element as HTMLElement).offsetWidth;
-      }
-
-      setCreationShake(true);
-      setCreationIndex(prev => (prev + 1) % createEvents.length);
-      setTimeout(() => setCreationShake(false), 600);
-    }, 3500); // ✅ Aumentata frequenza: 4000ms → 3500ms
-
-    return () => clearInterval(interval);
-  }, [createEvents.length]);
+  }, [allEvents.length]);
 
   if (loading) {
     return (
@@ -251,7 +280,7 @@ export function FOMOTicker() {
     );
   }
 
-  if (buyEvents.length === 0 && createEvents.length === 0) {
+  if (allEvents.length === 0) {
     return (
       <div className="w-full">
         <div className="w-full px-4 lg:px-6 py-3">
@@ -268,123 +297,115 @@ export function FOMOTicker() {
     );
   }
 
-  const fomoEvent = buyEvents[fomoIndex];
-  const creationEvent = createEvents[creationIndex];
-
-  // Debug log (disabled - causes spam)
-  // console.log('🎯 FOMOTicker DEBUG:', {
-  //   buyEventsCount: buyEvents.length,
-  //   createEventsCount: createEvents.length,
-  //   hasFomoEvent: !!fomoEvent,
-  //   hasCreationEvent: !!creationEvent,
-  // });
+  const currentEvent = allEvents[currentIndex];
 
   // Determina il colore in base al tipo di evento
-  const getBuyColor = () => BUY_COLORS[fomoIndex % BUY_COLORS.length];
-  const getCreatedColor = () => CREATED_COLORS[creationIndex % CREATED_COLORS.length];
+  const getEventColor = (event: RealEvent) => {
+    if (event.type === 'started_battle') return '#FFA019'; // Arancione fisso per battle
+    if (event.type === 'created') return CREATED_COLORS[currentIndex % CREATED_COLORS.length];
+    return BUY_COLORS[currentIndex % BUY_COLORS.length]; // bought/sell
+  };
 
   return (
     <div className="mb-2 lg:mb-0">
       <div className="px-1 lg:px-4 py-1 lg:py-1.5">
-        <div className="flex flex-col min-[400px]:flex-row gap-2 lg:gap-2 justify-center lg:justify-start items-center lg:items-start">
+        <div className="flex justify-center lg:justify-start items-center">
+          <Link
+            href={`/token/${currentEvent.mint}`}
+            className={'ticker-content flex items-center gap-1.5 lg:gap-2 px-2 py-1 lg:px-3 lg:py-1.5 text-sm lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            style={{
+              backgroundColor: getEventColor(currentEvent),
+              borderRadius: 0,
+            }}
+          >
+            {currentEvent.type === 'started_battle' ? (
+              <>
+                {/* Battle Event */}
+                <span className="whitespace-nowrap text-xs lg:text-sm uppercase font-extrabold">
+                  ⚔️ BATTLE STARTED:
+                </span>
 
-          {buyEvents.length > 0 && fomoEvent && (
-            <Link
-              href={'/token/' + fomoEvent.mint}
-              className={'fomo-ticker-content flex items-center gap-1.5 lg:gap-1.5 px-2 py-1 lg:px-2 lg:py-1 text-sm lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer ' + (fomoShake ? 'fomo-shake' : '')}
-              style={{
-                backgroundColor: getBuyColor(),
-                borderRadius: 0,
-              }}
-            >
-              <div className="w-5 h-5 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
-                <Image
-                  src="/profilo.png"
-                  alt={fomoEvent.user}
-                  width={20}
-                  height={20}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+                {currentEvent.tokenImage && (
+                  <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                    <Image
+                      src={currentEvent.tokenImage}
+                      alt={currentEvent.tokenSymbol}
+                      width={16}
+                      height={16}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                )}
 
-              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
-                {fomoEvent.user}
-              </span>
+                <span className="whitespace-nowrap font-extrabold uppercase text-xs lg:text-sm">
+                  {currentEvent.tokenSymbol}
+                </span>
 
-              <span className="whitespace-nowrap text-xs lg:text-xs">
-                bought
-              </span>
+                <span className="whitespace-nowrap text-xs lg:text-sm font-bold">
+                  VS
+                </span>
 
-              <span className="whitespace-nowrap font-bold text-xs lg:text-xs">
-                {fomoEvent.amount.toFixed(2)} SOL
-              </span>
+                <span className="whitespace-nowrap font-extrabold uppercase text-xs lg:text-sm">
+                  {currentEvent.opponentSymbol}
+                </span>
 
-              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
-                {fomoEvent.tokenSymbol}
-              </span>
-
-              {fomoEvent.tokenImage && (
-                <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                {currentEvent.opponentImage && (
+                  <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                    <Image
+                      src={currentEvent.opponentImage}
+                      alt={currentEvent.opponentSymbol || 'Opponent'}
+                      width={16}
+                      height={16}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Created/Buy Event */}
+                <div className="w-5 h-5 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
                   <Image
-                    src={fomoEvent.tokenImage}
-                    alt={fomoEvent.tokenSymbol}
-                    width={16}
-                    height={16}
+                    src="/profilo.png"
+                    alt={currentEvent.user}
+                    width={20}
+                    height={20}
                     className="w-full h-full object-cover"
                   />
                 </div>
-              )}
-            </Link>
-          )}
 
-          {createEvents.length > 0 && creationEvent && (
-            <Link
-              href={'/token/' + creationEvent.mint}
-              className={'creation-ticker-content items-center gap-1.5 lg:gap-1.5 px-2 py-1 lg:px-2 lg:py-1 text-sm lg:text-sm text-black font-medium hover:opacity-90 transition-opacity cursor-pointer hidden min-[400px]:flex lg:w-auto ' + (creationShake ? 'creation-shake' : '')}
-              style={{
-                backgroundColor: getCreatedColor(),
-                borderRadius: 0,
-              }}
-            >
-              <div className="w-5 h-5 lg:w-5 lg:h-5 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
-                <Image
-                  src="/profilo.png"
-                  alt={creationEvent.user}
-                  width={20}
-                  height={20}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+                <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
+                  {currentEvent.user}
+                </span>
 
-              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
-                {creationEvent.user}
-              </span>
+                <span className="whitespace-nowrap text-xs lg:text-xs">
+                  {currentEvent.type === 'created' ? 'CREATED' : 'bought'}
+                </span>
 
-              <span className="whitespace-nowrap text-xs lg:text-xs">
-                CREATED
-              </span>
+                <span className="whitespace-nowrap font-bold text-xs lg:text-xs">
+                  {currentEvent.amount.toFixed(2)} SOL
+                </span>
 
-              <span className="whitespace-nowrap font-bold text-xs lg:text-xs">
-                {creationEvent.amount.toFixed(2)} SOL
-              </span>
+                <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
+                  {currentEvent.tokenSymbol}
+                </span>
 
-              <span className="whitespace-nowrap font-bold uppercase text-xs lg:text-xs">
-                {creationEvent.tokenSymbol}
-              </span>
-
-              {creationEvent.tokenImage && (
-                <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
-                  <Image
-                    src={creationEvent.tokenImage}
-                    alt={creationEvent.tokenSymbol}
-                    width={16}
-                    height={16}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-            </Link>
-          )}
+                {currentEvent.tokenImage && (
+                  <div className="w-4 h-4 lg:w-4 lg:h-4 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/10">
+                    <Image
+                      src={currentEvent.tokenImage}
+                      alt={currentEvent.tokenSymbol}
+                      width={16}
+                      height={16}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </Link>
         </div>
       </div>
     </div>

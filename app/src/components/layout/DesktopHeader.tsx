@@ -84,9 +84,11 @@ export function DesktopHeader() {
               </Link>
 
               {/* Join ARMY Button */}
-              <button className="bg-bonk-gold text-black px-5 py-2 rounded-lg font-bold text-sm hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
-                Join ARMY
-              </button>
+              <Link href="/armies">
+                <button className="bg-bonk-gold text-black px-5 py-2 rounded-lg font-bold text-sm hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
+                  Join ARMY
+                </button>
+              </Link>
             </>
           )}
 
