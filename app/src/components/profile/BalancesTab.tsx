@@ -1,5 +1,13 @@
 ﻿'use client';
 
+/**
+ * BONK BATTLE - BalancesTab con P/L Reale
+ * 
+ * - Bought: da user_trades (prezzo di acquisto reale)
+ * - Now: da bonding curve on-chain (valore attuale)
+ * - P/L: Verde ↑ se profitto, Rosso ↓ se perdita
+ */
+
 import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey } from '@solana/web3.js';
@@ -7,6 +15,7 @@ import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
+import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -23,8 +32,16 @@ interface BonkPosition {
   solCollected: number;       // Total SOL in pool (lamports)
   userTokenBalance: bigint;   // User's token balance (raw)
   tokensSold: bigint;         // Total tokens sold (raw)
-  boughtValueUsd: number;     // User's share in USD
-  currentValueUsd: number;    // Current value in USD
+  boughtValueUsd: number;     // Costo di acquisto (da user_trades)
+  currentValueUsd: number;    // Valore attuale (da bonding curve)
+}
+
+interface UserTradeAggregate {
+  token_mint: string;
+  total_tokens_bought: number;
+  total_usd_spent: number;
+  total_tokens_sold: number;
+  total_usd_received: number;
 }
 
 // ============================================================================
@@ -44,6 +61,82 @@ export function BalancesTab() {
   const [loading, setLoading] = useState(true);
   const [solPrice, setSolPrice] = useState(DEFAULT_SOL_PRICE);
 
+  // ==========================================================================
+  // FETCH USER TRADES FROM DATABASE
+  // ==========================================================================
+
+  const fetchUserTrades = useCallback(async (wallet: string): Promise<Map<string, UserTradeAggregate>> => {
+    const tradesMap = new Map<string, UserTradeAggregate>();
+
+    try {
+      // Prima prova la view aggregata
+      const { data: viewData, error: viewError } = await supabase
+        .from('user_positions')
+        .select('*')
+        .eq('wallet_address', wallet);
+
+      if (!viewError && viewData && viewData.length > 0) {
+        console.log(`📊 Found ${viewData.length} positions from user_positions view`);
+
+        for (const row of viewData) {
+          tradesMap.set(row.token_mint, {
+            token_mint: row.token_mint,
+            total_tokens_bought: Number(row.total_tokens_bought) || 0,
+            total_usd_spent: Number(row.total_usd_spent) || 0,
+            total_tokens_sold: Number(row.total_tokens_sold) || 0,
+            total_usd_received: Number(row.total_usd_received) || 0,
+          });
+        }
+        return tradesMap;
+      }
+
+      // Fallback: aggregazione manuale dalla tabella user_trades
+      console.log('📊 View not available, aggregating from user_trades...');
+
+      const { data: trades, error: tradesError } = await supabase
+        .from('user_trades')
+        .select('*')
+        .eq('wallet_address', wallet);
+
+      if (tradesError || !trades || trades.length === 0) {
+        console.log('⚠️ No trade history found for wallet');
+        return tradesMap;
+      }
+
+      // Aggrega manualmente
+      for (const trade of trades) {
+        const existing = tradesMap.get(trade.token_mint) || {
+          token_mint: trade.token_mint,
+          total_tokens_bought: 0,
+          total_usd_spent: 0,
+          total_tokens_sold: 0,
+          total_usd_received: 0,
+        };
+
+        if (trade.trade_type === 'buy') {
+          existing.total_tokens_bought += Number(trade.token_amount);
+          existing.total_usd_spent += Number(trade.trade_value_usd);
+        } else {
+          existing.total_tokens_sold += Number(trade.token_amount);
+          existing.total_usd_received += Number(trade.trade_value_usd);
+        }
+
+        tradesMap.set(trade.token_mint, existing);
+      }
+
+      console.log(`📊 Aggregated ${tradesMap.size} positions from trades`);
+      return tradesMap;
+
+    } catch (err) {
+      console.error('Error fetching user trades:', err);
+      return tradesMap;
+    }
+  }, []);
+
+  // ==========================================================================
+  // MAIN FETCH POSITIONS
+  // ==========================================================================
+
   const fetchPositions = useCallback(async () => {
     if (!publicKey) {
       setPositions([]);
@@ -56,7 +149,7 @@ export function BalancesTab() {
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.log('🔍 FETCHING BONK BATTLE POSITIONS');
+      console.log('🔍 FETCHING BONK BATTLE POSITIONS (with P/L)');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       // 1. Get SOL price from oracle
@@ -111,7 +204,11 @@ export function BalancesTab() {
 
       console.log(`👛 User has ${userBalances.size} tokens with balance`);
 
-      // 4. Match BONK tokens with user balances
+      // 4. Fetch trade history from Supabase (for P/L calculation)
+      const userTrades = await fetchUserTrades(publicKey.toString());
+      console.log(`📈 Found trade history for ${userTrades.size} tokens`);
+
+      // 5. Match BONK tokens with user balances and calculate P/L
       const bonkPositions: BonkPosition[] = [];
 
       for (const token of allBonkTokens) {
@@ -122,7 +219,7 @@ export function BalancesTab() {
           continue; // User doesn't own this token
         }
 
-        // Calculate user's share of the pool
+        // Calculate CURRENT value from bonding curve
         const solCollectedLamports = token.solCollected;
         const solCollectedSOL = solCollectedLamports / 1e9;
         const tokensSold = BigInt(token.tokensSold);
@@ -138,11 +235,33 @@ export function BalancesTab() {
           userSolShare = (Number(userBalance) / Number(tokensSold)) * solCollectedSOL;
         }
 
-        const boughtValueUsd = userSolShare * currentSolPrice;
-        const currentValueUsd = boughtValueUsd; // Same for now
+        const currentValueUsd = userSolShare * currentSolPrice;
+        console.log(`   Current value: $${currentValueUsd.toFixed(2)}`);
 
-        console.log(`   User SOL share: ${userSolShare.toFixed(4)} SOL`);
-        console.log(`   Value: $${boughtValueUsd.toFixed(2)}`);
+        // Get BOUGHT value from trade history
+        const tradeHistory = userTrades.get(mintStr);
+        let boughtValueUsd = currentValueUsd; // Default: same as current (no P/L)
+
+        if (tradeHistory && tradeHistory.total_tokens_bought > 0) {
+          // Calcola il costo dei token che possiede ancora
+          // Se ha comprato 1000 e venduto 200, possiede 800
+          // Costo dei 800 = (800/1000) * total_usd_spent
+          const netTokens = tradeHistory.total_tokens_bought - tradeHistory.total_tokens_sold;
+
+          if (netTokens > 0) {
+            const retainedRatio = netTokens / tradeHistory.total_tokens_bought;
+            boughtValueUsd = tradeHistory.total_usd_spent * retainedRatio;
+            console.log(`   📊 Trade history found!`);
+            console.log(`   Bought: $${boughtValueUsd.toFixed(2)} (from ${tradeHistory.total_usd_spent.toFixed(2)} total spent)`);
+          }
+        } else {
+          console.log(`   ⚠️ No trade history - using current value as bought`);
+        }
+
+        // Calculate P/L
+        const pnl = currentValueUsd - boughtValueUsd;
+        const pnlPercent = boughtValueUsd > 0 ? (pnl / boughtValueUsd) * 100 : 0;
+        console.log(`   P/L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPercent.toFixed(1)}%)`);
 
         bonkPositions.push({
           mint: mintStr,
@@ -172,7 +291,7 @@ export function BalancesTab() {
     } finally {
       setLoading(false);
     }
-  }, [publicKey]);
+  }, [publicKey, fetchUserTrades]);
 
   useEffect(() => {
     fetchPositions();
@@ -318,7 +437,7 @@ export function BalancesTab() {
                   <div className={`font-bold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                     ${position.currentValueUsd.toFixed(2)}
                   </div>
-                  {pnlPercent !== 0 && (
+                  {Math.abs(pnlPercent) > 0.1 && (
                     <div className={`text-xs ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                       {isProfit ? '+' : ''}{pnlPercent.toFixed(1)}%
                     </div>

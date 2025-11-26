@@ -1,4 +1,4 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -288,4 +288,215 @@
 /* Hide the original text but show icon */
 .wallet-adapter-button .wallet-adapter-button-start-icon {
   font-size: 20px !important;
+}
+
+/* ⚔️ BATTLE ANIMATIONS - Token War Effects with Bounce */
+
+/* Attack Bounce Right - Token A bounces towards center with shake */
+@keyframes attackBounceRight {
+  0% {
+    transform: translateX(0);
+  }
+  5% {
+    transform: translateX(calc(28% - 12px));
+  }
+  10% {
+    transform: translateX(calc(28% + 14px));
+  }
+  15% {
+    transform: translateX(calc(28% - 10px));
+  }
+  20% {
+    transform: translateX(calc(18% + 16px));
+  }
+  25% {
+    transform: translateX(calc(18% - 14px));
+  }
+  30% {
+    transform: translateX(calc(32% + 18px));
+  }
+  35% {
+    transform: translateX(calc(32% - 16px));
+  }
+  40% {
+    transform: translateX(calc(22% + 12px));
+  }
+  50% {
+    transform: translateX(calc(22% - 14px));
+  }
+  60% {
+    transform: translateX(calc(12% + 10px));
+  }
+  70% {
+    transform: translateX(calc(12% - 8px));
+  }
+  80% {
+    transform: translateX(calc(6% + 6px));
+  }
+  90% {
+    transform: translateX(calc(6% - 4px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Attack Bounce Left - Token B bounces towards center with shake */
+@keyframes attackBounceLeft {
+  0% {
+    transform: translateX(0);
+  }
+  5% {
+    transform: translateX(calc(-28% + 12px));
+  }
+  10% {
+    transform: translateX(calc(-28% - 14px));
+  }
+  15% {
+    transform: translateX(calc(-28% + 10px));
+  }
+  20% {
+    transform: translateX(calc(-18% - 16px));
+  }
+  25% {
+    transform: translateX(calc(-18% + 14px));
+  }
+  30% {
+    transform: translateX(calc(-32% - 18px));
+  }
+  35% {
+    transform: translateX(calc(-32% + 16px));
+  }
+  40% {
+    transform: translateX(calc(-22% - 12px));
+  }
+  50% {
+    transform: translateX(calc(-22% + 14px));
+  }
+  60% {
+    transform: translateX(calc(-12% - 10px));
+  }
+  70% {
+    transform: translateX(calc(-12% + 8px));
+  }
+  80% {
+    transform: translateX(calc(-6% - 6px));
+  }
+  90% {
+    transform: translateX(calc(-6% + 4px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Clash Bounce Right - Token A bounces right during clash with shake */
+@keyframes clashBounceRight {
+  0% {
+    transform: translateX(0);
+  }
+  8% {
+    transform: translateX(calc(30% - 14px));
+  }
+  12% {
+    transform: translateX(calc(30% + 16px));
+  }
+  18% {
+    transform: translateX(calc(30% - 12px));
+  }
+  25% {
+    transform: translateX(calc(25% + 18px));
+  }
+  32% {
+    transform: translateX(calc(25% - 16px));
+  }
+  40% {
+    transform: translateX(calc(32% + 14px));
+  }
+  50% {
+    transform: translateX(calc(32% - 18px));
+  }
+  60% {
+    transform: translateX(calc(18% + 12px));
+  }
+  70% {
+    transform: translateX(calc(18% - 10px));
+  }
+  80% {
+    transform: translateX(calc(8% + 8px));
+  }
+  90% {
+    transform: translateX(calc(8% - 6px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Clash Bounce Left - Token B bounces left during clash with shake */
+@keyframes clashBounceLeft {
+  0% {
+    transform: translateX(0);
+  }
+  8% {
+    transform: translateX(calc(-30% + 14px));
+  }
+  12% {
+    transform: translateX(calc(-30% - 16px));
+  }
+  18% {
+    transform: translateX(calc(-30% + 12px));
+  }
+  25% {
+    transform: translateX(calc(-25% - 18px));
+  }
+  32% {
+    transform: translateX(calc(-25% + 16px));
+  }
+  40% {
+    transform: translateX(calc(-32% - 14px));
+  }
+  50% {
+    transform: translateX(calc(-32% + 18px));
+  }
+  60% {
+    transform: translateX(calc(-18% - 12px));
+  }
+  70% {
+    transform: translateX(calc(-18% + 10px));
+  }
+  80% {
+    transform: translateX(calc(-8% - 8px));
+  }
+  90% {
+    transform: translateX(calc(-8% + 6px));
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Apply animations */
+.battle-attack-bounce-right {
+  animation: attackBounceRight 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+.battle-attack-bounce-left {
+  animation: attackBounceLeft 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+.battle-clash-bounce-right {
+  animation: clashBounceRight 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  z-index: 15 !important;
+  position: relative !important;
+}
+
+.battle-clash-bounce-left {
+  animation: clashBounceLeft 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+  z-index: 15 !important;
+  position: relative !important;
 }

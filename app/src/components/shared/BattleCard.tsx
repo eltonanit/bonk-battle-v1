@@ -1,6 +1,7 @@
 // app/src/components/shared/BattleCard.tsx
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -28,6 +29,41 @@ export function BattleCard({
   targetVol = 100    // Per devnet: $100
 }: BattleCardProps) {
 
+  // ⚔️ Stati per le animazioni di battaglia
+  const [attackA, setAttackA] = useState(false);
+  const [attackB, setAttackB] = useState(false);
+  const [clash, setClash] = useState(false);
+
+  // ⚔️ Animazioni casuali di battaglia
+  useEffect(() => {
+    const startBattleAnimations = () => {
+      // Ogni 2-3 secondi, lancia un attacco casuale (PIÙ FREQUENTE)
+      const randomInterval = Math.random() * 1000 + 2000; // 2-3 secondi
+
+      setTimeout(() => {
+        const action = Math.random();
+
+        if (action < 0.3) {
+          // Token A attacca (30%)
+          setAttackA(true);
+          setTimeout(() => setAttackA(false), 500);
+        } else if (action < 0.6) {
+          // Token B attacca (30%)
+          setAttackB(true);
+          setTimeout(() => setAttackB(false), 500);
+        } else {
+          // Entrambi si scontrano (40%)
+          setClash(true);
+          setTimeout(() => setClash(false), 500);
+        }
+
+        startBattleAnimations(); // Ripeti
+      }, randomInterval);
+    };
+
+    startBattleAnimations();
+  }, []);
+
   // Calcola progress percentuali
   const mcProgressA = Math.min((tokenA.marketCapUsd / targetMC) * 100, 100);
   const mcProgressB = Math.min((tokenB.marketCapUsd / targetMC) * 100, 100);
@@ -53,11 +89,38 @@ export function BattleCard({
   return (
     <div className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer">
       {/* Battle Header */}
-      <div className="bg-[#5b6e6b99] px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544]">
-        <div className="flex items-center justify-between">
+      <div className="bg-[#5b6e6b99] px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden">
+        {/* Blue Background Attack Strip - Token A (Left) */}
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${
+            attackA || clash ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            zIndex: 0,
+            backgroundColor: clash ? '#EFFE16' : '#4DB5FF',
+            boxShadow: attackA ? '0 0 30px rgba(38, 157, 255, 0.6)' : 'none'
+          }}
+        />
+        {/* Red/Pink Background Attack Strip - Token B (Right) */}
+        <div
+          className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${
+            attackB || clash ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            zIndex: 0,
+            backgroundColor: clash ? '#EFFE16' : '#FF5A8E',
+            boxShadow: attackB ? '0 0 30px rgba(254, 42, 98, 0.6)' : 'none'
+          }}
+        />
+
+        <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
           {/* Token A Image */}
           <Link href={`/token/${tokenA.mint}`}>
-            <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
+            <div
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0 ${
+                attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''
+              }`}
+            >
               <Image
                 src={getTokenImage(tokenA)}
                 alt={tokenA.symbol}
@@ -81,7 +144,11 @@ export function BattleCard({
 
           {/* Token B Image */}
           <Link href={`/token/${tokenB.mint}`}>
-            <div className="w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0">
+            <div
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0 ${
+                attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''
+              }`}
+            >
               <Image
                 src={getTokenImage(tokenB)}
                 alt={tokenB.symbol}
