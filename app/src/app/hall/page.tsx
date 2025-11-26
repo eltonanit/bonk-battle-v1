@@ -13,11 +13,11 @@ export default function HallPage() {
       <DesktopHeader />
       <Header />
       <Sidebar />
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
+      <div className="pt-28 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="lg:hidden">
           <FOMOTicker />
         </div>
-        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-10">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6">
           {/* Battle Matching Header */}
           <div className="text-center mb-12">
             <h1 className="text-4xl lg:text-5xl font-extrabold mb-4 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
@@ -26,9 +26,16 @@ export default function HallPage() {
             <p className="text-lg lg:text-xl font-semibold text-white/70 mb-2">
               Find Your Opponent • Winner Takes All
             </p>
-            <p className="text-sm text-white/50 max-w-2xl mx-auto">
+            <p className="text-sm text-white/50 max-w-2xl mx-auto mb-8">
               Match with qualified tokens ready for battle. Winner takes 50% of loser's liquidity.
             </p>
+
+            {/* Start Battle Button */}
+            <button className="inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-orange-600 via-orange-500 to-red-600 rounded-xl font-bold text-lg hover:scale-105 transition-all shadow-lg shadow-orange-500/50 hover:shadow-orange-500/70">
+              <span className="text-2xl">⚔️</span>
+              <span>START BATTLE</span>
+              <span className="text-2xl">⚔️</span>
+            </button>
           </div>
 
           {/* Battle Matching Component */}

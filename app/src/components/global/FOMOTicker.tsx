@@ -307,7 +307,7 @@ export function FOMOTicker() {
   };
 
   return (
-    <div className="mb-0 lg:mb-0">
+    <div className="mb-2 lg:mb-2">
       <div className="px-0 lg:px-2 py-0 lg:py-0">
         <div className="flex justify-center lg:justify-start items-center">
           <Link
