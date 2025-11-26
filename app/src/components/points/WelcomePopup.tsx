@@ -88,47 +88,46 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 text-gray-500 hover:text-white transition-colors text-lg"
+            className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-colors text-lg"
           >
-            X
+            ✕
           </button>
 
-          {/* Header with Logo */}
-          <div className="text-center mb-4">
-            <div className="w-12 h-12 mx-auto mb-3">
-              <img
-                src="/BONK-LOGO.svg"
-                alt="BONK BATTLE"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h2 className="text-lg font-bold text-white">
-              WELCOME TO BONK BATTLE!
-            </h2>
+          {/* Welcome Text */}
+          <h2 className="text-center text-orange-400 font-bold text-lg mb-2">
+            WELCOME TO BONK BATTLE!
+          </h2>
+
+          {/* Logo */}
+          <div className="w-14 h-14 mx-auto mb-3">
+            <img
+              src="/BONK-LOGO.svg"
+              alt="BONK BATTLE"
+              className="w-full h-full object-contain"
+            />
           </div>
 
-          {/* Bonus Display */}
-          <div className="bg-black/40 border border-yellow-500/40 rounded-lg p-3 mb-3 text-center">
-            <div className="text-xs text-yellow-400/80 mb-1">CLAIM YOUR</div>
-            <div className="text-3xl font-black text-yellow-400 mb-1">
-              +1,000
-            </div>
-            <div className="text-sm text-yellow-400/80">POINTS BONUS</div>
+          {/* Main Image - Large */}
+          <div className="mb-3">
+            <img
+              src="/2-tag.png"
+              alt="Tagline"
+              className="w-full h-auto rounded-lg"
+            />
           </div>
 
-          {/* Timer */}
+          {/* Claim 1000 Text */}
           <div className="text-center mb-3">
-            <div className="text-xs text-gray-400 mb-1">Offer expires in:</div>
-            <div className="text-lg font-mono font-bold text-yellow-400">
-              {formatTime(timeLeft)}
+            <div className="text-2xl font-black text-yellow-400">
+              CLAIM +1,000 POINTS
             </div>
           </div>
 
-          {/* Claim Button */}
+          {/* Claim Button - Compact, light orange */}
           <button
             onClick={handleClaim}
             disabled={claiming}
-            className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 disabled:opacity-50 text-black font-bold py-2.5 px-4 rounded-lg text-sm transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+            className="mx-auto block bg-orange-300 hover:bg-orange-200 disabled:opacity-50 text-black font-bold py-2 px-6 rounded-lg text-sm transition-all"
           >
             {claiming ? (
               <span className="flex items-center justify-center gap-2">
@@ -136,7 +135,7 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
                 Claiming...
               </span>
             ) : (
-              'Claim Now'
+              'Claim Bonus'
             )}
           </button>
         </div>
