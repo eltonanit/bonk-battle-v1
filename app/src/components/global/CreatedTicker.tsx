@@ -120,12 +120,12 @@ export function CreatedTicker() {
   const currentEvent = createdEvents[currentIndex];
 
   return (
-    <div className="mb-2">
-      <div className="px-2 py-0">
+    <div className="mb-2 lg:mb-0">
+      <div className="px-0 py-0">
         <div className="flex justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-1.5 px-4 py-2 text-base text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-0.5 px-1 py-0.5 text-xs lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: CREATED_COLORS[currentIndex % CREATED_COLORS.length],
               borderRadius: 0,
@@ -133,37 +133,37 @@ export function CreatedTicker() {
           >
             {/* Token Image LEFT */}
             {currentEvent.tokenImage && (
-              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/30">
+              <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                 <Image
                   src={currentEvent.tokenImage}
                   alt={currentEvent.tokenSymbol}
-                  width={32}
-                  height={32}
+                  width={24}
+                  height={24}
                   className="w-full h-full object-cover"
                   unoptimized
                 />
               </div>
             )}
 
-            <span className="whitespace-nowrap font-semibold uppercase text-base">
+            <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
               {currentEvent.user}
             </span>
 
-            <span className="whitespace-nowrap text-base font-semibold">
+            <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
               CREATED
             </span>
 
-            <span className="whitespace-nowrap font-semibold uppercase text-base">
+            <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
               {currentEvent.tokenSymbol}
             </span>
 
             {/* User Avatar RIGHT */}
-            <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/30">
+            <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
               <Image
                 src="/profilo.png"
                 alt={currentEvent.user}
-                width={32}
-                height={32}
+                width={24}
+                height={24}
                 className="w-full h-full object-cover"
               />
             </div>

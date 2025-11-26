@@ -37,11 +37,12 @@ export function DesktopHeader() {
   return (
     <header className="hidden lg:block fixed top-0 left-56 right-0 z-40 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
       <div className="flex flex-col">
-        {/* Top Row - FOMO Ticker + Buttons */}
+        {/* Top Row - FOMO Ticker + Created Ticker + Buttons */}
         <div className="h-16 flex items-center justify-between px-6">
-          {/* FOMO Ticker - Left (espanso) */}
-          <div className="flex-1">
+          {/* Both Tickers - Left side */}
+          <div className="flex items-center gap-3">
             <FOMOTicker />
+            <CreatedTicker />
           </div>
 
           {/* Buttons - Right */}
@@ -193,10 +194,6 @@ export function DesktopHeader() {
           </div>
         </div>
 
-        {/* Bottom Row - Created Ticker (full width) */}
-        <div className="border-t border-bonk-border">
-          <CreatedTicker />
-        </div>
       </div>
     </header>
   );

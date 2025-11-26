@@ -169,10 +169,9 @@ export function FOMOTicker() {
           }
         }
 
-        // ⭐ Combina tutti gli eventi in un unico array
+        // ⭐ Combina solo eventi BATTLE e BUY (i CREATED sono nel CreatedTicker)
         const combined: RealEvent[] = [
           ...battleEventsData,  // Battle events first
-          ...createdEvents.slice(0, 20),  // Created events
           ...mockBuyEvents,  // Buy events (if any)
         ];
 
@@ -307,12 +306,12 @@ export function FOMOTicker() {
   };
 
   return (
-    <div className="mb-2 lg:mb-2">
-      <div className="px-0 lg:px-2 py-0 lg:py-0">
+    <div className="mb-2 lg:mb-0">
+      <div className="px-0 lg:px-0 py-0 lg:py-0">
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-1 lg:gap-1.5 px-3 py-1.5 lg:px-4 lg:py-2 text-sm lg:text-base text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-0.5 lg:gap-1 px-1 py-0.5 lg:px-1.5 lg:py-0.5 text-xs lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: getEventColor(currentEvent),
               borderRadius: 0,
@@ -321,42 +320,42 @@ export function FOMOTicker() {
             {currentEvent.type === 'started_battle' ? (
               <>
                 {/* Battle Event */}
-                <span className="whitespace-nowrap text-sm lg:text-base uppercase font-semibold">
+                <span className="whitespace-nowrap text-xs lg:text-sm uppercase font-semibold">
                   ⚔️ BATTLE STARTED:
                 </span>
 
                 {currentEvent.tokenImage && (
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
                       src={currentEvent.tokenImage}
                       alt={currentEvent.tokenSymbol}
-                      width={32}
-                      height={32}
+                      width={24}
+                      height={24}
                       className="w-full h-full object-cover"
                       unoptimized
                     />
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-base">
+                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
-                <span className="whitespace-nowrap text-sm lg:text-base font-semibold">
+                <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
                   VS
                 </span>
 
-                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-base">
+                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
                   {currentEvent.opponentSymbol}
                 </span>
 
                 {currentEvent.opponentImage && (
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
                       src={currentEvent.opponentImage}
                       alt={currentEvent.opponentSymbol || 'Opponent'}
-                      width={32}
-                      height={32}
+                      width={24}
+                      height={24}
                       className="w-full h-full object-cover"
                       unoptimized
                     />
@@ -368,40 +367,40 @@ export function FOMOTicker() {
                 {/* Created/Buy Event */}
                 {/* Token Image LEFT */}
                 {currentEvent.tokenImage && (
-                  <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/30">
+                  <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                     <Image
                       src={currentEvent.tokenImage}
                       alt={currentEvent.tokenSymbol}
-                      width={32}
-                      height={32}
+                      width={24}
+                      height={24}
                       className="w-full h-full object-cover"
                     />
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-base">
+                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
                   {currentEvent.user}
                 </span>
 
-                <span className="whitespace-nowrap text-sm lg:text-base font-semibold">
+                <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
                   {currentEvent.type === 'created' ? 'CREATED' : 'bought'}
                 </span>
 
-                <span className="whitespace-nowrap font-semibold text-sm lg:text-base">
+                <span className="whitespace-nowrap font-semibold text-xs lg:text-sm">
                   {currentEvent.amount.toFixed(2)} SOL
                 </span>
 
-                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-base">
+                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
                 {/* User Avatar RIGHT */}
-                <div className="w-6 h-6 lg:w-8 lg:h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-black/30">
+                <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                   <Image
                     src="/profilo.png"
                     alt={currentEvent.user}
-                    width={32}
-                    height={32}
+                    width={24}
+                    height={24}
                     className="w-full h-full object-cover"
                   />
                 </div>

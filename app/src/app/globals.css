@@ -298,43 +298,43 @@
     transform: translateX(0);
   }
   5% {
-    transform: translateX(calc(28% - 12px));
+    transform: translateX(calc(45% - 12px));
   }
   10% {
-    transform: translateX(calc(28% + 14px));
+    transform: translateX(calc(45% + 14px));
   }
   15% {
-    transform: translateX(calc(28% - 10px));
+    transform: translateX(calc(45% - 10px));
   }
   20% {
-    transform: translateX(calc(18% + 16px));
+    transform: translateX(calc(35% + 16px));
   }
   25% {
-    transform: translateX(calc(18% - 14px));
+    transform: translateX(calc(35% - 14px));
   }
   30% {
-    transform: translateX(calc(32% + 18px));
+    transform: translateX(calc(48% + 18px));
   }
   35% {
-    transform: translateX(calc(32% - 16px));
+    transform: translateX(calc(48% - 16px));
   }
   40% {
-    transform: translateX(calc(22% + 12px));
+    transform: translateX(calc(38% + 12px));
   }
   50% {
-    transform: translateX(calc(22% - 14px));
+    transform: translateX(calc(38% - 14px));
   }
   60% {
-    transform: translateX(calc(12% + 10px));
+    transform: translateX(calc(25% + 10px));
   }
   70% {
-    transform: translateX(calc(12% - 8px));
+    transform: translateX(calc(25% - 8px));
   }
   80% {
-    transform: translateX(calc(6% + 6px));
+    transform: translateX(calc(15% + 6px));
   }
   90% {
-    transform: translateX(calc(6% - 4px));
+    transform: translateX(calc(15% - 4px));
   }
   100% {
     transform: translateX(0);
@@ -347,43 +347,43 @@
     transform: translateX(0);
   }
   5% {
-    transform: translateX(calc(-28% + 12px));
+    transform: translateX(calc(-45% + 12px));
   }
   10% {
-    transform: translateX(calc(-28% - 14px));
+    transform: translateX(calc(-45% - 14px));
   }
   15% {
-    transform: translateX(calc(-28% + 10px));
+    transform: translateX(calc(-45% + 10px));
   }
   20% {
-    transform: translateX(calc(-18% - 16px));
+    transform: translateX(calc(-35% - 16px));
   }
   25% {
-    transform: translateX(calc(-18% + 14px));
+    transform: translateX(calc(-35% + 14px));
   }
   30% {
-    transform: translateX(calc(-32% - 18px));
+    transform: translateX(calc(-48% - 18px));
   }
   35% {
-    transform: translateX(calc(-32% + 16px));
+    transform: translateX(calc(-48% + 16px));
   }
   40% {
-    transform: translateX(calc(-22% - 12px));
+    transform: translateX(calc(-38% - 12px));
   }
   50% {
-    transform: translateX(calc(-22% + 14px));
+    transform: translateX(calc(-38% + 14px));
   }
   60% {
-    transform: translateX(calc(-12% - 10px));
+    transform: translateX(calc(-25% - 10px));
   }
   70% {
-    transform: translateX(calc(-12% + 8px));
+    transform: translateX(calc(-25% + 8px));
   }
   80% {
-    transform: translateX(calc(-6% - 6px));
+    transform: translateX(calc(-15% - 6px));
   }
   90% {
-    transform: translateX(calc(-6% + 4px));
+    transform: translateX(calc(-15% + 4px));
   }
   100% {
     transform: translateX(0);
@@ -396,37 +396,37 @@
     transform: translateX(0);
   }
   8% {
-    transform: translateX(calc(30% - 14px));
+    transform: translateX(calc(45% - 14px));
   }
   12% {
-    transform: translateX(calc(30% + 16px));
+    transform: translateX(calc(45% + 16px));
   }
   18% {
-    transform: translateX(calc(30% - 12px));
+    transform: translateX(calc(45% - 12px));
   }
   25% {
-    transform: translateX(calc(25% + 18px));
+    transform: translateX(calc(40% + 18px));
   }
   32% {
-    transform: translateX(calc(25% - 16px));
+    transform: translateX(calc(40% - 16px));
   }
   40% {
-    transform: translateX(calc(32% + 14px));
+    transform: translateX(calc(48% + 14px));
   }
   50% {
-    transform: translateX(calc(32% - 18px));
+    transform: translateX(calc(48% - 18px));
   }
   60% {
-    transform: translateX(calc(18% + 12px));
+    transform: translateX(calc(35% + 12px));
   }
   70% {
-    transform: translateX(calc(18% - 10px));
+    transform: translateX(calc(35% - 10px));
   }
   80% {
-    transform: translateX(calc(8% + 8px));
+    transform: translateX(calc(20% + 8px));
   }
   90% {
-    transform: translateX(calc(8% - 6px));
+    transform: translateX(calc(20% - 6px));
   }
   100% {
     transform: translateX(0);
@@ -439,37 +439,37 @@
     transform: translateX(0);
   }
   8% {
-    transform: translateX(calc(-30% + 14px));
+    transform: translateX(calc(-45% + 14px));
   }
   12% {
-    transform: translateX(calc(-30% - 16px));
+    transform: translateX(calc(-45% - 16px));
   }
   18% {
-    transform: translateX(calc(-30% + 12px));
+    transform: translateX(calc(-45% + 12px));
   }
   25% {
-    transform: translateX(calc(-25% - 18px));
+    transform: translateX(calc(-40% - 18px));
   }
   32% {
-    transform: translateX(calc(-25% + 16px));
+    transform: translateX(calc(-40% + 16px));
   }
   40% {
-    transform: translateX(calc(-32% - 14px));
+    transform: translateX(calc(-48% - 14px));
   }
   50% {
-    transform: translateX(calc(-32% + 18px));
+    transform: translateX(calc(-48% + 18px));
   }
   60% {
-    transform: translateX(calc(-18% - 12px));
+    transform: translateX(calc(-35% - 12px));
   }
   70% {
-    transform: translateX(calc(-18% + 10px));
+    transform: translateX(calc(-35% + 10px));
   }
   80% {
-    transform: translateX(calc(-8% - 8px));
+    transform: translateX(calc(-20% - 8px));
   }
   90% {
-    transform: translateX(calc(-8% + 6px));
+    transform: translateX(calc(-20% + 6px));
   }
   100% {
     transform: translateX(0);
@@ -499,4 +499,14 @@
   animation: clashBounceLeft 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
   z-index: 15 !important;
   position: relative !important;
+}
+
+/* 🎮 CLASH ROYALE STYLE - Checkerboard Diamond Pattern (Scacchiera di Rombi) */
+.battle-grid-bg {
+  background-color: #0d4280;
+  background-image:
+    linear-gradient(45deg, #104d96 25%, transparent 25%, transparent 75%, #104d96 75%),
+    linear-gradient(45deg, #104d96 25%, transparent 25%, transparent 75%, #104d96 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 20px 20px;
 }

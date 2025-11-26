@@ -44,9 +44,7 @@ export function TokenGridBonk() {
     }
 
     loadTokens();
-    // Auto-refresh every 30 seconds for battle updates
-    const interval = setInterval(loadTokens, 30000);
-    return () => clearInterval(interval);
+    // Rimosso auto-refresh per evitare che le BattleCard spariscano
   }, []);
 
   // ⭐ Convert lamports to USD using real oracle price
