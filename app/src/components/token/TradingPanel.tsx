@@ -1,13 +1,14 @@
 // app/src/components/token/TradingPanel.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { buyToken } from '@/lib/solana/buy-token';
 import { sellToken } from '@/lib/solana/sell-token';
+import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 
 interface TradingPanelProps {
   mint: PublicKey;
@@ -24,6 +25,8 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
   const { balance, balanceFormatted } = useUserTokenBalance(mint);
   const { solPriceUsd } = usePriceOracle();
   const [solBalance, setSolBalance] = useState<number | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Fetch SOL balance
   useEffect(() => {
@@ -60,11 +63,8 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
       );
 
       console.log('✅ Buy successful:', result);
-      alert(
-        `✅ Tokens purchased!\n\n` +
-        `Tokens Received: ${(result.tokensReceived / 1e6).toFixed(6)}\n` +
-        `Signature: ${result.signature.substring(0, 20)}...`
-      );
+      setSuccessMessage(`Bought ${((result.tokensReceived || 0) / 1e6).toFixed(2)} tokens`);
+      setShowSuccess(true);
       setAmount('');
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -105,11 +105,8 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
       );
 
       console.log('✅ Sell successful:', result);
-      alert(
-        `✅ Tokens sold!\n\n` +
-        `SOL Received: ${(result.solReceived / 1e9).toFixed(6)} SOL\n` +
-        `Signature: ${result.signature.substring(0, 20)}...`
-      );
+      setSuccessMessage(`Sold ${(result.tokenAmount / 1e6).toFixed(2)} tokens`);
+      setShowSuccess(true);
       setAmount('');
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -121,8 +118,21 @@ export function TradingPanel({ mint, onSuccess }: TradingPanelProps) {
     }
   };
 
+  const handleSuccessClose = useCallback(() => {
+    setShowSuccess(false);
+  }, []);
+
   return (
     <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
+      {/* Success Popup */}
+      <TransactionSuccessPopup
+        show={showSuccess}
+        message="Transaction Successful"
+        subMessage={successMessage}
+        onClose={handleSuccessClose}
+        autoCloseMs={2500}
+      />
+
       {/* Buy/Sell Toggle */}
       <div className="flex gap-2 mb-4">
         <button

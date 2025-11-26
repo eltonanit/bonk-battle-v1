@@ -60,15 +60,15 @@ export function useUserPoints(): UseUserPointsResult {
       setLoading(true);
       setError(null);
 
-      // Fetch user points
+      // Fetch user points - usa maybeSingle() invece di single()
       const { data: userData, error: userError } = await supabase
         .from('user_points')
         .select('*')
         .eq('wallet_address', wallet)
-        .single();
+        .maybeSingle(); // ⭐ FIX: maybeSingle() non dà errore se non trova righe
 
-      if (userError && userError.code !== 'PGRST116') {
-        // PGRST116 = no rows found (new user)
+      if (userError) {
+        console.error('❌ Error fetching user_points:', userError);
         throw userError;
       }
 
@@ -79,7 +79,7 @@ export function useUserPoints(): UseUserPointsResult {
           .from('points_leaderboard')
           .select('rank')
           .eq('wallet_address', wallet)
-          .single();
+          .maybeSingle();
 
         rank = rankData?.rank || null;
       }
@@ -94,7 +94,7 @@ export function useUserPoints(): UseUserPointsResult {
           referralCode: userData.referral_code || null
         });
       } else {
-        // New user - no points yet
+        // New user - no points yet, popup should show
         setPoints({
           totalPoints: 0,
           tier: 'bronze',
@@ -107,6 +107,15 @@ export function useUserPoints(): UseUserPointsResult {
     } catch (err) {
       console.error('❌ Error fetching user points:', err);
       setError(err as Error);
+      // Set default state even on error so popup can show
+      setPoints({
+        totalPoints: 0,
+        tier: 'bronze',
+        winsCount: 0,
+        welcomeBonusClaimed: false,
+        rank: null,
+        referralCode: null
+      });
     } finally {
       setLoading(false);
     }
@@ -142,15 +151,13 @@ export function useUserPoints(): UseUserPointsResult {
 
   // Fetch on mount and when wallet changes
   useEffect(() => {
-    fetchPoints();
-  }, [fetchPoints]);
-
-  // Refetch when wallet connects
-  useEffect(() => {
-    if (connected && wallet) {
+    if (wallet) {
       fetchPoints();
+    } else {
+      setPoints(null);
+      setLoading(false);
     }
-  }, [connected, wallet, fetchPoints]);
+  }, [wallet, fetchPoints]);
 
   return {
     points,

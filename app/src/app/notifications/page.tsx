@@ -3,6 +3,7 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
@@ -91,63 +92,88 @@ export default function NotificationsPage() {
                                 <p className="text-gray-400">{`We'll notify you when something happens!`}</p>
                             </div>
                         ) : (
-                            notifications.map((notif) => (
-                                <div
-                                    key={notif.id}
-                                    onClick={() => handleNotificationClick(notif)}
-                                    className={`
-                    rounded-xl border cursor-pointer transition-all
-                    hover:border-white/30 hover:shadow-lg
-                    ${!notif.read
-                                            ? 'bg-gradient-to-r from-emerald-950/40 to-emerald-900/20 border-emerald-500/30'
-                                            : 'bg-white/5 border-white/10'
-                                        }
-                  `}
-                                >
-                                    <div className="p-5">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1">
-                                                {/* Title */}
-                                                <div className="font-bold text-lg mb-2 flex items-center gap-2">
-                                                    {notif.title}
-                                                    {!notif.read && (
-                                                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            notifications.map((notif) => {
+                                // Special styling for points notifications
+                                const isPointsNotif = notif.type === 'points';
+                                // Clean title: remove emoji prefix for points
+                                const cleanTitle = isPointsNotif
+                                    ? notif.title.replace(/^🎉\s*/, '')
+                                    : notif.title;
+
+                                return (
+                                    <div
+                                        key={notif.id}
+                                        onClick={() => handleNotificationClick(notif)}
+                                        className={`
+                                            rounded-xl border cursor-pointer transition-all
+                                            hover:border-white/30 hover:shadow-lg
+                                            ${isPointsNotif
+                                                ? 'bg-gradient-to-r from-orange-600/90 to-orange-500/80 border-orange-400/50'
+                                                : !notif.read
+                                                    ? 'bg-gradient-to-r from-emerald-950/40 to-emerald-900/20 border-emerald-500/30'
+                                                    : 'bg-white/5 border-white/10'
+                                            }
+                                        `}
+                                    >
+                                        <div className="p-4">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    {/* Title with logo for points */}
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        {isPointsNotif && (
+                                                            <div className="w-5 h-5 flex-shrink-0">
+                                                                <Image
+                                                                    src="/BONK-LOGO.svg"
+                                                                    alt="BONK"
+                                                                    width={20}
+                                                                    height={20}
+                                                                    className="w-full h-full object-contain"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                        <span className={`font-bold text-lg ${isPointsNotif ? 'text-white' : ''}`}>
+                                                            {cleanTitle}
+                                                        </span>
+                                                        <span className="text-xs text-white/70">
+                                                            {formatTimeAgo(notif.created_at)}
+                                                        </span>
+                                                        {!notif.read && !isPointsNotif && (
+                                                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                                        )}
+                                                    </div>
+
+                                                    {/* Message */}
+                                                    <div className={`text-sm whitespace-pre-line ${isPointsNotif ? 'text-white/90' : 'text-gray-300'}`}>
+                                                        {notif.message}
+                                                    </div>
+
+                                                    {/* Footer - only show for non-points notifications */}
+                                                    {!isPointsNotif && (
+                                                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-3">
+                                                            <span>{formatTimeAgo(notif.created_at)}</span>
+                                                            {notif.token_launch_id && notif.token_launch_id !== 'TEST' && notif.token_launch_id !== 'TEST_TOKEN' && (
+                                                                <>
+                                                                    <span>•</span>
+                                                                    <span className="text-blue-400 hover:text-blue-300">
+                                                                        View token →
+                                                                    </span>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
 
-                                                {/* Message */}
-                                                <div className="text-gray-300 text-sm whitespace-pre-line mb-3">
-                                                    {notif.message}
-                                                </div>
-
-                                                {/* Footer */}
-                                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                                    <span className="flex items-center gap-1">
-                                                        🔔 {notif.type}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span>{formatTimeAgo(notif.created_at)}</span>
-                                                    {notif.token_launch_id && notif.token_launch_id !== 'TEST' && notif.token_launch_id !== 'TEST_TOKEN' && (
-                                                        <>
-                                                            <span>•</span>
-                                                            <span className="text-blue-400 hover:text-blue-300">
-                                                                View token →
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
+                                                {/* Status Indicator - green dot for unread non-points */}
+                                                {!notif.read && !isPointsNotif && (
+                                                    <div className="flex-shrink-0">
+                                                        <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/50" />
+                                                    </div>
+                                                )}
                                             </div>
-
-                                            {/* Status Indicator */}
-                                            {!notif.read && (
-                                                <div className="flex-shrink-0">
-                                                    <div className="w-3 h-3 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/50" />
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
                 </div>

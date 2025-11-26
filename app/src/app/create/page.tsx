@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
@@ -9,6 +9,7 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { createBattleToken } from '@/lib/solana/create-battle-token';
+import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 
 export default function CreatePage() {
     const { publicKey, signTransaction } = useWallet();
@@ -19,6 +20,8 @@ export default function CreatePage() {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [createdMint, setCreatedMint] = useState<string | null>(null);
 
     const handleFileSelect = (file: File | null) => {
         if (file) {
@@ -105,16 +108,9 @@ export default function CreatePage() {
             console.log('🪙 Mint:', result.mint.toString());
             console.log('⚔️ Battle State:', result.battleState.toString());
 
-            // Show success message
-            if (confirm(
-                `✅ Battle Token created successfully!\n\n` +
-                `Name: ${name}\n` +
-                `Symbol: ${symbol}\n` +
-                `Mint: ${result.mint.toString()}\n\n` +
-                `Click OK to view your token`
-            )) {
-                router.push(`/token/${result.mint.toString()}`);
-            }
+            // Show success popup and redirect
+            setCreatedMint(result.mint.toString());
+            setShowSuccess(true);
 
         } catch (error: unknown) {
             console.error('❌ Error creating battle token:', error);
@@ -128,11 +124,28 @@ export default function CreatePage() {
         }
     };
 
+    // Handle success popup close - redirect to token page
+    const handleSuccessClose = useCallback(() => {
+        setShowSuccess(false);
+        if (createdMint) {
+            router.push(`/token/${createdMint}`);
+        }
+    }, [createdMint, router]);
+
     return (
         <div className="min-h-screen bg-bonk-dark">
             <DesktopHeader />
             <Header />
             <Sidebar />
+
+            {/* Success Popup */}
+            <TransactionSuccessPopup
+                show={showSuccess}
+                message="Transaction Successful"
+                subMessage="Token Created"
+                onClose={handleSuccessClose}
+                autoCloseMs={2500}
+            />
 
             {/* ⭐ MODIFICATO: Aggiunto pt-32 mobile per header a 2 righe + FOMOTicker */}
             <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">

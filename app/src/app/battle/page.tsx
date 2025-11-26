@@ -21,6 +21,8 @@ import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 
 // ============================================================================
 // TYPES
@@ -122,7 +124,82 @@ function OnBattleItem({ token }: { token: UserToken }) {
 }
 
 // Qualify - Token qualificato
-function QualifyItem({ token }: { token: UserToken }) {
+function QualifyItem({ token, onFindOpponent, onMatchFound }: {
+  token: UserToken;
+  onFindOpponent: (mint: string) => Promise<boolean>;
+  onMatchFound: (message: string) => void;
+}) {
+  const [searching, setSearching] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
+  const [searchInterval, setSearchIntervalId] = useState<NodeJS.Timeout | null>(null);
+
+  // Format time as M:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (searchInterval) clearInterval(searchInterval);
+    };
+  }, [searchInterval]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (!searching) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Time's up - stop searching
+          setSearching(false);
+          if (searchInterval) clearInterval(searchInterval);
+          return 120;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [searching, searchInterval]);
+
+  const handleClick = async () => {
+    if (searching) {
+      // Cancel search
+      setSearching(false);
+      setTimeLeft(120);
+      if (searchInterval) clearInterval(searchInterval);
+      return;
+    }
+
+    // Start searching
+    setSearching(true);
+    setTimeLeft(120);
+
+    // Try to find match immediately
+    const found = await onFindOpponent(token.mint);
+    if (found) {
+      setSearching(false);
+      setTimeLeft(120);
+      return;
+    }
+
+    // Set up polling every 10 seconds
+    const interval = setInterval(async () => {
+      const matchFound = await onFindOpponent(token.mint);
+      if (matchFound) {
+        setSearching(false);
+        setTimeLeft(120);
+        clearInterval(interval);
+      }
+    }, 10000);
+
+    setSearchIntervalId(interval);
+  };
+
   return (
     <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
       {/* Left: Token info */}
@@ -139,12 +216,25 @@ function QualifyItem({ token }: { token: UserToken }) {
         <span className="font-bold text-lg">{token.symbol}</span>
       </div>
 
-      {/* Right: Find Opponent button */}
-      <button
-        className="px-4 py-2 bg-yellow-400 text-black font-bold rounded-lg text-sm hover:bg-yellow-300 transition"
-      >
-        Find Opponent
-      </button>
+      {/* Right: Find Opponent button + Timer */}
+      <div className="flex items-center gap-2">
+        {searching && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-400/20 rounded-lg">
+            <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-yellow-400 font-mono font-bold text-sm">{formatTime(timeLeft)}</span>
+          </div>
+        )}
+        <button
+          onClick={handleClick}
+          className={`px-4 py-2 font-bold rounded-lg text-sm transition ${
+            searching
+              ? 'bg-red-500 hover:bg-red-400 text-white'
+              : 'bg-yellow-400 hover:bg-yellow-300 text-black'
+          }`}
+        >
+          {searching ? 'Cancel' : 'Find Opponent'}
+        </button>
+      </div>
     </div>
   );
 }
@@ -190,10 +280,13 @@ function NewItem({ token }: { token: UserToken }) {
 export default function BattleArenaPage() {
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<TabType>('on-battle');
   const [userTokens, setUserTokens] = useState<UserToken[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   // ==========================================================================
   // FETCH USER TOKENS
@@ -296,11 +389,70 @@ export default function BattleArenaPage() {
   };
 
   // ==========================================================================
+  // FIND OPPONENT HANDLER
+  // ==========================================================================
+
+  const handleFindOpponent = useCallback(async (tokenMint: string): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/battles/find-match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenMint }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Find match error:', data.error);
+        return false;
+      }
+
+      if (data.found && data.battle) {
+        // Battle started successfully!
+        setSuccessMessage(`Battle started vs ${data.battle.tokenB.symbol}!`);
+        setShowSuccess(true);
+        // Refresh tokens after a short delay
+        setTimeout(() => {
+          fetchUserTokens();
+        }, 2000);
+        return true;
+      }
+
+      // No opponent found yet, keep searching
+      return false;
+    } catch (error) {
+      console.error('Find opponent error:', error);
+      return false;
+    }
+  }, [fetchUserTokens]);
+
+  const handleMatchFound = useCallback((message: string) => {
+    setSuccessMessage(message);
+    setShowSuccess(true);
+    setTimeout(() => {
+      fetchUserTokens();
+    }, 2000);
+  }, [fetchUserTokens]);
+
+  const handleSuccessClose = useCallback(() => {
+    setShowSuccess(false);
+  }, []);
+
+  // ==========================================================================
   // RENDER
   // ==========================================================================
 
   return (
     <div className="min-h-screen bg-[#0f0f1a] text-white pb-20">
+      {/* Success Popup */}
+      <TransactionSuccessPopup
+        show={showSuccess}
+        message="Battle Started!"
+        subMessage={successMessage}
+        onClose={handleSuccessClose}
+        autoCloseMs={2500}
+      />
+
       {/* FOMO Ticker */}
       <FomoTicker />
 
@@ -425,7 +577,7 @@ export default function BattleArenaPage() {
               <OnBattleItem key={token.mint} token={token} />
             ))}
             {activeTab === 'qualify' && qualifiedTokens.map(token => (
-              <QualifyItem key={token.mint} token={token} />
+              <QualifyItem key={token.mint} token={token} onFindOpponent={handleFindOpponent} onMatchFound={handleMatchFound} />
             ))}
             {activeTab === 'new' && newTokens.map(token => (
               <NewItem key={token.mint} token={token} />

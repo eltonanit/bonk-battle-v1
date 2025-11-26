@@ -20,8 +20,7 @@ const SOL_PRICE_USD = 100; // TODO: Use oracle
 
 const FEATURED_IMAGES = [
   '/tagline/1.png',
-  '/tagline/1.png',
-  '/tagline/1.png',
+  '/2-tag.png',
 ];
 
 export function Tagline() {
@@ -157,13 +156,13 @@ export function Tagline() {
             </Link>
           </div>
 
-          {/* Titolo carousel */}
-          <h3 className="text-base lg:text-lg font-bold text-green-400 mb-1">
+          {/* Titolo carousel - DESKTOP ONLY */}
+          <h3 className="hidden lg:block text-base lg:text-lg font-bold text-green-400 mb-1">
             🔥 Tokens 24H
           </h3>
 
-          {/* Carousel tokens */}
-          <div className="w-full overflow-x-hidden">
+          {/* Carousel tokens - DESKTOP ONLY */}
+          <div className="hidden lg:block w-full overflow-x-hidden">
             <div
               ref={tokenScrollRef}
               onMouseEnter={() => setIsHoveringTokens(true)}

@@ -10,8 +10,8 @@ interface Notification {
     message: string;
     read: boolean;
     created_at: string;
-    token_launch_id: string;
-    metadata: Record<string, unknown> | null;
+    data: Record<string, unknown> | null; // ⭐ FIX: era "metadata", nel DB è "data"
+    token_launch_id?: string | null; // ⭐ FIX: opzionale, preso da data
 }
 
 export function useNotifications() {
@@ -21,7 +21,12 @@ export function useNotifications() {
     const [loading, setLoading] = useState(true);
 
     const fetchNotifications = useCallback(async () => {
-        if (!publicKey) return;
+        if (!publicKey) {
+            setNotifications([]);
+            setUnreadCount(0);
+            setLoading(false);
+            return;
+        }
 
         setLoading(true);
 
@@ -33,10 +38,19 @@ export function useNotifications() {
             .limit(50);
 
         if (error) {
-            console.error('Failed to fetch notifications:', error);
-        } else if (data) {
-            setNotifications(data);
-            setUnreadCount(data.filter((n) => !n.read).length);
+            console.error('❌ Failed to fetch notifications:', error);
+            setLoading(false);
+            return;
+        }
+
+        if (data) {
+            // ⭐ Map data to include token_launch_id from data field if present
+            const mapped = data.map((n: any) => ({
+                ...n,
+                token_launch_id: n.data?.token_mint || n.data?.token_launch_id || null
+            }));
+            setNotifications(mapped);
+            setUnreadCount(mapped.filter((n: Notification) => !n.read).length);
         }
 
         setLoading(false);
@@ -54,7 +68,7 @@ export function useNotifications() {
 
         // Real-time subscription
         const channel = supabase
-            .channel('notifications')
+            .channel(`notifications-${publicKey.toString()}`)
             .on(
                 'postgres_changes',
                 {
@@ -64,8 +78,12 @@ export function useNotifications() {
                     filter: `user_wallet=eq.${publicKey.toString()}`,
                 },
                 (payload) => {
-                    const newNotif = payload.new as Notification;
-                    setNotifications((prev) => [newNotif, ...prev]);
+                    const newNotif = payload.new as any;
+                    const mapped: Notification = {
+                        ...newNotif,
+                        token_launch_id: newNotif.data?.token_mint || newNotif.data?.token_launch_id || null
+                    };
+                    setNotifications((prev) => [mapped, ...prev]);
                     setUnreadCount((prev) => prev + 1);
 
                     // Play sound
@@ -119,9 +137,9 @@ function playNotificationSound() {
         const audio = new Audio('/notification.mp3');
         audio.volume = 0.3;
         audio.play().catch(() => {
-            // Ignore audio play errors (user interaction required in some browsers)
+            // Ignore audio play errors
         });
     } catch {
         // Ignore audio initialization errors
     }
-} 
+}

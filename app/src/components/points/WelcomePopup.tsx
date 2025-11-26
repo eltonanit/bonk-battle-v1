@@ -84,22 +84,22 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
   if (!claimed) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-        <div className="relative bg-gradient-to-br from-[#1a1f2e] to-[#0f1419] border border-white/30 rounded-2xl p-5 w-full max-w-xs shadow-2xl animate-in fade-in zoom-in duration-300">
+        <div className="relative bg-gradient-to-br from-[#1a1f2e] to-[#0f1419] border border-white/30 rounded-2xl p-5 lg:p-8 w-full max-w-xs lg:max-w-md shadow-2xl animate-in fade-in zoom-in duration-300">
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-colors text-lg"
+            className="absolute top-2 right-2 lg:top-4 lg:right-4 w-8 h-8 lg:w-10 lg:h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 text-white font-bold rounded-full transition-colors text-lg lg:text-xl"
           >
             ✕
           </button>
 
           {/* Welcome Text */}
-          <h2 className="text-center text-orange-400 font-bold text-lg mb-2">
+          <h2 className="text-center text-orange-400 font-bold text-lg lg:text-2xl mb-2 lg:mb-4">
             WELCOME TO BONK BATTLE!
           </h2>
 
           {/* Logo */}
-          <div className="w-14 h-14 mx-auto mb-3">
+          <div className="w-14 h-14 lg:w-20 lg:h-20 mx-auto mb-3 lg:mb-4">
             <img
               src="/BONK-LOGO.svg"
               alt="BONK BATTLE"
@@ -108,7 +108,7 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
           </div>
 
           {/* Main Image - Large */}
-          <div className="mb-3">
+          <div className="mb-3 lg:mb-5">
             <img
               src="/2-tag.png"
               alt="Tagline"
@@ -117,8 +117,8 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
           </div>
 
           {/* Claim 1000 Text */}
-          <div className="text-center mb-3">
-            <div className="text-2xl font-black text-yellow-400">
+          <div className="text-center mb-3 lg:mb-5">
+            <div className="text-2xl lg:text-3xl font-black text-yellow-400">
               CLAIM +1,000 POINTS
             </div>
           </div>
@@ -127,11 +127,11 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
           <button
             onClick={handleClaim}
             disabled={claiming}
-            className="mx-auto block bg-orange-300 hover:bg-orange-200 disabled:opacity-50 text-black font-bold py-2 px-6 rounded-lg text-sm transition-all"
+            className="mx-auto block bg-orange-300 hover:bg-orange-200 disabled:opacity-50 text-black font-bold py-2 lg:py-3 px-6 lg:px-8 rounded-lg text-sm lg:text-base transition-all"
           >
             {claiming ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="animate-spin w-4 h-4 border-2 border-black/30 border-t-black rounded-full" />
+                <span className="animate-spin w-4 h-4 lg:w-5 lg:h-5 border-2 border-black/30 border-t-black rounded-full" />
                 Claiming...
               </span>
             ) : (
