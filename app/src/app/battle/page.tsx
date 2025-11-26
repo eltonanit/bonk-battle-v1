@@ -16,18 +16,11 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { fetchAllBonkTokens, BonkToken } from '@/lib/solana/fetch-all-bonk-tokens';
 import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import Image from 'next/image';
 import Link from 'next/link';
-
-// Layout components
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { DesktopHeader } from '@/components/layout/DesktopHeader';
-import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
-import { FOMOTicker } from '@/components/global/FOMOTicker';
 
 // ============================================================================
 // TYPES
@@ -49,6 +42,37 @@ interface UserToken {
 type TabType = 'on-battle' | 'qualify' | 'new';
 
 // ============================================================================
+// FOMO TICKER COMPONENT
+// ============================================================================
+
+function FomoTicker() {
+  const [messages, setMessages] = useState([
+    '🔥 DOGE just won a battle! +50% liquidity',
+    '⚔️ PEPE vs BONK battle started!',
+    '🚀 New token MOON created by 0x3f...8a',
+    '💰 SHIB qualified for battle!',
+    '🏆 WIF dominated and listed on DEX!',
+  ]);
+
+  return (
+    <div className="bg-[#1a1a2e] border-b border-orange-500/30 overflow-hidden">
+      <div className="animate-marquee whitespace-nowrap py-2">
+        {messages.map((msg, i) => (
+          <span key={i} className="mx-8 text-sm text-orange-400">
+            {msg}
+          </span>
+        ))}
+        {messages.map((msg, i) => (
+          <span key={`dup-${i}`} className="mx-8 text-sm text-orange-400">
+            {msg}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // TOKEN LIST ITEM COMPONENTS
 // ============================================================================
 
@@ -59,7 +83,7 @@ function OnBattleItem({ token }: { token: UserToken }) {
     : token.mint;
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -100,7 +124,7 @@ function OnBattleItem({ token }: { token: UserToken }) {
 // Qualify - Token qualificato
 function QualifyItem({ token }: { token: UserToken }) {
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -128,7 +152,7 @@ function QualifyItem({ token }: { token: UserToken }) {
 // New - Token nuovo
 function NewItem({ token }: { token: UserToken }) {
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -207,19 +231,14 @@ export default function BattleArenaPage() {
         }
       }
 
-      // 3. Build user tokens list (tokens user owns OR created)
+      // 3. Build user tokens list
       const tokens: UserToken[] = [];
-      const addedMints = new Set<string>();
 
       for (const token of allBonkTokens) {
         const mintStr = token.mint.toString();
-        const userBalance = userBalances.get(mintStr) || 0n;
-        const isCreator = token.creator?.toString() === publicKey.toString();
+        const userBalance = userBalances.get(mintStr);
 
-        // Include if user owns tokens OR is the creator
-        if (userBalance === 0n && !isCreator) continue;
-        if (addedMints.has(mintStr)) continue;
-        addedMints.add(mintStr);
+        if (!userBalance || userBalance === 0n) continue;
 
         // Find opponent if in battle
         let opponentData: { mint: string; symbol: string; image: string } | null = null;
@@ -281,47 +300,34 @@ export default function BattleArenaPage() {
   // ==========================================================================
 
   return (
-    <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
-      {/* Layout Components */}
-      <Sidebar />
-      <DesktopHeader />
-      <Header />
+    <div className="min-h-screen bg-[#0f0f1a] text-white pb-20">
+      {/* FOMO Ticker */}
+      <FomoTicker />
 
-      {/* Main Content */}
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
-        {/* FOMOTicker - Mobile only */}
-        <div className="lg:hidden">
-          <FOMOTicker />
-        </div>
+      {/* Divider */}
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
 
-        {/* Divider */}
-        <div className="h-px bg-cyan-400/30" />
+      {/* Start Battle Button */}
+      <div className="p-4">
+        {publicKey ? (
+          <Link
+            href="/create"
+            className="block w-full py-4 bg-gradient-to-r from-orange-500 to-red-600 text-center text-xl font-bold rounded-xl hover:from-orange-600 hover:to-red-700 transition shadow-lg shadow-orange-500/30"
+          >
+            ⚔️ Start Battle
+          </Link>
+        ) : (
+          <button
+            onClick={() => setVisible(true)}
+            className="w-full py-4 bg-orange-500 text-black text-xl font-bold rounded-xl hover:bg-orange-400 transition"
+          >
+            Log in to start Battle
+          </button>
+        )}
+      </div>
 
-        {/* No tokens? Start a new battle */}
-        <div className="p-3 lg:px-6 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-2">
-            <img src="/profilo.png" alt="" className="w-6 h-6 rounded-full" />
-            <span className="text-white text-base font-medium">No tokens?</span>
-          </div>
-          {publicKey ? (
-            <Link
-              href="/create"
-              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
-            >
-              Start New Battle
-            </Link>
-          ) : (
-            <button
-              onClick={() => setVisible(true)}
-              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
-            >
-              Start New Battle
-            </button>
-          )}
-        </div>
-
-        {/* Divider */}
-        <div className="h-px bg-cyan-400/30" />
+      {/* Divider */}
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
 
       {/* Tabs */}
       <div className="flex border-b border-white/10">
@@ -415,64 +421,40 @@ export default function BattleArenaPage() {
           </div>
         ) : (
           <>
-            {activeTab === 'on-battle' && (
-              <>
-                {onBattleTokens.map(token => (
-                  <OnBattleItem key={token.mint} token={token} />
-                ))}
-                {/* More battle? section */}
-                <div className="flex flex-col items-center gap-2 mt-6">
-                  <div className="flex items-center gap-2">
-                    <img src="/profilo.png" alt="" className="w-6 h-6 rounded-full" />
-                    <span className="text-white text-base font-semibold">More battle?</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('new')}
-                    className="px-4 py-2 bg-orange-500 text-black text-sm font-bold rounded-lg hover:bg-orange-400 transition"
-                  >
-                    Qualify more tokens
-                  </button>
-                </div>
-              </>
-            )}
-            {activeTab === 'qualify' && (
-              <>
-                {qualifiedTokens.map(token => (
-                  <QualifyItem key={token.mint} token={token} />
-                ))}
-                <div className="flex justify-center mt-4">
-                  <Link
-                    href="/create"
-                    className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
-                  >
-                    Create a new token
-                  </Link>
-                </div>
-              </>
-            )}
-            {activeTab === 'new' && (
-              <>
-                {newTokens.map(token => (
-                  <NewItem key={token.mint} token={token} />
-                ))}
-                <div className="flex justify-center mt-4">
-                  <Link
-                    href="/create"
-                    className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
-                  >
-                    Create a new token
-                  </Link>
-                </div>
-              </>
-            )}
+            {activeTab === 'on-battle' && onBattleTokens.map(token => (
+              <OnBattleItem key={token.mint} token={token} />
+            ))}
+            {activeTab === 'qualify' && qualifiedTokens.map(token => (
+              <QualifyItem key={token.mint} token={token} />
+            ))}
+            {activeTab === 'new' && newTokens.map(token => (
+              <NewItem key={token.mint} token={token} />
+            ))}
           </>
         )}
-        </div>
-
       </div>
 
-      {/* Mobile Bottom Nav */}
-      <MobileBottomNav />
+      {/* Quick Stats */}
+      {publicKey && !loading && userTokens.length > 0 && (
+        <div className="fixed bottom-20 left-4 right-4">
+          <div className="bg-[#1a1a2e]/90 backdrop-blur-sm rounded-xl p-3 border border-white/10 flex justify-around text-center">
+            <div>
+              <div className="text-2xl font-bold text-orange-400">{onBattleTokens.length}</div>
+              <div className="text-xs text-white/50">In Battle</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <div className="text-2xl font-bold text-yellow-400">{qualifiedTokens.length}</div>
+              <div className="text-xs text-white/50">Qualified</div>
+            </div>
+            <div className="w-px bg-white/10" />
+            <div>
+              <div className="text-2xl font-bold text-green-400">{newTokens.length}</div>
+              <div className="text-xs text-white/50">New</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

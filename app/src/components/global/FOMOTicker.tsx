@@ -311,7 +311,7 @@ export function FOMOTicker() {
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-0.5 lg:gap-1 px-1 py-0.5 lg:px-1.5 lg:py-0.5 text-xs lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-0.5 lg:gap-1 px-1 py-0.5 lg:px-1.5 lg:py-0.5 text-sm lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: getEventColor(currentEvent),
               borderRadius: 0,
@@ -320,7 +320,7 @@ export function FOMOTicker() {
             {currentEvent.type === 'started_battle' ? (
               <>
                 {/* Battle Event */}
-                <span className="whitespace-nowrap text-xs lg:text-sm uppercase font-semibold">
+                <span className="whitespace-nowrap text-sm lg:text-sm uppercase font-semibold">
                   ⚔️ BATTLE STARTED:
                 </span>
 
@@ -337,15 +337,15 @@ export function FOMOTicker() {
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
-                <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
+                <span className="whitespace-nowrap text-sm lg:text-sm font-semibold">
                   VS
                 </span>
 
-                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-sm">
                   {currentEvent.opponentSymbol}
                 </span>
 
@@ -378,19 +378,19 @@ export function FOMOTicker() {
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-sm">
                   {currentEvent.user}
                 </span>
 
-                <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
+                <span className="whitespace-nowrap text-sm lg:text-sm font-semibold">
                   {currentEvent.type === 'created' ? 'CREATED' : 'bought'}
                 </span>
 
-                <span className="whitespace-nowrap font-semibold text-xs lg:text-sm">
+                <span className="whitespace-nowrap font-semibold text-sm lg:text-sm">
                   {currentEvent.amount.toFixed(2)} SOL
                 </span>
 
-                <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+                <span className="whitespace-nowrap font-semibold uppercase text-sm lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
