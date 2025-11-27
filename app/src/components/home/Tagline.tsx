@@ -258,7 +258,7 @@ export function Tagline() {
                   key={index}
                   onClick={() => setCurrentImageIndex(index)}
                   className={`h-2 rounded-full transition-all ${index === currentImageIndex
-                    ? 'bg-green-400 w-6'
+                    ? 'bg-yellow-400 w-6'
                     : 'bg-white/40 hover:bg-white/60 w-2'
                     }`}
                   aria-label={`Go to image ${index + 1}`}
