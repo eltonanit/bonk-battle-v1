@@ -6,11 +6,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useFollowers } from '@/hooks/useFollowers';
 
 export function Header() {
-  const { connected, publicKey, disconnect, select, wallets, wallet } = useWallet();
+  const { connected, publicKey, disconnect, select, wallets } = useWallet();
   const { setVisible } = useWalletModal();
   const { unreadCount } = useNotifications();
+  const { feedUnreadCount } = useFollowers();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
@@ -213,10 +215,16 @@ export function Header() {
             {/* 3 Notification Icons - Centered */}
             <div className="flex items-center gap-4 justify-center flex-1">
               {/* Feed/Followers Icon */}
-              <Link href="/feed-followers" className="p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/5 transition-colors">
+              <Link href="/feed-followers" className="p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/5 transition-colors relative">
                 <svg className="w-6 h-6 text-bonk-text" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
+                {/* Feed Badge */}
+                {feedUnreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-cyan-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {feedUnreadCount > 99 ? '99+' : feedUnreadCount}
+                  </span>
+                )}
               </Link>
 
               {/* Points Icon */}

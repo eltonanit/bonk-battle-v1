@@ -295,8 +295,6 @@ export function BalancesTab() {
 
   useEffect(() => {
     fetchPositions();
-    const interval = setInterval(fetchPositions, 60000);
-    return () => clearInterval(interval);
   }, [fetchPositions]);
 
   // ============================================================================

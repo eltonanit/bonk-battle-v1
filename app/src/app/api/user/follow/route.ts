@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
 
-      console.log(`✅ ${followerWallet.slice(0,6)} unfollowed ${followingWallet.slice(0,6)}`);
+      console.log(`✅ ${followerWallet.slice(0, 6)} unfollowed ${followingWallet.slice(0, 6)}`);
       return NextResponse.json({ success: true, action: 'unfollowed' });
 
     } else {
@@ -39,20 +39,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
 
-      if (data.success === false) {
+      if (data?.success === false) {
         return NextResponse.json({ success: false, error: data.error }, { status: 400 });
       }
+
+      // ⭐ ACTIVITY FEED: Registra "started_follow"
+      await supabase.from('activity_feed').insert({
+        wallet: followerWallet,
+        action_type: 'started_follow',
+        metadata: {
+          followed_wallet: followingWallet,
+          followed_short: `${followingWallet.slice(0, 4)}...${followingWallet.slice(-4)}`
+        }
+      });
+
+      console.log(`📢 Activity: ${followerWallet.slice(0, 6)} started following ${followingWallet.slice(0, 6)}`);
 
       // Aggiungi punti a chi viene seguito (+25)
       await supabase.rpc('add_points', {
         p_wallet: followingWallet,
         p_action: 'new_follower',
         p_points: 25,
-        p_description: `New follower: ${followerWallet.slice(0,4)}...${followerWallet.slice(-4)}`,
+        p_description: `New follower: ${followerWallet.slice(0, 4)}...${followerWallet.slice(-4)}`,
         p_metadata: { follower_wallet: followerWallet }
       });
 
-      console.log(`✅ ${followerWallet.slice(0,6)} followed ${followingWallet.slice(0,6)}`);
+      console.log(`✅ ${followerWallet.slice(0, 6)} followed ${followingWallet.slice(0, 6)}`);
       return NextResponse.json({ success: true, action: 'followed' });
     }
 

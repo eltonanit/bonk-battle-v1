@@ -44,8 +44,14 @@ function ProfileContent() {
       try {
         const { fetchAllBonkTokens } = await import('@/lib/solana/fetch-all-bonk-tokens');
         const allTokens = await fetchAllBonkTokens();
-        setCreatedCoinsCount(allTokens.length);
-        console.log(`Total BONK tokens: ${allTokens.length}`);
+
+        // Filter only tokens created by this user
+        const userCreatedTokens = allTokens.filter(
+          token => token.creator.toString() === publicKey.toBase58()
+        );
+
+        setCreatedCoinsCount(userCreatedTokens.length);
+        console.log(`User created tokens: ${userCreatedTokens.length} (total: ${allTokens.length})`);
       } catch (error) {
         console.error('Error fetching created count:', error);
       }

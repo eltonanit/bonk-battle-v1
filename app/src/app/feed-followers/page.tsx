@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
@@ -27,27 +27,48 @@ export default function FeedFollowersPage() {
     followUser,
     unfollowUser,
     followersCount,
-    followingCount
+    followingCount,
+    markFeedAsRead
   } = useFollowers();
+
+  // Mark feed as read when user visits the feed tab
+  useEffect(() => {
+    if (activeTab === 'feed' && connected && feed.length > 0) {
+      // Small delay to ensure user sees the content
+      const timer = setTimeout(() => {
+        markFeedAsRead();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeTab, connected, feed.length, markFeedAsRead]);
 
   const renderActionText = (item: typeof feed[0]) => {
     switch (item.action_type) {
+      case 'started_follow':
+        const followedWallet = (item.metadata?.followed_short as string) ||
+          (item.metadata?.followed_wallet as string)?.slice(0,4) + '...' + (item.metadata?.followed_wallet as string)?.slice(-4) ||
+          'someone';
+        return (
+          <span>
+            started following <span className="text-cyan-400 font-semibold">{followedWallet}</span>
+          </span>
+        );
       case 'create_token':
         return (
           <span>
-            created <span className="text-orange-400 font-semibold">${item.token_symbol}</span>
+            created <span className="text-orange-400 font-semibold">${item.token_symbol || 'token'}</span>
           </span>
         );
       case 'buy':
         return (
           <span>
-            bought <span className="text-green-400 font-semibold">${item.token_symbol}</span>
+            bought <span className="text-green-400 font-semibold">${item.token_symbol || 'token'}</span>
           </span>
         );
       case 'sell':
         return (
           <span>
-            sold <span className="text-red-400 font-semibold">${item.token_symbol}</span>
+            sold <span className="text-red-400 font-semibold">${item.token_symbol || 'token'}</span>
           </span>
         );
       case 'qualify':
@@ -60,8 +81,12 @@ export default function FeedFollowersPage() {
         return (
           <span>
             started battle: <span className="text-orange-400 font-semibold">${item.token_symbol}</span>
-            {' vs '}
-            <span className="text-orange-400 font-semibold">${item.opponent_symbol}</span>
+            {item.opponent_symbol && (
+              <>
+                {' vs '}
+                <span className="text-orange-400 font-semibold">${item.opponent_symbol}</span>
+              </>
+            )}
           </span>
         );
       case 'battle_win':
@@ -169,19 +194,22 @@ export default function FeedFollowersPage() {
                       key={item.id}
                       className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center gap-4"
                     >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                        {item.wallet.slice(0, 2).toUpperCase()}
-                      </div>
+                      {/* User Profile Photo */}
+                      <img
+                        src="/profilo.png"
+                        alt={item.wallet.slice(0, 4)}
+                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                      />
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-white">
-                            {formatWallet(item.wallet)}
+                            {item.wallet.slice(0, 4)}
                           </span>
                           {renderActionText(item)}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          {formatTimeAgo(item.created_at)}
+                          {item.created_at ? formatTimeAgo(item.created_at) : 'just now'}
                         </div>
                       </div>
 
@@ -205,44 +233,38 @@ export default function FeedFollowersPage() {
                   <div className="animate-spin text-4xl mb-4">*</div>
                   <p className="text-gray-400">Loading users...</p>
                 </div>
-              ) : suggestedUsers.length === 0 ? (
+              ) : suggestedUsers.filter(u => !u.is_following).length === 0 ? (
                 <div className="text-center py-20">
                   <div className="text-6xl mb-4">*</div>
-                  <div className="text-xl font-bold mb-2">No Users Found</div>
-                  <div className="text-gray-400">Be the first to join BONK BATTLE!</div>
+                  <div className="text-xl font-bold mb-2">No New Users</div>
+                  <div className="text-gray-400">You&apos;re following everyone! Check back later for new users.</div>
                 </div>
               ) : (
                 <>
                   <div className="space-y-3 mb-6">
-                    {suggestedUsers.map((user) => (
+                    {suggestedUsers.filter(u => !u.is_following).map((user) => (
                       <div
                         key={user.wallet}
-                        className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center justify-between"
+                        className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-3 flex items-center justify-between"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-lg">
-                            {user.wallet.slice(0, 2).toUpperCase()}
-                          </div>
-
-                          <div>
-                            <div className="font-semibold text-white">
-                              {user.username || formatWallet(user.wallet)}
-                            </div>
-                            <div className="text-sm text-gray-400">
-                              {user.followers_count} follower{user.followers_count !== 1 ? 's' : ''}
-                            </div>
-                          </div>
+                        {/* Left: Photo + Name (4 chars) */}
+                        <div className="flex items-center gap-3">
+                          <img
+                            src="/profilo.png"
+                            alt={user.wallet.slice(0, 4)}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                          <span className="font-semibold text-white">
+                            {user.wallet.slice(0, 4)}
+                          </span>
                         </div>
 
+                        {/* Right: Follow button (dark blue bg, white text) */}
                         <button
-                          onClick={() => user.is_following ? unfollowUser(user.wallet) : followUser(user.wallet)}
-                          className={`px-5 py-2 rounded-lg font-semibold transition-all ${
-                            user.is_following
-                              ? 'bg-gray-700 text-gray-300 hover:bg-red-600 hover:text-white'
-                              : 'bg-cyan-600 hover:bg-cyan-700 text-white'
-                          }`}
+                          onClick={() => followUser(user.wallet)}
+                          className="px-5 py-2 rounded-lg font-semibold transition-all bg-[#1e3a5f] hover:bg-[#2a4a7f] text-white"
                         >
-                          {user.is_following ? 'Following' : 'Follow'}
+                          Follow
                         </button>
                       </div>
                     ))}

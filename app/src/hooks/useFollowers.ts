@@ -39,6 +39,8 @@ interface UseFollowersResult {
   followersCount: number;
   followingCount: number;
   refreshCounts: () => Promise<void>;
+  feedUnreadCount: number;
+  markFeedAsRead: () => void;
 }
 
 const USERS_PER_PAGE = 10;
@@ -54,6 +56,8 @@ export function useFollowers(): UseFollowersResult {
 
   const [feed, setFeed] = useState<ActivityItem[]>([]);
   const [loadingFeed, setLoadingFeed] = useState(false);
+  const [feedUnreadCount, setFeedUnreadCount] = useState(0);
+  const [lastReadTimestamp, setLastReadTimestamp] = useState<string | null>(null);
 
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
@@ -93,23 +97,52 @@ export function useFollowers(): UseFollowersResult {
     }
   }, [wallet]);
 
-  // Load feed from following
+  // Load feed from following - includes ALL historical activities
   const refreshFeed = useCallback(async () => {
     if (!wallet) return;
 
     setLoadingFeed(true);
     try {
-      const { data, error } = await supabase.rpc('get_following_feed', {
+      // Try the new RPC that returns ALL historical activities
+      let feedData: ActivityItem[] = [];
+
+      const { data, error } = await supabase.rpc('get_following_feed_all', {
         p_wallet: wallet,
         p_limit: 50
       });
 
       if (error) {
-        console.error('❌ Error loading feed:', error);
-        return;
+        // Fallback to old RPC if new one doesn't exist yet
+        console.log('Trying fallback feed RPC...');
+        const { data: fallbackData, error: fallbackError } = await supabase.rpc('get_following_feed', {
+          p_wallet: wallet,
+          p_limit: 50
+        });
+
+        if (fallbackError) {
+          console.error('❌ Error loading feed:', fallbackError);
+          return;
+        }
+        feedData = fallbackData || [];
+      } else {
+        feedData = data || [];
       }
 
-      setFeed(data || []);
+      setFeed(feedData);
+
+      // Calculate unread count based on last read timestamp
+      const storedTimestamp = localStorage.getItem(`feed_last_read_${wallet}`);
+      setLastReadTimestamp(storedTimestamp);
+
+      if (storedTimestamp && feedData.length > 0) {
+        const unreadItems = feedData.filter(item =>
+          new Date(item.created_at) > new Date(storedTimestamp)
+        );
+        setFeedUnreadCount(unreadItems.length);
+      } else if (!storedTimestamp && feedData.length > 0) {
+        // First time - all items are "new"
+        setFeedUnreadCount(feedData.length);
+      }
     } catch (err) {
       console.error('❌ Error in refreshFeed:', err);
     } finally {
@@ -153,13 +186,8 @@ export function useFollowers(): UseFollowersResult {
       const data = await response.json();
 
       if (data.success) {
-        setSuggestedUsers(prev =>
-          prev.map(u =>
-            u.wallet === targetWallet
-              ? { ...u, is_following: true, followers_count: u.followers_count + 1 }
-              : u
-          )
-        );
+        // Remove user from suggested list (they are now followed)
+        setSuggestedUsers(prev => prev.filter(u => u.wallet !== targetWallet));
         setFollowingCount(prev => prev + 1);
         return true;
       }
@@ -205,6 +233,15 @@ export function useFollowers(): UseFollowersResult {
     }
   }, [wallet]);
 
+  // Mark feed as read - stores current timestamp
+  const markFeedAsRead = useCallback(() => {
+    if (!wallet) return;
+    const now = new Date().toISOString();
+    localStorage.setItem(`feed_last_read_${wallet}`, now);
+    setLastReadTimestamp(now);
+    setFeedUnreadCount(0);
+  }, [wallet]);
+
   // Initial load
   useEffect(() => {
     if (wallet) {
@@ -227,7 +264,9 @@ export function useFollowers(): UseFollowersResult {
     unfollowUser,
     followersCount,
     followingCount,
-    refreshCounts
+    refreshCounts,
+    feedUnreadCount,
+    markFeedAsRead
   };
 }
 
@@ -237,14 +276,24 @@ export function formatWallet(wallet: string): string {
 }
 
 // Helper: Format time ago
-export function formatTimeAgo(timestamp: string): string {
-  const now = new Date();
-  const then = new Date(timestamp.endsWith('Z') ? timestamp : timestamp + 'Z');
-  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+export function formatTimeAgo(timestamp: string | null | undefined): string {
+  if (!timestamp) return 'just now';
 
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return then.toLocaleDateString();
+  try {
+    const now = new Date();
+    const then = new Date(timestamp.endsWith('Z') ? timestamp : timestamp + 'Z');
+
+    // Check if date is valid
+    if (isNaN(then.getTime())) return 'just now';
+
+    const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+
+    if (seconds < 60) return 'just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return then.toLocaleDateString();
+  } catch {
+    return 'just now';
+  }
 }

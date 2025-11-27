@@ -1,6 +1,5 @@
 // app/src/app/api/webhooks/helius/route.ts
-// FIXED: Immediate response + background sync to avoid Helius timeout
-// UPDATED: Added P/L tracking - saves trades to user_trades table
+// UPDATED: Added Activity Feed tracking for social feed
 
 import { NextRequest, NextResponse } from 'next/server';
 import { syncSingleToken } from '@/lib/indexer/sync-single-token';
@@ -8,7 +7,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
 
-// Supabase client per salvare trades (usa service role per write access)
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -54,6 +52,41 @@ interface HeliusWebhookEvent {
 }
 
 /**
+ * ⭐ Registra attività nel feed sociale
+ */
+async function logActivity(params: {
+    wallet: string;
+    actionType: 'create_token' | 'buy' | 'sell' | 'qualify' | 'battle_start' | 'battle_win';
+    tokenMint: string;
+    tokenSymbol?: string;
+    tokenImage?: string;
+    opponentMint?: string;
+    opponentSymbol?: string;
+    metadata?: Record<string, unknown>;
+}) {
+    try {
+        const { error } = await supabase.from('activity_feed').insert({
+            wallet: params.wallet,
+            action_type: params.actionType,
+            token_mint: params.tokenMint,
+            token_symbol: params.tokenSymbol || null,
+            token_image: params.tokenImage || null,
+            opponent_mint: params.opponentMint || null,
+            opponent_symbol: params.opponentSymbol || null,
+            metadata: params.metadata || null
+        });
+
+        if (error && error.code !== '23505') {
+            console.error('❌ Activity log error:', error);
+        } else if (!error) {
+            console.log(`📢 Activity: ${params.wallet.slice(0, 6)}... ${params.actionType} ${params.tokenSymbol || params.tokenMint.slice(0, 8)}`);
+        }
+    } catch (err) {
+        console.error('❌ logActivity error:', err);
+    }
+}
+
+/**
  * Salva un trade nel database per P/L tracking
  */
 async function saveUserTrade(params: {
@@ -67,7 +100,6 @@ async function saveUserTrade(params: {
     timestamp: number;
 }) {
     try {
-        // Fetch SOL price (con fallback)
         let solPriceUsd = 240;
         try {
             const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
@@ -92,7 +124,7 @@ async function saveUserTrade(params: {
             slot: params.slot,
         });
 
-        if (error && error.code !== '23505') { // Ignora duplicati (23505 = unique violation)
+        if (error && error.code !== '23505') {
             console.error('❌ Error saving trade:', error);
         } else if (!error) {
             console.log(`💾 Trade saved: ${params.tradeType.toUpperCase()} ${params.tokenMint.slice(0, 8)}... | ${(params.solAmount / 1e9).toFixed(4)} SOL | $${tradeValueUsd.toFixed(2)}`);
@@ -103,90 +135,163 @@ async function saveUserTrade(params: {
 }
 
 /**
+ * Fetch token info from DB for activity feed
+ */
+async function getTokenInfo(mint: string): Promise<{ symbol: string; image: string } | null> {
+    try {
+        const { data } = await supabase
+            .from('tokens')
+            .select('symbol, image')
+            .eq('mint', mint)
+            .single();
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * POST /api/webhooks/helius
- * Receives real-time events from Helius when tokens are created/traded
- * 
- * CRITICAL: Responds immediately to avoid Helius timeout!
- * Sync happens in background.
  */
 export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        // Verify authorization (optional)
         const authHeader = request.headers.get('authorization');
         const webhookSecret = process.env.HELIUS_WEBHOOK_SECRET;
 
         if (webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
-            // Log but don't block - Helius might not send auth
             console.warn('⚠️ Webhook auth mismatch (continuing anyway)');
         }
 
-        // Parse payload
         const payload = await request.json() as HeliusWebhookEvent[];
 
         if (!Array.isArray(payload) || payload.length === 0) {
-            return NextResponse.json({
-                success: false,
-                error: 'Invalid payload'
-            }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 });
         }
 
         console.log(`📥 Webhook received ${payload.length} event(s)`);
 
-        // Extract unique mint addresses from events
         const mints = new Set<string>();
         let tradesSaved = 0;
+        let activitiesLogged = 0;
 
         for (const event of payload) {
-            // From tokenTransfers
+            // Collect mints
             if (event.tokenTransfers) {
                 for (const transfer of event.tokenTransfers) {
-                    if (transfer.mint) {
-                        mints.add(transfer.mint);
-                    }
+                    if (transfer.mint) mints.add(transfer.mint);
                 }
             }
-
-            // From accountData tokenBalanceChanges
             if (event.accountData) {
                 for (const account of event.accountData) {
                     if (account.tokenBalanceChanges) {
                         for (const change of account.tokenBalanceChanges) {
-                            if (change.mint) {
-                                mints.add(change.mint);
-                            }
+                            if (change.mint) mints.add(change.mint);
                         }
                     }
                 }
             }
 
-            // Detect event type for logging
             const eventType = detectEventType(event);
             console.log(`🔍 Event type: ${eventType} | Signature: ${event.signature.slice(0, 8)}...`);
 
-            // === SAVE TRADE FOR P/L TRACKING ===
-            if ((eventType === 'token_bought' || eventType === 'token_sold') && event.tokenTransfers?.length) {
-                const transfer = event.tokenTransfers[0];
-                const solTransfer = event.nativeTransfers?.find(nt =>
-                    eventType === 'token_bought'
-                        ? nt.fromUserAccount === event.feePayer
-                        : nt.toUserAccount === event.feePayer
-                );
+            // Get token info for activity feed
+            const tokenMint = event.tokenTransfers?.[0]?.mint;
+            let tokenInfo: { symbol: string; image: string } | null = null;
 
-                if (transfer && solTransfer) {
+            if (tokenMint) {
+                tokenInfo = await getTokenInfo(tokenMint);
+            }
+
+            // ⭐ LOG ACTIVITIES TO FEED
+            if (eventType === 'token_created' && tokenMint) {
+                await logActivity({
+                    wallet: event.feePayer,
+                    actionType: 'create_token',
+                    tokenMint: tokenMint,
+                    tokenSymbol: tokenInfo?.symbol,
+                    tokenImage: tokenInfo?.image,
+                    metadata: { signature: event.signature }
+                });
+                activitiesLogged++;
+            }
+
+            if (eventType === 'token_bought' && tokenMint) {
+                const solTransfer = event.nativeTransfers?.find(nt => nt.fromUserAccount === event.feePayer);
+
+                await logActivity({
+                    wallet: event.feePayer,
+                    actionType: 'buy',
+                    tokenMint: tokenMint,
+                    tokenSymbol: tokenInfo?.symbol,
+                    tokenImage: tokenInfo?.image,
+                    metadata: {
+                        signature: event.signature,
+                        sol_amount: solTransfer?.amount || 0
+                    }
+                });
+                activitiesLogged++;
+
+                // Save trade for P/L
+                if (solTransfer && event.tokenTransfers?.[0]) {
                     await saveUserTrade({
                         walletAddress: event.feePayer,
-                        tokenMint: transfer.mint,
+                        tokenMint: tokenMint,
                         signature: event.signature,
-                        tradeType: eventType === 'token_bought' ? 'buy' : 'sell',
+                        tradeType: 'buy',
                         solAmount: Math.abs(solTransfer.amount),
-                        tokenAmount: Math.floor(transfer.tokenAmount * 1e6), // Convert to raw
+                        tokenAmount: Math.floor(event.tokenTransfers[0].tokenAmount * 1e6),
                         slot: event.slot,
                         timestamp: event.timestamp,
                     });
                     tradesSaved++;
                 }
+            }
+
+            if (eventType === 'token_sold' && tokenMint) {
+                const solTransfer = event.nativeTransfers?.find(nt => nt.toUserAccount === event.feePayer);
+
+                await logActivity({
+                    wallet: event.feePayer,
+                    actionType: 'sell',
+                    tokenMint: tokenMint,
+                    tokenSymbol: tokenInfo?.symbol,
+                    tokenImage: tokenInfo?.image,
+                    metadata: {
+                        signature: event.signature,
+                        sol_amount: solTransfer?.amount || 0
+                    }
+                });
+                activitiesLogged++;
+
+                // Save trade for P/L
+                if (solTransfer && event.tokenTransfers?.[0]) {
+                    await saveUserTrade({
+                        walletAddress: event.feePayer,
+                        tokenMint: tokenMint,
+                        signature: event.signature,
+                        tradeType: 'sell',
+                        solAmount: Math.abs(solTransfer.amount),
+                        tokenAmount: Math.floor(event.tokenTransfers[0].tokenAmount * 1e6),
+                        slot: event.slot,
+                        timestamp: event.timestamp,
+                    });
+                    tradesSaved++;
+                }
+            }
+
+            if (eventType === 'battle_event' && tokenMint) {
+                // TODO: Parse opponent from event when battle system is complete
+                await logActivity({
+                    wallet: event.feePayer,
+                    actionType: 'battle_start',
+                    tokenMint: tokenMint,
+                    tokenSymbol: tokenInfo?.symbol,
+                    tokenImage: tokenInfo?.image,
+                    metadata: { signature: event.signature }
+                });
+                activitiesLogged++;
             }
         }
 
@@ -197,6 +302,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: 'No mints to sync',
+                activitiesLogged,
                 tradesSaved,
                 duration: Date.now() - startTime
             });
@@ -204,10 +310,7 @@ export async function POST(request: NextRequest) {
 
         console.log(`🪙 Mints to sync: ${mintArray.join(', ')}`);
 
-        // ============================================
-        // Sync tokens (await to ensure completion on Vercel)
-        // ============================================
-
+        // Sync tokens
         const results = await Promise.all(
             mintArray.map(async (mint) => {
                 try {
@@ -226,15 +329,15 @@ export async function POST(request: NextRequest) {
         );
 
         const successCount = results.filter(r => r.success).length;
-
-        // Respond with sync results
         const duration = Date.now() - startTime;
-        console.log(`⚡ Webhook completed in ${duration}ms | Trades saved: ${tradesSaved}`);
+
+        console.log(`⚡ Webhook completed in ${duration}ms | Activities: ${activitiesLogged} | Trades: ${tradesSaved}`);
 
         return NextResponse.json({
             success: true,
             synced: successCount,
             total: mintArray.length,
+            activitiesLogged,
             tradesSaved,
             mints: mintArray,
             duration
@@ -250,15 +353,14 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/webhooks/helius
- * Health check endpoint
+ * GET /api/webhooks/helius - Health check
  */
 export async function GET() {
     return NextResponse.json({
         status: 'healthy',
         endpoint: 'helius-webhook',
         program: PROGRAM_ID,
-        features: ['token-sync', 'pl-tracking'],
+        features: ['token-sync', 'pl-tracking', 'activity-feed'],
         timestamp: new Date().toISOString()
     });
 }
