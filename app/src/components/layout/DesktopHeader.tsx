@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
@@ -15,6 +15,42 @@ export function DesktopHeader() {
   const { setVisible } = useWalletModal();
   const { unreadCount } = useNotifications();
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // Track se già registrato in questa sessione
+  const hasRegistered = useRef<string | null>(null);
+
+  // Auto-registra utente quando si connette il wallet
+  useEffect(() => {
+    async function registerUser() {
+      if (!publicKey) return;
+
+      const wallet = publicKey.toString();
+
+      // Evita registrazioni duplicate nella stessa sessione
+      if (hasRegistered.current === wallet) return;
+
+      try {
+        const response = await fetch('/api/user/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          hasRegistered.current = wallet;
+          console.log(`✅ User registered: ${wallet.slice(0, 6)}... (new: ${data.isNew})`);
+        }
+      } catch (err) {
+        console.error('❌ Failed to register user:', err);
+      }
+    }
+
+    if (connected && publicKey) {
+      registerUser();
+    }
+  }, [connected, publicKey]);
 
   const handleCopyAddress = () => {
     if (publicKey) {

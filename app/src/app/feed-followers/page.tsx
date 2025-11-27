@@ -1,12 +1,80 @@
 'use client';
 
+import { useState } from 'react';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { useFollowers, formatWallet, formatTimeAgo } from '@/hooks/useFollowers';
+
+type Tab = 'feed' | 'add';
 
 export default function FeedFollowersPage() {
+  const { connected } = useWallet();
+  const [activeTab, setActiveTab] = useState<Tab>('feed');
+
+  const {
+    suggestedUsers,
+    loadingSuggested,
+    currentPage,
+    totalPages,
+    loadPage,
+    feed,
+    loadingFeed,
+    followUser,
+    unfollowUser,
+    followersCount,
+    followingCount
+  } = useFollowers();
+
+  const renderActionText = (item: typeof feed[0]) => {
+    switch (item.action_type) {
+      case 'create_token':
+        return (
+          <span>
+            created <span className="text-orange-400 font-semibold">${item.token_symbol}</span>
+          </span>
+        );
+      case 'buy':
+        return (
+          <span>
+            bought <span className="text-green-400 font-semibold">${item.token_symbol}</span>
+          </span>
+        );
+      case 'sell':
+        return (
+          <span>
+            sold <span className="text-red-400 font-semibold">${item.token_symbol}</span>
+          </span>
+        );
+      case 'qualify':
+        return (
+          <span>
+            qualified <span className="text-yellow-400 font-semibold">${item.token_symbol}</span>
+          </span>
+        );
+      case 'battle_start':
+        return (
+          <span>
+            started battle: <span className="text-orange-400 font-semibold">${item.token_symbol}</span>
+            {' vs '}
+            <span className="text-orange-400 font-semibold">${item.opponent_symbol}</span>
+          </span>
+        );
+      case 'battle_win':
+        return (
+          <span>
+            <span className="text-yellow-400">WON</span> battle with{' '}
+            <span className="text-green-400 font-semibold">${item.token_symbol}</span>
+          </span>
+        );
+      default:
+        return <span>{item.action_type}</span>;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
       <DesktopHeader />
@@ -18,284 +86,181 @@ export default function FeedFollowersPage() {
           <FOMOTicker />
         </div>
 
-        <div className="max-w-[1200px] pl-8 pr-5 py-10">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-            📱 Feed & Followers
-          </h1>
-          <p className="text-xl text-gray-400 mb-12">
-            Stay connected with your favorite traders, track their moves, and build your network
-          </p>
-
-          {/* Social Feed Overview */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">📰</span>
-              Activity Feed
-            </h2>
-            <div className="bg-bonk-card border border-white/10 rounded-xl p-8">
-              <p className="text-gray-300 mb-6">
-                Your personalized feed shows real-time activity from traders you follow, including token launches, battles, and victories.
-              </p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-500/30 rounded-lg p-6">
-                  <div className="text-3xl mb-3">🚀</div>
-                  <h3 className="text-xl font-semibold mb-2 text-green-400">Token Launches</h3>
-                  <p className="text-gray-300">
-                    See when traders you follow create new battle tokens. Get early access to promising launches before they go viral.
-                  </p>
+        <div className="max-w-[800px] mx-auto px-5 py-8">
+          {/* Header with counts */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">Social</h1>
+            {connected && (
+              <div className="flex gap-4 text-sm">
+                <div className="text-gray-400">
+                  <span className="text-white font-semibold">{followingCount}</span> Following
                 </div>
-                <div className="bg-gradient-to-br from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-6">
-                  <div className="text-3xl mb-3">⚔️</div>
-                  <h3 className="text-xl font-semibold mb-2 text-orange-400">Battle Updates</h3>
-                  <p className="text-gray-300">
-                    Track ongoing battles from your network. Watch duels unfold in real-time and see who's dominating the arena.
-                  </p>
-                </div>
-                <div className="bg-gradient-to-br from-yellow-900/20 to-amber-900/20 border border-yellow-500/30 rounded-lg p-6">
-                  <div className="text-3xl mb-3">🏆</div>
-                  <h3 className="text-xl font-semibold mb-2 text-yellow-400">Victory Moments</h3>
-                  <p className="text-gray-300">
-                    Celebrate wins with your followed traders. Victory notifications highlight successful battles and major achievements.
-                  </p>
-                </div>
-                <div className="bg-gradient-to-br from-blue-900/20 to-cyan-900/20 border border-blue-500/30 rounded-lg p-6">
-                  <div className="text-3xl mb-3">💰</div>
-                  <h3 className="text-xl font-semibold mb-2 text-blue-400">Trading Activity</h3>
-                  <p className="text-gray-300">
-                    Monitor buy/sell activity from top performers. Learn from the best by observing their trading patterns.
-                  </p>
+                <div className="text-gray-400">
+                  <span className="text-white font-semibold">{followersCount}</span> Followers
                 </div>
               </div>
-            </div>
-          </section>
-
-          {/* Follower System */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">👥</span>
-              Follower Network
-            </h2>
-            <div className="bg-bonk-card border border-white/10 rounded-xl p-8">
-              <p className="text-gray-300 mb-6">
-                Build your network by following successful traders and growing your own follower base.
-              </p>
-              <div className="grid md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-black/30 border border-purple-500/20 rounded-lg p-6 text-center">
-                  <div className="text-4xl mb-3">👁️</div>
-                  <h3 className="text-lg font-semibold mb-2 text-purple-400">Following</h3>
-                  <div className="text-3xl font-bold text-white mb-2">42</div>
-                  <p className="text-sm text-gray-400">Traders you follow</p>
-                </div>
-                <div className="bg-black/30 border border-blue-500/20 rounded-lg p-6 text-center">
-                  <div className="text-4xl mb-3">💙</div>
-                  <h3 className="text-lg font-semibold mb-2 text-blue-400">Followers</h3>
-                  <div className="text-3xl font-bold text-white mb-2">128</div>
-                  <p className="text-sm text-gray-400">Your follower count</p>
-                </div>
-                <div className="bg-black/30 border border-green-500/20 rounded-lg p-6 text-center">
-                  <div className="text-4xl mb-3">⭐</div>
-                  <h3 className="text-lg font-semibold mb-2 text-green-400">Points Earned</h3>
-                  <div className="text-3xl font-bold text-white mb-2">+3,200</div>
-                  <p className="text-sm text-gray-400">From new followers</p>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-lg p-6">
-                <h3 className="text-lg font-semibold mb-3 text-purple-400">Earn +25 Points Per Follower</h3>
-                <p className="text-gray-300">
-                  Every new follower you gain adds <strong className="text-purple-400">+25 points</strong> to your total. Build your reputation by creating winning tokens and engaging with the community.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Top Traders to Follow */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">🌟</span>
-              Suggested Traders
-            </h2>
-            <div className="bg-bonk-card border border-white/10 rounded-xl p-8">
-              <p className="text-gray-300 mb-6">
-                Discover top-performing traders based on win rate, total victories, and community engagement.
-              </p>
-              <div className="space-y-4">
-                <div className="bg-gradient-to-r from-yellow-900/30 to-orange-900/30 border border-yellow-500/40 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-2xl">
-                      👑
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">whale.sol</div>
-                      <div className="text-sm text-gray-400">14 wins • 89% win rate • 2.4K followers</div>
-                    </div>
-                  </div>
-                  <button className="bg-yellow-600 hover:bg-yellow-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
-                    Follow
-                  </button>
-                </div>
-                <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/40 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-2xl">
-                      💎
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">crypto_king</div>
-                      <div className="text-sm text-gray-400">12 wins • 85% win rate • 1.8K followers</div>
-                    </div>
-                  </div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
-                    Follow
-                  </button>
-                </div>
-                <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/40 rounded-lg p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-2xl">
-                      🚀
-                    </div>
-                    <div>
-                      <div className="font-semibold text-white">moon_hunter</div>
-                      <div className="text-sm text-gray-400">9 wins • 82% win rate • 1.2K followers</div>
-                    </div>
-                  </div>
-                  <button className="bg-green-600 hover:bg-green-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors">
-                    Follow
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Feed Filters */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">🎛️</span>
-              Feed Customization
-            </h2>
-            <div className="bg-bonk-card border border-white/10 rounded-xl p-8">
-              <p className="text-gray-300 mb-6">
-                Customize your feed to show only the content that matters most to you.
-              </p>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-white mb-3">Filter by Activity</h3>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="checkbox" className="w-5 h-5 rounded" defaultChecked />
-                    <span>Token Launches</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="checkbox" className="w-5 h-5 rounded" defaultChecked />
-                    <span>Battle Starts</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="checkbox" className="w-5 h-5 rounded" defaultChecked />
-                    <span>Victories</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="checkbox" className="w-5 h-5 rounded" defaultChecked />
-                    <span>Large Trades</span>
-                  </label>
-                </div>
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-white mb-3">Sort Options</h3>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="radio" name="sort" className="w-5 h-5" defaultChecked />
-                    <span>Most Recent</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="radio" name="sort" className="w-5 h-5" />
-                    <span>Most Popular</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="radio" name="sort" className="w-5 h-5" />
-                    <span>Top Traders Only</span>
-                  </label>
-                  <label className="flex items-center gap-3 text-gray-300 cursor-pointer hover:text-white transition-colors">
-                    <input type="radio" name="sort" className="w-5 h-5" />
-                    <span>My Tokens</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Social Features */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">💬</span>
-              Community Features
-            </h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="bg-gradient-to-br from-pink-900/20 to-rose-900/20 border border-pink-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">💬</div>
-                <h3 className="text-xl font-semibold mb-2 text-pink-400">Comments</h3>
-                <p className="text-gray-300">
-                  Engage with posts through comments. Share your insights, ask questions, and discuss strategies.
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-red-900/20 to-orange-900/20 border border-red-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">❤️</div>
-                <h3 className="text-xl font-semibold mb-2 text-red-400">Reactions</h3>
-                <p className="text-gray-300">
-                  React to victories, launches, and trades with emojis. Show support for your favorite traders.
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-cyan-900/20 to-blue-900/20 border border-cyan-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">🔔</div>
-                <h3 className="text-xl font-semibold mb-2 text-cyan-400">Notifications</h3>
-                <p className="text-gray-300">
-                  Get instant alerts when traders you follow launch tokens, enter battles, or claim victories.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Benefits Section */}
-          <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-              <span className="text-3xl">✨</span>
-              Why Follow Top Traders?
-            </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-indigo-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">📚</div>
-                <h3 className="text-xl font-semibold mb-2 text-indigo-400">Learn from the Best</h3>
-                <p className="text-gray-300">
-                  Study winning strategies by observing when top traders launch tokens, enter battles, and make trades.
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-violet-900/20 to-fuchsia-900/20 border border-violet-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">⚡</div>
-                <h3 className="text-xl font-semibold mb-2 text-violet-400">Early Opportunities</h3>
-                <p className="text-gray-300">
-                  Get notified instantly when successful traders launch new tokens. Be among the first to buy promising projects.
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-emerald-900/20 to-teal-900/20 border border-emerald-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">🎯</div>
-                <h3 className="text-xl font-semibold mb-2 text-emerald-400">Strategic Insights</h3>
-                <p className="text-gray-300">
-                  Understand market patterns by tracking how top performers time their launches and navigate battles.
-                </p>
-              </div>
-              <div className="bg-gradient-to-br from-amber-900/20 to-yellow-900/20 border border-amber-500/30 rounded-xl p-6">
-                <div className="text-3xl mb-3">🤝</div>
-                <h3 className="text-xl font-semibold mb-2 text-amber-400">Network Growth</h3>
-                <p className="text-gray-300">
-                  Build your own following by demonstrating success. More followers = more visibility and influence.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          {/* Coming Soon Notice */}
-          <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/40 rounded-xl p-8 text-center">
-            <div className="text-5xl mb-4">🚀</div>
-            <h3 className="text-2xl font-bold mb-3">Feature Coming Soon</h3>
-            <p className="text-gray-300 text-lg">
-              The Feed & Followers system is currently in development. Stay tuned for the official launch and start building your network!
-            </p>
+            )}
           </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-6 border-b border-gray-800">
+            <button
+              onClick={() => setActiveTab('feed')}
+              className={`px-6 py-3 font-semibold transition-all border-b-2 ${
+                activeTab === 'feed'
+                  ? 'text-cyan-400 border-cyan-400'
+                  : 'text-gray-400 border-transparent hover:text-white'
+              }`}
+            >
+              News Feed
+            </button>
+            <button
+              onClick={() => setActiveTab('add')}
+              className={`px-6 py-3 font-semibold transition-all border-b-2 ${
+                activeTab === 'add'
+                  ? 'text-cyan-400 border-cyan-400'
+                  : 'text-gray-400 border-transparent hover:text-white'
+              }`}
+            >
+              Add Followers
+            </button>
+          </div>
+
+          {!connected ? (
+            <div className="text-center py-20">
+              <div className="text-6xl mb-4">*</div>
+              <div className="text-xl font-bold mb-2">Connect Wallet</div>
+              <div className="text-gray-400">Connect your wallet to see your feed and follow traders</div>
+            </div>
+          ) : activeTab === 'feed' ? (
+            /* NEWS FEED TAB */
+            <div>
+              {loadingFeed ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin text-4xl mb-4">*</div>
+                  <p className="text-gray-400">Loading feed...</p>
+                </div>
+              ) : feed.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-4">*</div>
+                  <div className="text-xl font-bold mb-2">No Activity Yet</div>
+                  <div className="text-gray-400 mb-6">
+                    Start following top players to see their activity!
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('add')}
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                  >
+                    Find Traders to Follow
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {feed.map((item) => (
+                    <div
+                      key={item.id}
+                      className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center gap-4"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                        {item.wallet.slice(0, 2).toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-white">
+                            {formatWallet(item.wallet)}
+                          </span>
+                          {renderActionText(item)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {formatTimeAgo(item.created_at)}
+                        </div>
+                      </div>
+
+                      {item.token_image && (
+                        <img
+                          src={item.token_image}
+                          alt={item.token_symbol || ''}
+                          className="w-10 h-10 rounded-lg object-cover"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ADD FOLLOWERS TAB */
+            <div>
+              {loadingSuggested ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin text-4xl mb-4">*</div>
+                  <p className="text-gray-400">Loading users...</p>
+                </div>
+              ) : suggestedUsers.length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="text-6xl mb-4">*</div>
+                  <div className="text-xl font-bold mb-2">No Users Found</div>
+                  <div className="text-gray-400">Be the first to join BONK BATTLE!</div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3 mb-6">
+                    {suggestedUsers.map((user) => (
+                      <div
+                        key={user.wallet}
+                        className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-lg">
+                            {user.wallet.slice(0, 2).toUpperCase()}
+                          </div>
+
+                          <div>
+                            <div className="font-semibold text-white">
+                              {user.username || formatWallet(user.wallet)}
+                            </div>
+                            <div className="text-sm text-gray-400">
+                              {user.followers_count} follower{user.followers_count !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => user.is_following ? unfollowUser(user.wallet) : followUser(user.wallet)}
+                          className={`px-5 py-2 rounded-lg font-semibold transition-all ${
+                            user.is_following
+                              ? 'bg-gray-700 text-gray-300 hover:bg-red-600 hover:text-white'
+                              : 'bg-cyan-600 hover:bg-cyan-700 text-white'
+                          }`}
+                        >
+                          {user.is_following ? 'Following' : 'Follow'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex justify-center gap-2">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                        <button
+                          key={page}
+                          onClick={() => loadPage(page)}
+                          className={`w-10 h-10 rounded-lg font-semibold transition-all ${
+                            page === currentPage
+                              ? 'bg-cyan-600 text-white'
+                              : 'bg-[#1a1f2e] text-gray-400 hover:bg-[#2a3544] hover:text-white'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

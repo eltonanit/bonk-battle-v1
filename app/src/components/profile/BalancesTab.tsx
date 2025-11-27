@@ -348,7 +348,7 @@ export function BalancesTab() {
   return (
     <div className="space-y-3">
       {/* Header Row */}
-      <div className="grid grid-cols-3 px-4 py-2 text-xs text-gray-500 uppercase tracking-wide">
+      <div className="grid grid-cols-3 px-3 py-2 text-xs text-gray-500 uppercase tracking-wide">
         <div>Token</div>
         <div className="text-center">Bought</div>
         <div className="text-right">Now</div>
@@ -366,12 +366,12 @@ export function BalancesTab() {
           <Link
             key={position.mint}
             href={`/token/${position.mint}`}
-            className="block bg-[#0a0a0a] border border-white/10 rounded-xl p-4 hover:border-orange-500/50 transition-all"
+            className="block bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-3 hover:border-orange-500/50 transition-all"
           >
             <div className="grid grid-cols-3 items-center">
               {/* Column 1: Token Image + Symbol */}
-              <div className="flex items-center gap-3">
-                <div className="relative w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-600 to-red-600 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-yellow-500 flex-shrink-0">
                   {position.tokenImage ? (
                     <Image
                       src={position.tokenImage}
@@ -380,33 +380,26 @@ export function BalancesTab() {
                       className="object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-lg font-bold">
+                    <div className="w-full h-full flex items-center justify-center text-sm font-bold">
                       {position.tokenSymbol.slice(0, 2)}
                     </div>
                   )}
                 </div>
-                <div>
-                  <span className="font-bold text-lg block">{position.tokenSymbol}</span>
-                  {position.tokenName && position.tokenName !== position.tokenSymbol && (
-                    <span className="text-xs text-gray-500 block truncate max-w-[100px]">
-                      {position.tokenName}
-                    </span>
-                  )}
-                </div>
+                <span className="font-semibold text-white text-sm">${position.tokenSymbol}</span>
               </div>
 
               {/* Column 2: Bought At */}
               <div className="text-center">
-                <span className="text-white font-medium">
+                <span className="text-white text-sm font-medium">
                   ${position.boughtValueUsd.toFixed(2)}
                 </span>
               </div>
 
               {/* Column 3: Current Value + Arrow */}
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center justify-end gap-1">
                 {isProfit ? (
                   <svg
-                    className="w-5 h-5 text-green-400 flex-shrink-0"
+                    className="w-4 h-4 text-green-400 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -420,7 +413,7 @@ export function BalancesTab() {
                   </svg>
                 ) : (
                   <svg
-                    className="w-5 h-5 text-red-400 flex-shrink-0"
+                    className="w-4 h-4 text-red-400 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -434,7 +427,7 @@ export function BalancesTab() {
                   </svg>
                 )}
                 <div className="text-right">
-                  <div className={`font-bold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`text-sm font-bold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                     ${position.currentValueUsd.toFixed(2)}
                   </div>
                   {Math.abs(pnlPercent) > 0.1 && (
@@ -448,15 +441,6 @@ export function BalancesTab() {
           </Link>
         );
       })}
-
-      {/* Refresh */}
-      <button
-        onClick={() => fetchPositions()}
-        disabled={loading}
-        className="w-full py-3 text-gray-500 hover:text-gray-300 transition text-sm"
-      >
-        🔄 Refresh
-      </button>
     </div>
   );
 }

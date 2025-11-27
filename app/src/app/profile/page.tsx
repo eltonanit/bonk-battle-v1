@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
@@ -11,23 +12,24 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { BalancesTab } from '@/components/profile/BalancesTab';
 import { CoinsTab } from '@/components/profile/CoinsTab';
-import { RefundsTab } from '@/components/profile/RefundsTab';
 import { YourArmyTab } from '@/components/profile/YourArmyTab';
+import { useUserPoints } from '@/hooks/useUserPoints';
 
 function ProfileContent() {
   const { publicKey } = useWallet();
   const searchParams = useSearchParams();
+  const { points, loading: pointsLoading } = useUserPoints();
 
-  // ⭐ NUOVO: Support ?tab query param
-  const initialTab = (searchParams.get('tab') as 'balances' | 'coins' | 'refunds' | 'army') || 'balances';
+  // Tab: balances, coins, army, points
+  const initialTab = (searchParams.get('tab') as 'balances' | 'coins' | 'army' | 'points') || 'balances';
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'coins' | 'refunds' | 'army'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'balances' | 'coins' | 'army' | 'points'>(initialTab);
   const [createdCoinsCount, setCreatedCoinsCount] = useState(0);
 
-  // ⭐ NUOVO: Update tab quando cambia URL
+  // Update tab quando cambia URL
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'balances' || tab === 'coins' || tab === 'refunds' || tab === 'army') {
+    if (tab === 'balances' || tab === 'coins' || tab === 'army' || tab === 'points') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -39,15 +41,10 @@ function ProfileContent() {
       if (!publicKey) return;
 
       try {
-        // Import fetchAllBonkTokens
         const { fetchAllBonkTokens } = await import('@/lib/solana/fetch-all-bonk-tokens');
         const allTokens = await fetchAllBonkTokens();
-
-        // For now, show all tokens count
-        // TODO: Filter by creator when we have that field
         setCreatedCoinsCount(allTokens.length);
-
-        console.log(`✅ Total BONK tokens: ${allTokens.length}`);
+        console.log(`Total BONK tokens: ${allTokens.length}`);
       } catch (error) {
         console.error('Error fetching created count:', error);
       }
@@ -58,25 +55,25 @@ function ProfileContent() {
 
   return (
     <>
-      {/* ⭐ RIMOSSO: <Tagline /> */}
-      <div className="max-w-[1200px] pl-8 pr-5 py-8">
+      <div className="max-w-[800px] mx-auto px-5 py-8">
         <ProfileHeader createdCoinsCount={createdCoinsCount} />
 
+        {/* Tabs: Balance - Coins - Army - Points */}
         <div className="border-b border-white/10 mb-8">
-          <div className="flex gap-8">
+          <div className="flex gap-6">
             <button
               onClick={() => setActiveTab('balances')}
               className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'balances'
-                ? 'text-white border-green-500'
+                ? 'text-white border-cyan-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
             >
-              Balances
+              Balance
             </button>
             <button
               onClick={() => setActiveTab('coins')}
               className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'coins'
-                ? 'text-white border-green-500'
+                ? 'text-white border-cyan-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
             >
@@ -89,25 +86,50 @@ function ProfileContent() {
                 : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
             >
-              Your Army
+              Army
             </button>
             <button
-              onClick={() => setActiveTab('refunds')}
-              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'refunds'
-                ? 'text-white border-green-500'
+              onClick={() => setActiveTab('points')}
+              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'points'
+                ? 'text-white border-emerald-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
             >
-              Refunds
+              Points
             </button>
           </div>
         </div>
 
+        {/* Tab Content */}
         <div>
           {activeTab === 'balances' && <BalancesTab />}
           {activeTab === 'coins' && <CoinsTab />}
           {activeTab === 'army' && <YourArmyTab />}
-          {activeTab === 'refunds' && <RefundsTab />}
+          {activeTab === 'points' && (
+            <div className="space-y-6">
+              {/* Points Summary */}
+              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-6">
+                <div className="text-center mb-6">
+                  <div className="text-gray-400 text-sm mb-1">Total Points</div>
+                  <div className="text-4xl font-bold text-emerald-400">
+                    {pointsLoading ? '...' : (points?.totalPoints?.toLocaleString() || 0)}
+                  </div>
+                  {points?.rank && (
+                    <div className="text-gray-400 text-sm mt-2">
+                      Rank #{points.rank.toLocaleString()}
+                    </div>
+                  )}
+                </div>
+
+                <Link
+                  href="/points"
+                  className="block w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg text-center transition-colors"
+                >
+                  View All Points & Earn More
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -121,9 +143,7 @@ export default function ProfilePage() {
       <Header />
       <Sidebar />
 
-      {/* ⭐ MODIFICATO: Aggiunto pt-32 mobile per header a 2 righe + FOMOTicker */}
       <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
-        {/* ⭐ FOMOTicker visibile SOLO su mobile */}
         <div className="lg:hidden">
           <FOMOTicker />
         </div>

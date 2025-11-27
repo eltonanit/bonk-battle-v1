@@ -122,90 +122,108 @@ export function CoinsTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <div className="text-lg font-bold text-gray-400">
+        <div className="text-lg font-bold text-white">
           Your Tokens ({coins.length})
         </div>
         <Link
           href="/create"
-          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all text-sm"
+          className="px-4 py-2 bg-emerald-400 hover:bg-emerald-500 text-black rounded-lg font-bold transition-all text-sm"
         >
           + Create New
         </Link>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {coins.map((coin) => {
-          const solRaised = coin.solCollected / 1e9;
-          const targetSol = 85; // BONK BATTLE target
-          const progress = (solRaised / targetSol) * 100;
+          const status = coin.battleStatus;
+          const isNew = status === BattleStatus.Created;
+          const isQualified = status === BattleStatus.Qualified;
+          const isInBattle = status === BattleStatus.InBattle;
 
           return (
-            <Link
+            <div
               key={coin.mint.toString()}
-              href={`/token/${coin.mint.toString()}`}
-              className="block bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all"
+              className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-3 flex items-center justify-between gap-2"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {/* Token Image */}
-                  <div className="relative w-16 h-16 rounded-full overflow-hidden bg-gradient-to-br from-purple-600 to-pink-600 flex-shrink-0">
-                    {coin.image ? (
-                      <Image
-                        src={coin.image}
-                        alt={coin.name || 'Token'}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">
-                        {coin.symbol?.charAt(0) || '?'}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Token Info */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-xl font-bold">{coin.name || coin.mint.toString().slice(0, 8)}</h3>
-                      <span className="text-sm text-gray-400">${coin.symbol || 'UNK'}</span>
+              {/* Left: Token image + symbol */}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-yellow-500 flex-shrink-0">
+                  {coin.image ? (
+                    <Image
+                      src={coin.image}
+                      alt={coin.symbol || 'Token'}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-sm font-bold">
+                      {coin.symbol?.charAt(0) || '?'}
                     </div>
-
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className={`font-semibold ${getStatusColor(coin.battleStatus)}`}>
-                        {getStatusEmoji(coin.battleStatus)} {getStatusName(coin.battleStatus)}
-                      </span>
-                    </div>
-
-                    <div className="mt-2">
-                      <span className="inline-block px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg text-xs font-semibold">
-                        TARGET: ${(targetSol * 100).toFixed(0)}
-                      </span>
-                    </div>
-                  </div>
+                  )}
                 </div>
-
-                {/* Progress & Stats */}
-                <div className="text-right">
-                  <div className="text-2xl font-bold mb-1">
-                    {progress.toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-gray-400 mb-2">
-                    {solRaised.toFixed(2)} / {targetSol} SOL
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Volume: {(coin.totalTradeVolume / 1e9).toFixed(2)} SOL
-                  </div>
-                </div>
+                <div className="font-semibold text-white text-sm truncate">${coin.symbol || 'UNK'}</div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="mt-4 w-full bg-white/5 rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                />
+              {/* Center: Status badge */}
+              <div className="flex-shrink-0 w-16 text-left">
+                {isInBattle && (
+                  <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs font-semibold">
+                    In Battle
+                  </span>
+                )}
+                {isQualified && (
+                  <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
+                    Qualified
+                  </span>
+                )}
+                {isNew && (
+                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
+                    New
+                  </span>
+                )}
+                {!isInBattle && !isQualified && !isNew && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(status)} bg-white/10`}>
+                    {getStatusName(status)}
+                  </span>
+                )}
               </div>
-            </Link>
+
+              {/* Right: Action button based on status */}
+              <div className="flex-shrink-0">
+                {isNew && (
+                  <Link
+                    href={`/token/${coin.mint.toString()}`}
+                    className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-500 text-black font-semibold rounded-lg text-xs transition-colors"
+                  >
+                    Qualify
+                  </Link>
+                )}
+                {isQualified && (
+                  <Link
+                    href={`/battlestart?token=${coin.mint.toString()}`}
+                    className="px-3 py-1.5 bg-orange-400 hover:bg-orange-500 text-black font-semibold rounded-lg text-xs transition-colors"
+                  >
+                    Find Opponent
+                  </Link>
+                )}
+                {isInBattle && (
+                  <Link
+                    href={`/battle/${coin.currentBattle?.toString() || coin.mint.toString()}`}
+                    className="px-3 py-1.5 bg-orange-300 hover:bg-orange-400 text-black font-semibold rounded-lg text-xs transition-colors"
+                  >
+                    View Match
+                  </Link>
+                )}
+                {!isNew && !isQualified && !isInBattle && (
+                  <Link
+                    href={`/token/${coin.mint.toString()}`}
+                    className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg text-xs transition-colors"
+                  >
+                    View
+                  </Link>
+                )}
+              </div>
+            </div>
           );
         })}
       </div>
