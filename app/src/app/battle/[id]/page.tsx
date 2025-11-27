@@ -265,9 +265,13 @@ export default function BattleDetailPage() {
 
               {/* Score */}
               <div className="text-center">
-                <div className="text-xs text-gray-400 mb-1">SCORE</div>
-                <div className="text-xl font-black text-yellow-400">
+                <div className="text-[10px] text-gray-400 uppercase">target</div>
+                <div className="text-sm font-bold text-yellow-400 mb-1">
                   {scoreA} - {scoreB}
+                </div>
+                <div className="text-xs text-gray-400 uppercase">Mcap</div>
+                <div className="text-lg font-black text-white">
+                  {formatUsd(progressA.mcUsd)} - {formatUsd(progressB.mcUsd)}
                 </div>
               </div>
 

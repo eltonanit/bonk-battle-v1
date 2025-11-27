@@ -149,12 +149,10 @@ export function BattleCard({
 
             {/* Score Center */}
             <div className="flex flex-col items-center">
-              <span className="text-xs lg:text-sm text-white/70 font-semibold mb-1 lg:mb-2">SCORE</span>
-              <div className="flex items-center gap-2 lg:gap-3">
-                <span className="text-2xl lg:text-3xl font-black text-yellow-400">
-                  {scoreA} - {scoreB}
-                </span>
-              </div>
+              <span className="text-xs lg:text-sm text-gray-400 font-semibold mb-1">SCORE</span>
+              <span className="text-lg lg:text-xl font-black text-yellow-400">
+                {formatUsd(tokenA.marketCapUsd)} - {formatUsd(tokenB.marketCapUsd)}
+              </span>
             </div>
 
             {/* Token B Image */}
