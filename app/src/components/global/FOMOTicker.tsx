@@ -135,7 +135,7 @@ export function FOMOTicker() {
                 tokenName: token.name || token.mint.toString().slice(0, 8),
                 tokenSymbol: token.symbol || 'UNK',
                 tokenImage: token.image,
-                amount: (token.totalTradeVolume / 1e9) / 10,
+                amount: token.totalTradeVolume / 1e9, // ⭐ FIX: removed /10 division
                 tier: 2,
                 timestamp: Date.now() - (idx * 1000),
               };
@@ -298,9 +298,9 @@ export function FOMOTicker() {
           >
             {currentEvent.type === 'started_battle' ? (
               <>
-                {/* Battle Event */}
-                <span className="whitespace-nowrap text-base lg:text-sm uppercase font-normal">
-                  ⚔️ BATTLE STARTED:
+                {/* Battle Event - no emoji, bold text, only images no symbols */}
+                <span className="whitespace-nowrap text-base lg:text-sm uppercase font-bold">
+                  BATTLE STARTED:
                 </span>
 
                 {currentEvent.tokenImage && (
@@ -316,16 +316,8 @@ export function FOMOTicker() {
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
-                  {currentEvent.tokenSymbol}
-                </span>
-
-                <span className="whitespace-nowrap text-base lg:text-sm font-normal">
+                <span className="whitespace-nowrap text-base lg:text-sm font-bold">
                   VS
-                </span>
-
-                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
-                  {currentEvent.opponentSymbol}
                 </span>
 
                 {currentEvent.opponentImage && (

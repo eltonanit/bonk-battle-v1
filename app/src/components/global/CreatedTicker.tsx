@@ -117,7 +117,25 @@ export function CreatedTicker() {
     );
   }
 
-  const currentEvent = createdEvents[currentIndex];
+  // Safety check: reset index if out of bounds
+  const safeIndex = currentIndex >= createdEvents.length ? 0 : currentIndex;
+  const currentEvent = createdEvents[safeIndex];
+
+  // Extra safety: if still no event, show loading
+  if (!currentEvent) {
+    return (
+      <div className="w-full">
+        <div className="w-full px-2 py-0">
+          <div
+            className="px-4 py-2 font-bold text-sm text-black animate-pulse truncate"
+            style={{ backgroundColor: '#93EAEB', borderRadius: 0 }}
+          >
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-2 lg:mb-0">
@@ -127,7 +145,7 @@ export function CreatedTicker() {
             href={`/token/${currentEvent.mint}`}
             className={'ticker-content flex items-center gap-0.5 px-1 py-0.5 text-xs lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
-              backgroundColor: CREATED_COLORS[currentIndex % CREATED_COLORS.length],
+              backgroundColor: CREATED_COLORS[safeIndex % CREATED_COLORS.length],
               borderRadius: 0,
             }}
           >

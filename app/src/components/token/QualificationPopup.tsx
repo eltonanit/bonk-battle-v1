@@ -140,12 +140,12 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
 
                         {/* Title - testo più piccolo */}
                         <h1 className="text-2xl md:text-3xl font-bold text-orange-500 text-center mb-2">
-                            Start Battle Now!
+                            Congratulations!
                         </h1>
 
                         {/* Subtitle - spacing ridotto */}
                         <p className="text-yellow-400 text-center font-medium text-sm mb-0.5">
-                            Qualify your token
+                            Now Qualify Token for Battle
                         </p>
                         <p className="text-gray-400 text-center text-xs md:text-sm mb-4 md:mb-6">
                             Make your first buy
@@ -210,11 +210,11 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
                             </div>
                         </div>
 
-                        {/* Buy Button - più compatto */}
+                        {/* Buy Button - verde chiaro */}
                         <button
                             onClick={handleBuy}
                             disabled={loading || !publicKey || !amount || amount === '0.00' || amount === ''}
-                            className="w-full bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700 disabled:from-slate-800 disabled:to-slate-900 disabled:cursor-not-allowed text-white font-bold text-base md:text-lg py-3 md:py-4 rounded-xl transition-all shadow-lg"
+                            className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-400 hover:to-green-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed text-black font-bold text-base md:text-lg py-3 md:py-4 rounded-xl transition-all shadow-lg"
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
