@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useUserPoints } from '@/hooks/useUserPoints';
@@ -15,14 +16,21 @@ export default function PointsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a1a1a] text-white">
+      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+        <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+          <FOMOTicker />
+          <div className="hidden sm:block">
+            <CreatedTicker />
+          </div>
+        </div>
+      </div>
+
       <DesktopHeader />
       <Header />
       <Sidebar />
 
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
-        <div className="lg:hidden">
-          <FOMOTicker />
-        </div>
+      <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
 
         <div className="max-w-[900px] mx-auto px-5 py-8">
           {/* Header */}

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
@@ -38,6 +39,16 @@ export default function NotificationsPage() {
 
     return (
         <div className="min-h-screen bg-bonk-dark text-white">
+            {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+                <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+                    <FOMOTicker />
+                    <div className="hidden sm:block">
+                        <CreatedTicker />
+                    </div>
+                </div>
+            </div>
+
             {/* Desktop Header */}
             <DesktopHeader />
 
@@ -48,12 +59,7 @@ export default function NotificationsPage() {
             <Sidebar />
 
             {/* Main Content */}
-            {/* ⭐ MODIFICATO: Aggiunto pt-32 mobile per header a 2 righe + FOMOTicker */}
-            <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
-                {/* ⭐ FOMOTicker visibile SOLO su mobile */}
-                <div className="lg:hidden">
-                    <FOMOTicker />
-                </div>
+            <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
 
                 {/* Content Container */}
                 <div className="max-w-[1200px] pl-8 pr-5 py-8">

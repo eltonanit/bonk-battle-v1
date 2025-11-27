@@ -15,6 +15,7 @@ import { PriceChart } from '@/components/token/PriceChart';
 import { useTokenBattleState } from '@/hooks/useTokenBattleState';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 
@@ -204,15 +205,22 @@ export default function BattleDetailPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
+      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+        <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+          <FOMOTicker />
+          <div className="hidden sm:block">
+            <CreatedTicker />
+          </div>
+        </div>
+      </div>
+
       <DesktopHeader />
       <Header />
       <Sidebar />
 
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
+      <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
-          
-          {/* FOMOTicker */}
-          <FOMOTicker />
 
           {/* Back Button + Battle Title */}
           <div className="flex items-center gap-4 mb-6">

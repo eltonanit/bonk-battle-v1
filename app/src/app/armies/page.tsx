@@ -9,6 +9,8 @@ import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
 
 type TabType = 'top' | 'onfire';
 
@@ -20,11 +22,21 @@ export default function ArmiesPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
+      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+        <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+          <FOMOTicker />
+          <div className="hidden sm:block">
+            <CreatedTicker />
+          </div>
+        </div>
+      </div>
+
       <Sidebar />
       <DesktopHeader />
       <Header />
 
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
+      <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
         {/* Container */}
         <div className="max-w-7xl mx-auto px-4 py-8">
 

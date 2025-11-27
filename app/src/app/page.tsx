@@ -2,6 +2,7 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Tagline } from '@/components/home/Tagline';
 import { HowItWorks } from '@/components/home/HowItWorks';
 import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
@@ -13,9 +14,15 @@ export default function HomePage() {
       <Sidebar />
       <DesktopHeader />
 
-      {/* ⭐ FOMOTicker SOPRA Header - SOLO mobile */}
+      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      {/* < 400px: solo FOMOTicker centrato | 400-640px: FOMOTicker a sinistra | 640px+: entrambi */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
-        <FOMOTicker />
+        <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+          <FOMOTicker />
+          <div className="hidden sm:block">
+            <CreatedTicker />
+          </div>
+        </div>
       </div>
 
       <Header />

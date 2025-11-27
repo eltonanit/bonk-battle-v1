@@ -29,7 +29,7 @@ interface RealEvent {
 
 // Solo 3 colori: Verde, Giallo, Blu
 const TICKER_COLORS = [
-  '#4BDE81',  // Verde
+  '#A4F4B6',  // Verde
   '#EFFE16',  // Giallo
   '#93EAEB'   // Blu
 ];
@@ -290,7 +290,7 @@ export function FOMOTicker() {
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal lg:font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: getEventColor(),
               borderRadius: 0,
@@ -299,7 +299,7 @@ export function FOMOTicker() {
             {currentEvent.type === 'started_battle' ? (
               <>
                 {/* Battle Event */}
-                <span className="whitespace-nowrap text-base lg:text-sm uppercase font-normal lg:font-semibold">
+                <span className="whitespace-nowrap text-base lg:text-sm uppercase font-normal">
                   ⚔️ BATTLE STARTED:
                 </span>
 
@@ -316,15 +316,15 @@ export function FOMOTicker() {
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-normal lg:font-semibold uppercase text-base lg:text-sm">
+                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
-                <span className="whitespace-nowrap text-base lg:text-sm font-normal lg:font-semibold">
+                <span className="whitespace-nowrap text-base lg:text-sm font-normal">
                   VS
                 </span>
 
-                <span className="whitespace-nowrap font-normal lg:font-semibold uppercase text-base lg:text-sm">
+                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
                   {currentEvent.opponentSymbol}
                 </span>
 
@@ -357,19 +357,19 @@ export function FOMOTicker() {
                   </div>
                 )}
 
-                <span className="whitespace-nowrap font-normal lg:font-semibold uppercase text-base lg:text-sm">
+                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
                   {currentEvent.user}
                 </span>
 
-                <span className="whitespace-nowrap text-base lg:text-sm font-normal lg:font-semibold">
+                <span className="whitespace-nowrap text-base lg:text-sm font-normal">
                   {currentEvent.type === 'created' ? 'CREATED' : 'bought'}
                 </span>
 
-                <span className="whitespace-nowrap font-normal lg:font-semibold text-base lg:text-sm">
+                <span className="whitespace-nowrap font-normal text-base lg:text-sm">
                   {currentEvent.amount.toFixed(2)} SOL
                 </span>
 
-                <span className="whitespace-nowrap font-normal lg:font-semibold uppercase text-base lg:text-sm">
+                <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
