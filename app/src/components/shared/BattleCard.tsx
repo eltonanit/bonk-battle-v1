@@ -189,7 +189,7 @@ export function BattleCard({
                 <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-yellow-400">
                   {mcProgressA >= 100 ? '1' : '0'}
                 </span>
-                <span className="text-[9px] lg:text-[11px] font-bold text-gray-400 w-5 lg:w-6">MC</span>
+                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6">MC</span>
                 <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${mcProgressA >= 100
@@ -209,7 +209,7 @@ export function BattleCard({
                 <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-yellow-400">
                   {volProgressA >= 100 ? '1' : '0'}
                 </span>
-                <span className="text-[9px] lg:text-[11px] font-bold text-gray-400 w-5 lg:w-6">VOL</span>
+                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6">VOL</span>
                 <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
@@ -226,10 +226,16 @@ export function BattleCard({
             </div>
 
             {/* Center Target */}
-            <div className="flex flex-col items-center px-2 lg:px-4 border-x border-[#3b415a]">
-              <span className="text-[9px] lg:text-xs text-gray-500 font-medium mb-1 lg:mb-2">TARGET</span>
-              <span className="text-[9px] lg:text-[11px] text-gray-400 mb-0.5 lg:mb-1">MC {formatUsd(targetMC)}</span>
-              <span className="text-[9px] lg:text-[11px] text-gray-400">VOL {formatUsd(targetVol)}</span>
+            <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
+              <span className="text-[10px] lg:text-xs text-gray-500 font-medium mb-2">TARGET</span>
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-[10px] lg:text-[11px] text-gray-400">MC</span>
+                <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[10px] lg:text-[11px] text-gray-400">VOL</span>
+                <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetVol)}</span>
+              </div>
             </div>
 
             {/* Right Token Stats */}
@@ -253,7 +259,7 @@ export function BattleCard({
                     style={{ width: `${mcProgressB}%` }}
                   />
                 </div>
-                <span className="text-[9px] lg:text-[11px] font-bold text-gray-400 w-5 lg:w-6 text-right">MC</span>
+                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6 text-right">MC</span>
                 <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-right text-yellow-400">
                   {mcProgressB >= 100 ? '1' : '0'}
                 </span>
@@ -273,7 +279,7 @@ export function BattleCard({
                     style={{ width: `${volProgressB}%` }}
                   />
                 </div>
-                <span className="text-[9px] lg:text-[11px] font-bold text-gray-400 w-5 lg:w-6 text-right">VOL</span>
+                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6 text-right">VOL</span>
                 <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-right text-yellow-400">
                   {volProgressB >= 100 ? '1' : '0'}
                 </span>

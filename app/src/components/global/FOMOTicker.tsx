@@ -311,7 +311,7 @@ export function FOMOTicker() {
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-0.5 lg:gap-1 px-1 py-0.5 lg:px-1.5 lg:py-0.5 text-sm lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-1 lg:gap-1 px-1.5 py-0.5 lg:px-1.5 lg:py-0.5 text-sm lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: getEventColor(currentEvent),
               borderRadius: 0,
@@ -329,8 +329,8 @@ export function FOMOTicker() {
                     <Image
                       src={currentEvent.tokenImage}
                       alt={currentEvent.tokenSymbol}
-                      width={24}
-                      height={24}
+                      width={20}
+                      height={20}
                       className="w-full h-full object-cover"
                       unoptimized
                     />
@@ -371,8 +371,8 @@ export function FOMOTicker() {
                     <Image
                       src={currentEvent.tokenImage}
                       alt={currentEvent.tokenSymbol}
-                      width={24}
-                      height={24}
+                      width={20}
+                      height={20}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -399,8 +399,8 @@ export function FOMOTicker() {
                   <Image
                     src="/profilo.png"
                     alt={currentEvent.user}
-                    width={24}
-                    height={24}
+                    width={20}
+                    height={20}
                     className="w-full h-full object-cover"
                   />
                 </div>

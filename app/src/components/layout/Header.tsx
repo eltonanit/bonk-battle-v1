@@ -93,8 +93,20 @@ export function Header() {
     <>
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
         <div className="relative">
-          {/* Riga 1: Join ARMY + Start Battle + Login */}
+          {/* Riga 1: X + Join ARMY + Start Battle + Login */}
           <div className="px-3 py-2 flex items-center justify-end gap-1.5">
+            {/* X (Twitter) Icon */}
+            <a
+              href="https://x.com/BonkBattle_"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 hover:opacity-80 transition-opacity"
+            >
+              <svg className="w-4 h-4 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+            </a>
+
             {/* Join ARMY Button - Giallo */}
             <Link href="/armies">
               <button className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
@@ -267,7 +279,7 @@ export function Header() {
             <div className="flex justify-end p-4">
               <button
                 onClick={() => setShowMobileMenu(false)}
-                className="text-bonk-green p-2"
+                className="text-white p-2"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -277,102 +289,180 @@ export function Header() {
 
             {/* Menu Items */}
             <div className="px-4 pb-6 space-y-1">
-              {/* Board */}
+              {/* Follow us on X - Top */}
+              <a
+                href="https://x.com/BonkBattle_"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 text-[#FFB088] font-medium text-sm"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                <span>Follow us on X</span>
+              </a>
+              {/* Orange divider line */}
+              <div className="mx-4 border-t border-[#FFB088]/50" />
+
+              {/* BATTLE Section */}
+              <div className="text-xs text-gray-500 uppercase tracking-wider px-4 pt-2 pb-1">Battle</div>
+
+              {/* Home/Board */}
               <Link
                 href="/"
-                className="block px-4 py-3 text-bonk-green font-bold text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-orange-500/10 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Board
+                <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Home</span>
               </Link>
 
-              {/* Start Battle */}
+              {/* Live Battles */}
+              <Link
+                href="/battles"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-orange-500/10 rounded-lg transition-colors"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>Live Battles</span>
+                <span className="ml-auto px-2 py-0.5 bg-red-500/20 text-red-400 text-xs rounded-full">LIVE</span>
+              </Link>
+
+              {/* Create Token */}
               <Link
                 href="/create"
-                className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-orange-500/10 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Start Battle
+                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Create Token</span>
               </Link>
 
-              {/* Ranking */}
+              {/* Divider */}
+              <div className="border-t border-bonk-border my-3" />
+
+              {/* COMMUNITY Section */}
+              <div className="text-xs text-gray-500 uppercase tracking-wider px-4 pt-2 pb-1">Community</div>
+
+              {/* Join ARMY */}
               <Link
-                href="/battlestart"
-                className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                href="/armies"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-yellow-500/10 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Ranking
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>Join ARMY</span>
+                <span className="ml-auto px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full">HOT</span>
               </Link>
 
-              {/* Advanced */}
+              {/* Leaderboard */}
+              <Link
+                href="/leaderboard"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-yellow-500/10 rounded-lg transition-colors"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <span>Leaderboard</span>
+              </Link>
+
+              {/* News Feed */}
+              <Link
+                href="/feed-followers"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-yellow-500/10 rounded-lg transition-colors"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
+                <span>News Feed</span>
+              </Link>
+
+              {/* Divider */}
+              <div className="border-t border-bonk-border my-3" />
+
+              {/* ACCOUNT Section */}
+              <div className="text-xs text-gray-500 uppercase tracking-wider px-4 pt-2 pb-1">Account</div>
+
+              {/* Profile */}
               <Link
                 href="/profile"
-                className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Advanced
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile</span>
               </Link>
 
-              {/* Notifications */}
+              {/* Points */}
               <Link
-                href="/notifications"
-                className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                href="/points"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Notifications
+                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Points</span>
               </Link>
 
               {/* Support */}
               <Link
                 href="/support"
-                className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >
-                Support
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <span>Support</span>
               </Link>
 
               {/* Divider */}
-              <div className="border-t border-bonk-border my-4" />
+              <div className="border-t border-bonk-border my-3" />
 
-              {/* Social Links */}
+              {/* SOCIAL Section */}
+              <div className="text-xs text-gray-500 uppercase tracking-wider px-4 pt-2 pb-1">Social</div>
+
+              {/* Follow us on X */}
               <a
-                href="https://x.com/bonkbattle"
+                href="https://x.com/BonkBattle_"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-3 text-bonk-text font-medium text-sm hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
-                <span>Follow Twitter</span>
+                <span>Follow us on X</span>
               </a>
 
+              {/* Follow us on Telegram */}
               <a
                 href="https://t.me/bonkbattle"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-3 text-bonk-text font-medium text-sm hover:bg-bonk-card/50 rounded-lg transition-colors"
+                className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
                 </svg>
-                <span>Join Telegram</span>
-              </a>
-
-              <a
-                href="https://discord.gg/bonkbattle"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-3 text-bonk-text font-medium text-sm hover:bg-bonk-card/50 rounded-lg transition-colors"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
-                </svg>
-                <span>Discord</span>
+                <span>Follow us on Telegram</span>
               </a>
 
               {/* Divider */}
-              <div className="border-t border-bonk-border my-4" />
+              <div className="border-t border-bonk-border my-3" />
 
               {/* Connect Wallet Button (se non connesso) nel menu mobile */}
               {!connected && (
@@ -381,11 +471,23 @@ export function Header() {
                     handleLogin();
                     setShowMobileMenu(false);
                   }}
-                  className="w-full bg-bonk-green text-white px-4 py-3 rounded-lg font-bold text-sm hover:bg-bonk-green/90 transition-colors"
+                  className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-black px-4 py-3 rounded-lg font-bold text-sm hover:opacity-90 transition-opacity"
                 >
-                  Connect Wallet
+                  🔗 Connect Wallet
                 </button>
               )}
+
+              {/* How it Works */}
+              <Link
+                href="/how-it-works"
+                className="flex items-center justify-center gap-2 px-4 py-3 text-blue-400 font-medium text-sm hover:bg-blue-500/10 rounded-lg transition-colors"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>How it Works?</span>
+              </Link>
             </div>
           </div>
         </>

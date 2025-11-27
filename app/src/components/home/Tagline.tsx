@@ -20,7 +20,8 @@ const SOL_PRICE_USD = 100; // TODO: Use oracle
 
 const FEATURED_IMAGES = [
   '/tagline/1.png',
-  '/2-tag.png',
+  '/3.png',
+  '/4.png',
 ];
 
 export function Tagline() {
