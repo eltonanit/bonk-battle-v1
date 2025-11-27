@@ -12,15 +12,15 @@ export default function HomePage() {
     <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
       <Sidebar />
       <DesktopHeader />
+
+      {/* ⭐ FOMOTicker SOPRA Header - SOLO mobile */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+        <FOMOTicker />
+      </div>
+
       <Header />
 
-      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-12 max-w-full">
-
-        {/* ⭐ FOMOTicker + HoldersTicker visibili SOLO su mobile */}
-        <div className="lg:hidden">
-          <FOMOTicker />
-          
-        </div>
+      <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-12 max-w-full">
 
         <Tagline />
 

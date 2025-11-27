@@ -91,7 +91,7 @@ export function Header() {
 
   return (
     <>
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
+      <header className="lg:hidden fixed top-[42px] left-0 right-0 z-50 bg-bonk-dark/95 backdrop-blur-xl border-b border-bonk-border">
         <div className="relative">
           {/* Riga 1: X + Join ARMY + Start Battle + Login */}
           <div className="px-3 py-2 flex items-center justify-end gap-1.5">
@@ -109,14 +109,14 @@ export function Header() {
 
             {/* Join ARMY Button - Giallo */}
             <Link href="/armies">
-              <button className="bg-bonk-gold text-black px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
+              <button className="bg-bonk-gold text-black px-3 py-2 rounded-lg font-bold text-xs hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
                 Join ARMY
               </button>
             </Link>
 
             {/* Start Battle Button - Arancione */}
             <Link href="/create">
-              <button className="bg-bonk-orange-dark text-black px-2.5 py-1.5 rounded-lg font-semibold text-xs hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap">
+              <button className="bg-bonk-orange-dark text-black px-3 py-2 rounded-lg font-semibold text-xs hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap border border-black/20">
                 Start Battle
               </button>
             </Link>
@@ -206,7 +206,7 @@ export function Header() {
           </div>
 
           {/* Riga 2: 3 Notification Icons (center) + Hamburger Menu (right, orange) */}
-          <div className="px-3 py-2 flex items-center justify-between">
+          <div className="px-3 pt-2 pb-1 flex items-center justify-between">
             {/* Empty space on left for logo */}
             <div className="w-[60px]" />
 
