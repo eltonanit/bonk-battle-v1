@@ -16,11 +16,11 @@ interface CreatedEvent {
   timestamp: number;
 }
 
-// Colori CREATED (azzurro/giallo/arancione chiaro)
+// Colori CREATED (verde/giallo/azzurro)
 const CREATED_COLORS = [
-  '#93EAEB',  // Azzurro
+  '#A4F4B6',  // Verde
   '#EFFE16',  // Giallo
-  '#FFB84D'   // Arancione chiaro
+  '#93EAEB'   // Azzurro
 ];
 
 export function CreatedTicker() {
@@ -125,7 +125,7 @@ export function CreatedTicker() {
         <div className="flex justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-0.5 px-1 py-0.5 text-xs lg:text-sm text-black font-semibold hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-0.5 px-1 py-0.5 text-xs lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: CREATED_COLORS[currentIndex % CREATED_COLORS.length],
               borderRadius: 0,
@@ -145,15 +145,15 @@ export function CreatedTicker() {
               </div>
             )}
 
-            <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+            <span className="whitespace-nowrap font-normal uppercase text-xs lg:text-sm">
               {currentEvent.user}
             </span>
 
-            <span className="whitespace-nowrap text-xs lg:text-sm font-semibold">
+            <span className="whitespace-nowrap text-xs lg:text-sm font-normal">
               CREATED
             </span>
 
-            <span className="whitespace-nowrap font-semibold uppercase text-xs lg:text-sm">
+            <span className="whitespace-nowrap font-normal uppercase text-xs lg:text-sm">
               {currentEvent.tokenSymbol}
             </span>
 
