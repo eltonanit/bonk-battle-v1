@@ -58,7 +58,7 @@ export function Sidebar() {
       badge: unreadCount
     },
     {
-      href: '/hall',
+      href: '/battlestart',
       label: 'Battles',
       icon: (
         <img

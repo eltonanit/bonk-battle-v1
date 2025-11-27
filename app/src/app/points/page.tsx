@@ -56,27 +56,132 @@ export default function PointsPage() {
             </div>
           </div>
 
-          {/* Get More Points Section */}
+          {/* Points Table */}
           <div className="mb-8">
-            <div className="text-gray-400 text-sm mb-3">Get more points</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Link href="/create" className="bg-[#0d2626] border border-[#1a3a3a] hover:border-emerald-500/50 rounded-xl p-4 transition-all group">
-                <div className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">Create a Token</div>
-                <div className="text-sm text-gray-400">Launch your meme and earn points</div>
-              </Link>
-              <Link href="/battle" className="bg-[#0d2626] border border-[#1a3a3a] hover:border-orange-500/50 rounded-xl p-4 transition-all group">
-                <div className="text-lg font-bold text-white group-hover:text-orange-400 transition-colors">Win Battles</div>
-                <div className="text-sm text-gray-400">Fight and dominate the arena</div>
-              </Link>
-              <Link href="/" className="bg-[#0d2626] border border-[#1a3a3a] hover:border-yellow-500/50 rounded-xl p-4 transition-all group">
-                <div className="text-lg font-bold text-white group-hover:text-yellow-400 transition-colors">Trade Tokens</div>
-                <div className="text-sm text-gray-400">Buy and sell to rack up points</div>
-              </Link>
-              <Link href="/armies" className="bg-[#0d2626] border border-[#1a3a3a] hover:border-cyan-500/50 rounded-xl p-4 transition-all group">
-                <div className="text-lg font-bold text-white group-hover:text-cyan-400 transition-colors">Join an Army</div>
-                <div className="text-sm text-gray-400">Team up and earn together</div>
-              </Link>
+            <div className="text-gray-400 text-sm mb-3">Earn Points</div>
+            <div className="bg-[#0d2626] border border-[#1a3a3a] rounded-xl overflow-hidden">
+              {/* Create token */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Create token</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+500 pts</span>
+                  <Link href="/create" className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-black font-semibold text-sm rounded-lg transition-colors">
+                    Create
+                  </Link>
+                </div>
+              </div>
+
+              {/* Buy token */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Buy token</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+700 pts</span>
+                  <Link href="/" className="px-4 py-1.5 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold text-sm rounded-lg transition-colors">
+                    Trade
+                  </Link>
+                </div>
+              </div>
+
+              {/* Qualify token */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Qualify token</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+1,000 pts</span>
+                  <Link href="/" className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-black font-semibold text-sm rounded-lg transition-colors">
+                    Explore
+                  </Link>
+                </div>
+              </div>
+
+              {/* Win battle */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Win battle</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+10,000 pts</span>
+                  <Link href="/battlestart" className="px-4 py-1.5 bg-red-500 hover:bg-red-600 text-white font-semibold text-sm rounded-lg transition-colors">
+                    Battle
+                  </Link>
+                </div>
+              </div>
+
+              {/* Share battle */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Share battle</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+500 pts</span>
+                  <Link href="/battlestart" className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm rounded-lg transition-colors">
+                    Share
+                  </Link>
+                </div>
+              </div>
+
+              {/* Share win */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Share win</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+2,000 pts</span>
+                  <Link href="/battlestart" className="px-4 py-1.5 bg-purple-500 hover:bg-purple-600 text-white font-semibold text-sm rounded-lg transition-colors">
+                    Share
+                  </Link>
+                </div>
+              </div>
+
+              {/* Referral joins */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Referral joins</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+5,000 pts</span>
+                  <button className="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-black font-semibold text-sm rounded-lg transition-colors">
+                    Invite
+                  </button>
+                </div>
+              </div>
+
+              {/* New follower */}
+              <div className="flex items-center justify-between p-4 border-b border-[#1a3a3a]">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">New follower</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+25 pts</span>
+                  <Link href="/profile" className="px-4 py-1.5 bg-pink-500 hover:bg-pink-600 text-white font-semibold text-sm rounded-lg transition-colors">
+                    Profile
+                  </Link>
+                </div>
+              </div>
+
+              {/* Daily login */}
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-white font-medium">Daily login</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-emerald-400 font-bold">+100 pts</span>
+                  <button className="px-4 py-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-black font-semibold text-sm rounded-lg transition-colors">
+                    Claim
+                  </button>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* What are points for */}
+          <div className="mb-8">
+            <div className="text-gray-400 text-sm mb-3">What are points for?</div>
           </div>
 
           {/* Mystery Section */}

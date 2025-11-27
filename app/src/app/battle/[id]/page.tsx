@@ -14,6 +14,7 @@ import { TradingPanel } from '@/components/token/TradingPanel';
 import { PriceChart } from '@/components/token/PriceChart';
 import { useTokenBattleState } from '@/hooks/useTokenBattleState';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 
@@ -27,12 +28,18 @@ export default function BattleDetailPage() {
   const battleId = params.id as string; // Format: "tokenA_mint-tokenB_mint"
   
   // Parse battle ID to get both token mints
+  // Format: "mintA-mintB" or just "mintA" (if opponent not yet assigned)
   const [tokenAMint, tokenBMint] = useMemo(() => {
     if (!battleId) return [null, null];
     const parts = battleId.split('-');
-    if (parts.length !== 2) return [null, null];
     try {
-      return [new PublicKey(parts[0]), new PublicKey(parts[1])];
+      if (parts.length === 2) {
+        return [new PublicKey(parts[0]), new PublicKey(parts[1])];
+      } else if (parts.length === 1) {
+        // Single mint - will fetch opponent from on-chain data
+        return [new PublicKey(parts[0]), null];
+      }
+      return [null, null];
     } catch {
       return [null, null];
     }
@@ -41,9 +48,71 @@ export default function BattleDetailPage() {
   // Currently selected token for trading
   const [selectedToken, setSelectedToken] = useState<'A' | 'B'>('A');
 
-  // Fetch both token states
+  // Battle animation states
+  const [attackA, setAttackA] = useState(false);
+  const [attackB, setAttackB] = useState(false);
+  const [clash, setClash] = useState(false);
+
+  // Battle animations effect
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    let animationTimeoutId: NodeJS.Timeout;
+    let isMounted = true;
+
+    const startBattleAnimations = () => {
+      if (!isMounted) return;
+
+      const randomInterval = Math.random() * 1000 + 2000;
+
+      timeoutId = setTimeout(() => {
+        if (!isMounted) return;
+
+        const action = Math.random();
+
+        if (action < 0.45) {
+          setAttackA(true);
+          animationTimeoutId = setTimeout(() => {
+            if (isMounted) setAttackA(false);
+          }, 500);
+        } else if (action < 0.9) {
+          setAttackB(true);
+          animationTimeoutId = setTimeout(() => {
+            if (isMounted) setAttackB(false);
+          }, 500);
+        } else {
+          setClash(true);
+          animationTimeoutId = setTimeout(() => {
+            if (isMounted) setClash(false);
+          }, 500);
+        }
+
+        startBattleAnimations();
+      }, randomInterval);
+    };
+
+    startBattleAnimations();
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (animationTimeoutId) clearTimeout(animationTimeoutId);
+    };
+  }, []);
+
+  // Fetch token A state first
   const { state: stateA, loading: loadingA, refetch: refetchA } = useTokenBattleState(tokenAMint);
-  const { state: stateB, loading: loadingB, refetch: refetchB } = useTokenBattleState(tokenBMint);
+
+  // Determine token B mint: from URL or from stateA.opponentMint
+  const effectiveTokenBMint = useMemo(() => {
+    if (tokenBMint) return tokenBMint;
+    if (stateA?.opponentMint && !stateA.opponentMint.equals(PublicKey.default)) {
+      return stateA.opponentMint;
+    }
+    return null;
+  }, [tokenBMint, stateA?.opponentMint]);
+
+  // Fetch token B state using effective mint
+  const { state: stateB, loading: loadingB, refetch: refetchB } = useTokenBattleState(effectiveTokenBMint);
 
   // Get SOL price from oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -78,7 +147,7 @@ export default function BattleDetailPage() {
 
   // Currently displayed token state
   const currentState = selectedToken === 'A' ? stateA : stateB;
-  const currentMint = selectedToken === 'A' ? tokenAMint : tokenBMint;
+  const currentMint = selectedToken === 'A' ? tokenAMint : effectiveTokenBMint;
   const currentProgress = selectedToken === 'A' ? progressA : progressB;
 
   // Format USD
@@ -96,7 +165,7 @@ export default function BattleDetailPage() {
   // Loading state
   const isLoading = loadingA || loadingB || priceLoading;
 
-  if (!tokenAMint || !tokenBMint) {
+  if (!tokenAMint) {
     return (
       <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
         <div className="text-center">
@@ -120,7 +189,7 @@ export default function BattleDetailPage() {
     );
   }
 
-  if (!stateA || !stateB) {
+  if (!stateA) {
     return (
       <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
         <div className="text-center">
@@ -142,9 +211,12 @@ export default function BattleDetailPage() {
       <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
           
+          {/* FOMOTicker */}
+          <FOMOTicker />
+
           {/* Back Button + Battle Title */}
           <div className="flex items-center gap-4 mb-6">
-            <button 
+            <button
               onClick={() => router.back()}
               className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
             >
@@ -153,59 +225,84 @@ export default function BattleDetailPage() {
               </svg>
             </button>
             <h1 className="text-xl font-bold">
-              {stateA.symbol} vs {stateB.symbol} Battle
+              {stateA.symbol} vs {stateB?.symbol || '???'} Battle
             </h1>
-            {solPriceUsd && (
-              <span className="text-xs text-gray-500 ml-auto">
-                SOL: <span className="text-green-400">${solPriceUsd.toFixed(2)}</span>
-              </span>
-            )}
           </div>
 
           {/* Battle Score Header */}
-          <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 mb-6">
+          <div className="battle-grid-bg border border-[#2a3544] rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between">
-              {/* Token A */}
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#2a3544]">
-                  <Image
-                    src={getTokenImage(stateA)}
-                    alt={stateA.symbol || 'Token A'}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
+              {/* Token A - Blue Background */}
+              <div
+                className={`flex items-center gap-3 rounded-xl p-3 ${attackA || clash ? 'ticker-shake' : ''}`}
+                style={{
+                  backgroundColor: clash ? '#EFFE16' : '#4DB5FF',
+                  boxShadow: attackA ? '0 0 20px rgba(77, 181, 255, 0.6)' : clash ? '0 0 20px rgba(239, 254, 22, 0.6)' : 'none'
+                }}
+              >
+                {/* Photo + Symbol Column */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/20">
+                    <Image
+                      src={getTokenImage(stateA)}
+                      alt={stateA.symbol || 'Token A'}
+                      width={56}
+                      height={56}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="font-bold text-sm mt-1 text-black">{stateA.symbol}</div>
                 </div>
-                <div>
-                  <div className="font-bold text-lg">{stateA.symbol}</div>
-                  <div className="text-xs text-gray-400">{stateA.name}</div>
+                {/* MC + VOL Column */}
+                <div className="flex flex-col">
+                  <div className="text-xs text-black/60">MC</div>
+                  <div className="font-semibold text-black text-sm">{formatUsd(progressA.mcUsd)}</div>
+                  <div className="text-xs text-black/60 mt-1">VOL</div>
+                  <div className="font-semibold text-black text-sm">{formatUsd(progressA.volUsd)}</div>
                 </div>
               </div>
 
               {/* Score */}
               <div className="text-center">
                 <div className="text-xs text-gray-400 mb-1">SCORE</div>
-                <div className="text-3xl font-black text-yellow-400">
+                <div className="text-xl font-black text-yellow-400">
                   {scoreA} - {scoreB}
                 </div>
               </div>
 
-              {/* Token B */}
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="font-bold text-lg">{stateB.symbol}</div>
-                  <div className="text-xs text-gray-400">{stateB.name}</div>
+              {/* Token B - Red/Pink Background */}
+              <div
+                className={`flex items-center gap-3 rounded-xl p-3 ${attackB || clash ? 'ticker-shake' : ''}`}
+                style={{
+                  backgroundColor: clash ? '#EFFE16' : '#FF5A8E',
+                  boxShadow: attackB ? '0 0 20px rgba(255, 90, 142, 0.6)' : clash ? '0 0 20px rgba(239, 254, 22, 0.6)' : 'none'
+                }}
+              >
+                {/* MC + VOL Column */}
+                <div className="flex flex-col text-right">
+                  <div className="text-xs text-black/60">MC</div>
+                  <div className="font-semibold text-black text-sm">{formatUsd(progressB.mcUsd)}</div>
+                  <div className="text-xs text-black/60 mt-1">VOL</div>
+                  <div className="font-semibold text-black text-sm">{formatUsd(progressB.volUsd)}</div>
                 </div>
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#2a3544]">
-                  <Image
-                    src={getTokenImage(stateB)}
-                    alt={stateB.symbol || 'Token B'}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
+                {/* Photo + Symbol Column */}
+                <div className="flex flex-col items-center">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/20">
+                    {stateB ? (
+                      <Image
+                        src={getTokenImage(stateB)}
+                        alt={stateB.symbol || 'Token B'}
+                        width={56}
+                        height={56}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl">❓</div>
+                    )}
+                  </div>
+                  <div className="font-bold text-sm mt-1 text-black">{stateB?.symbol || '???'}</div>
                 </div>
               </div>
             </div>
@@ -230,16 +327,18 @@ export default function BattleDetailPage() {
                   >
                     {stateA.symbol}
                   </button>
-                  <button
-                    onClick={() => setSelectedToken('B')}
-                    className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                      selectedToken === 'B'
-                        ? 'bg-orange-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {stateB.symbol}
-                  </button>
+                  {stateB && (
+                    <button
+                      onClick={() => setSelectedToken('B')}
+                      className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+                        selectedToken === 'B'
+                          ? 'bg-orange-500 text-white'
+                          : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {stateB.symbol}
+                    </button>
+                  )}
                 </div>
 
                 {/* Token Display */}
@@ -370,12 +469,14 @@ export default function BattleDetailPage() {
                       {((progressA.mc + progressA.vol) / 2).toFixed(1)}% avg
                     </div>
                   </div>
-                  <div>
-                    <div className="text-gray-400 mb-1">{stateB.symbol} Progress</div>
-                    <div className="font-semibold">
-                      {((progressB.mc + progressB.vol) / 2).toFixed(1)}% avg
+                  {stateB && (
+                    <div>
+                      <div className="text-gray-400 mb-1">{stateB.symbol} Progress</div>
+                      <div className="font-semibold">
+                        {((progressB.mc + progressB.vol) / 2).toFixed(1)}% avg
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -401,27 +502,48 @@ export default function BattleDetailPage() {
                     <span className="text-gray-400">{stateA.symbol} MC</span>
                     <span className="font-semibold">{formatUsd(progressA.mcUsd)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{stateB.symbol} MC</span>
-                    <span className="font-semibold">{formatUsd(progressB.mcUsd)}</span>
-                  </div>
+                  {stateB && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">{stateB.symbol} MC</span>
+                      <span className="font-semibold">{formatUsd(progressB.mcUsd)}</span>
+                    </div>
+                  )}
                   <div className="border-t border-gray-800 pt-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">{stateA.symbol} Vol</span>
                       <span className="font-semibold">{formatUsd(progressA.volUsd)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{stateB.symbol} Vol</span>
-                    <span className="font-semibold">{formatUsd(progressB.volUsd)}</span>
-                  </div>
+                  {stateB && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">{stateB.symbol} Vol</span>
+                      <span className="font-semibold">{formatUsd(progressB.volUsd)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Winner Prediction */}
               <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-4">
                 <h3 className="font-bold mb-3">🏆 Leading</h3>
-                {progressA.mc + progressA.vol > progressB.mc + progressB.vol ? (
+                {!stateB ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg overflow-hidden">
+                      <Image
+                        src={getTokenImage(stateA)}
+                        alt={stateA.symbol || ''}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    </div>
+                    <div>
+                      <div className="font-bold text-orange-400">{stateA.symbol}</div>
+                      <div className="text-xs text-gray-400">Waiting for opponent</div>
+                    </div>
+                  </div>
+                ) : progressA.mc + progressA.vol > progressB.mc + progressB.vol ? (
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg overflow-hidden">
                       <Image

@@ -64,8 +64,8 @@ export function MobileBottomNav() {
 
           {/* BATTLE - CENTRALE IN ARANCIONE */}
           <Link
-            href="/hall"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/hall')
+            href="/battlestart"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/battlestart')
                 ? 'text-[#FFA019] bg-[#FFA019]/10'
                 : 'text-[#FFA019]'
               }`}

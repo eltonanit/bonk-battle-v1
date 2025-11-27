@@ -261,7 +261,7 @@ export function Header() {
 
               {/* Ranking */}
               <Link
-                href="/hall"
+                href="/battlestart"
                 className="block px-4 py-3 text-white font-medium text-base hover:bg-bonk-card/50 rounded-lg transition-colors"
                 onClick={() => setShowMobileMenu(false)}
               >

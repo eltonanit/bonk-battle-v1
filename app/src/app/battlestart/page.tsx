@@ -16,13 +16,19 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { fetchAllBonkTokens, BonkToken } from '@/lib/solana/fetch-all-bonk-tokens';
+import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+
+// Layout components
+import { Header } from '@/components/layout/Header';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { DesktopHeader } from '@/components/layout/DesktopHeader';
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
 
 // ============================================================================
 // TYPES
@@ -44,48 +50,18 @@ interface UserToken {
 type TabType = 'on-battle' | 'qualify' | 'new';
 
 // ============================================================================
-// FOMO TICKER COMPONENT
-// ============================================================================
-
-function FomoTicker() {
-  const [messages, setMessages] = useState([
-    '🔥 DOGE just won a battle! +50% liquidity',
-    '⚔️ PEPE vs BONK battle started!',
-    '🚀 New token MOON created by 0x3f...8a',
-    '💰 SHIB qualified for battle!',
-    '🏆 WIF dominated and listed on DEX!',
-  ]);
-
-  return (
-    <div className="bg-[#1a1a2e] border-b border-orange-500/30 overflow-hidden">
-      <div className="animate-marquee whitespace-nowrap py-2">
-        {messages.map((msg, i) => (
-          <span key={i} className="mx-8 text-sm text-orange-400">
-            {msg}
-          </span>
-        ))}
-        {messages.map((msg, i) => (
-          <span key={`dup-${i}`} className="mx-8 text-sm text-orange-400">
-            {msg}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
 // TOKEN LIST ITEM COMPONENTS
 // ============================================================================
 
 // On Battle - Token in battaglia
 function OnBattleItem({ token }: { token: UserToken }) {
+  // Format: mintA-mintB (matches /battle/[id]/page.tsx expected format)
   const battleId = token.opponentMint
-    ? `${token.mint}_vs_${token.opponentMint}`
+    ? `${token.mint}-${token.opponentMint}`
     : token.mint;
 
   return (
-    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -123,15 +99,14 @@ function OnBattleItem({ token }: { token: UserToken }) {
   );
 }
 
-// Qualify - Token qualificato
-function QualifyItem({ token, onFindOpponent, onMatchFound }: {
+// Qualify - Token qualificato con timer 2 minuti
+function QualifyItem({ token, onFindOpponent }: {
   token: UserToken;
   onFindOpponent: (mint: string) => Promise<boolean>;
-  onMatchFound: (message: string) => void;
 }) {
   const [searching, setSearching] = useState(false);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
-  const [searchInterval, setSearchIntervalId] = useState<NodeJS.Timeout | null>(null);
+  const [searchIntervalRef, setSearchIntervalRef] = useState<NodeJS.Timeout | null>(null);
 
   // Format time as M:SS
   const formatTime = (seconds: number) => {
@@ -143,9 +118,9 @@ function QualifyItem({ token, onFindOpponent, onMatchFound }: {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (searchInterval) clearInterval(searchInterval);
+      if (searchIntervalRef) clearInterval(searchIntervalRef);
     };
-  }, [searchInterval]);
+  }, [searchIntervalRef]);
 
   // Timer countdown
   useEffect(() => {
@@ -156,7 +131,7 @@ function QualifyItem({ token, onFindOpponent, onMatchFound }: {
         if (prev <= 1) {
           // Time's up - stop searching
           setSearching(false);
-          if (searchInterval) clearInterval(searchInterval);
+          if (searchIntervalRef) clearInterval(searchIntervalRef);
           return 120;
         }
         return prev - 1;
@@ -164,44 +139,64 @@ function QualifyItem({ token, onFindOpponent, onMatchFound }: {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [searching, searchInterval]);
+  }, [searching, searchIntervalRef]);
 
-  const handleClick = async () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    console.log('🔘 Button clicked!');
+
     if (searching) {
       // Cancel search
+      console.log('❌ Cancelling search');
       setSearching(false);
       setTimeLeft(120);
-      if (searchInterval) clearInterval(searchInterval);
+      if (searchIntervalRef) {
+        clearInterval(searchIntervalRef);
+        setSearchIntervalRef(null);
+      }
       return;
     }
 
     // Start searching
+    console.log('🔍 Starting search for opponent:', token.mint);
     setSearching(true);
     setTimeLeft(120);
 
     // Try to find match immediately
-    const found = await onFindOpponent(token.mint);
-    if (found) {
-      setSearching(false);
-      setTimeLeft(120);
-      return;
-    }
-
-    // Set up polling every 10 seconds
-    const interval = setInterval(async () => {
-      const matchFound = await onFindOpponent(token.mint);
-      if (matchFound) {
+    onFindOpponent(token.mint).then(found => {
+      console.log('🔍 Initial search result:', found);
+      if (found) {
         setSearching(false);
         setTimeLeft(120);
-        clearInterval(interval);
+        if (searchIntervalRef) {
+          clearInterval(searchIntervalRef);
+          setSearchIntervalRef(null);
+        }
+        return;
       }
-    }, 10000);
 
-    setSearchIntervalId(interval);
+      // Set up polling every 10 seconds
+      const interval = setInterval(() => {
+        console.log('🔍 Polling for opponent...');
+        onFindOpponent(token.mint).then(matchFound => {
+          console.log('🔍 Poll result:', matchFound);
+          if (matchFound) {
+            setSearching(false);
+            setTimeLeft(120);
+            clearInterval(interval);
+            setSearchIntervalRef(null);
+          }
+        });
+      }, 10000);
+
+      setSearchIntervalRef(interval);
+    });
   };
 
   return (
-    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -225,8 +220,9 @@ function QualifyItem({ token, onFindOpponent, onMatchFound }: {
           </div>
         )}
         <button
+          type="button"
           onClick={handleClick}
-          className={`px-4 py-2 font-bold rounded-lg text-sm transition ${
+          className={`px-4 py-2 font-bold rounded-lg text-sm transition cursor-pointer ${
             searching
               ? 'bg-red-500 hover:bg-red-400 text-white'
               : 'bg-yellow-400 hover:bg-yellow-300 text-black'
@@ -242,7 +238,7 @@ function QualifyItem({ token, onFindOpponent, onMatchFound }: {
 // New - Token nuovo
 function NewItem({ token }: { token: UserToken }) {
   return (
-    <div className="flex items-center justify-between p-4 bg-[#1a1a2e] rounded-xl border border-white/10">
+    <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
       {/* Left: Token info */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
@@ -280,7 +276,6 @@ function NewItem({ token }: { token: UserToken }) {
 export default function BattleArenaPage() {
   const { publicKey } = useWallet();
   const { setVisible } = useWalletModal();
-  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<TabType>('on-battle');
   const [userTokens, setUserTokens] = useState<UserToken[]>([]);
@@ -324,14 +319,19 @@ export default function BattleArenaPage() {
         }
       }
 
-      // 3. Build user tokens list
+      // 3. Build user tokens list (tokens user owns OR created)
       const tokens: UserToken[] = [];
+      const addedMints = new Set<string>();
 
       for (const token of allBonkTokens) {
         const mintStr = token.mint.toString();
-        const userBalance = userBalances.get(mintStr);
+        const userBalance = userBalances.get(mintStr) || 0n;
+        const isCreator = token.creator?.toString() === publicKey.toString();
 
-        if (!userBalance || userBalance === 0n) continue;
+        // Include if user owns tokens OR is the creator
+        if (userBalance === 0n && !isCreator) continue;
+        if (addedMints.has(mintStr)) continue;
+        addedMints.add(mintStr);
 
         // Find opponent if in battle
         let opponentData: { mint: string; symbol: string; image: string } | null = null;
@@ -426,14 +426,6 @@ export default function BattleArenaPage() {
     }
   }, [fetchUserTokens]);
 
-  const handleMatchFound = useCallback((message: string) => {
-    setSuccessMessage(message);
-    setShowSuccess(true);
-    setTimeout(() => {
-      fetchUserTokens();
-    }, 2000);
-  }, [fetchUserTokens]);
-
   const handleSuccessClose = useCallback(() => {
     setShowSuccess(false);
   }, []);
@@ -443,7 +435,7 @@ export default function BattleArenaPage() {
   // ==========================================================================
 
   return (
-    <div className="min-h-screen bg-[#0f0f1a] text-white pb-20">
+    <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
       {/* Success Popup */}
       <TransactionSuccessPopup
         show={showSuccess}
@@ -453,33 +445,46 @@ export default function BattleArenaPage() {
         autoCloseMs={2500}
       />
 
-      {/* FOMO Ticker */}
-      <FomoTicker />
+      {/* Layout Components */}
+      <Sidebar />
+      <DesktopHeader />
+      <Header />
 
-      {/* Divider */}
-      <div className="h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+      {/* Main Content */}
+      <div className="pt-32 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
+        {/* FOMOTicker - Mobile only */}
+        <div className="lg:hidden">
+          <FOMOTicker />
+        </div>
 
-      {/* Start Battle Button */}
-      <div className="p-4">
-        {publicKey ? (
-          <Link
-            href="/create"
-            className="block w-full py-4 bg-gradient-to-r from-orange-500 to-red-600 text-center text-xl font-bold rounded-xl hover:from-orange-600 hover:to-red-700 transition shadow-lg shadow-orange-500/30"
-          >
-            ⚔️ Start Battle
-          </Link>
-        ) : (
-          <button
-            onClick={() => setVisible(true)}
-            className="w-full py-4 bg-orange-500 text-black text-xl font-bold rounded-xl hover:bg-orange-400 transition"
-          >
-            Log in to start Battle
-          </button>
-        )}
-      </div>
+        {/* Divider */}
+        <div className="h-px bg-cyan-400/30" />
 
-      {/* Divider */}
-      <div className="h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent" />
+        {/* No tokens? Start a new battle */}
+        <div className="p-3 lg:px-6 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2">
+            <img src="/profilo.png" alt="" className="w-6 h-6 rounded-full" />
+            <span className="text-white text-base font-medium">No tokens?</span>
+          </div>
+          {publicKey ? (
+            <Link
+              href="/create"
+              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
+            >
+              Start New Battle
+            </Link>
+          ) : (
+            <button
+              onClick={() => setVisible(true)}
+              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
+            >
+              Start New Battle
+            </button>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="h-px bg-cyan-400/30" />
 
       {/* Tabs */}
       <div className="flex border-b border-white/10">
@@ -573,40 +578,64 @@ export default function BattleArenaPage() {
           </div>
         ) : (
           <>
-            {activeTab === 'on-battle' && onBattleTokens.map(token => (
-              <OnBattleItem key={token.mint} token={token} />
-            ))}
-            {activeTab === 'qualify' && qualifiedTokens.map(token => (
-              <QualifyItem key={token.mint} token={token} onFindOpponent={handleFindOpponent} onMatchFound={handleMatchFound} />
-            ))}
-            {activeTab === 'new' && newTokens.map(token => (
-              <NewItem key={token.mint} token={token} />
-            ))}
+            {activeTab === 'on-battle' && (
+              <>
+                {onBattleTokens.map(token => (
+                  <OnBattleItem key={token.mint} token={token} />
+                ))}
+                {/* More battle? section */}
+                <div className="flex flex-col items-center gap-2 mt-6">
+                  <div className="flex items-center gap-2">
+                    <img src="/profilo.png" alt="" className="w-6 h-6 rounded-full" />
+                    <span className="text-white text-base font-semibold">More battle?</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('new')}
+                    className="px-4 py-2 bg-orange-500 text-black text-sm font-bold rounded-lg hover:bg-orange-400 transition"
+                  >
+                    Qualify more tokens
+                  </button>
+                </div>
+              </>
+            )}
+            {activeTab === 'qualify' && (
+              <>
+                {qualifiedTokens.map(token => (
+                  <QualifyItem key={token.mint} token={token} onFindOpponent={handleFindOpponent} />
+                ))}
+                <div className="flex justify-center mt-4">
+                  <Link
+                    href="/create"
+                    className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
+                  >
+                    Create a new token
+                  </Link>
+                </div>
+              </>
+            )}
+            {activeTab === 'new' && (
+              <>
+                {newTokens.map(token => (
+                  <NewItem key={token.mint} token={token} />
+                ))}
+                <div className="flex justify-center mt-4">
+                  <Link
+                    href="/create"
+                    className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
+                  >
+                    Create a new token
+                  </Link>
+                </div>
+              </>
+            )}
           </>
         )}
+        </div>
+
       </div>
 
-      {/* Quick Stats */}
-      {publicKey && !loading && userTokens.length > 0 && (
-        <div className="fixed bottom-20 left-4 right-4">
-          <div className="bg-[#1a1a2e]/90 backdrop-blur-sm rounded-xl p-3 border border-white/10 flex justify-around text-center">
-            <div>
-              <div className="text-2xl font-bold text-orange-400">{onBattleTokens.length}</div>
-              <div className="text-xs text-white/50">In Battle</div>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <div className="text-2xl font-bold text-yellow-400">{qualifiedTokens.length}</div>
-              <div className="text-xs text-white/50">Qualified</div>
-            </div>
-            <div className="w-px bg-white/10" />
-            <div>
-              <div className="text-2xl font-bold text-green-400">{newTokens.length}</div>
-              <div className="text-xs text-white/50">New</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile Bottom Nav */}
+      <MobileBottomNav />
     </div>
   );
 }

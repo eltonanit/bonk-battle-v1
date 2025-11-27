@@ -13,7 +13,7 @@ import {
 } from '@solana/web3.js';
 
 const BONK_BATTLE_PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
-const KEEPER_AUTHORITY = new PublicKey('Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH');
+const KEEPER_AUTHORITY = new PublicKey('753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3');
 
 const START_BATTLE_DISCRIMINATOR = Buffer.from([87, 12, 31, 196, 33, 191, 140, 147]);
 
