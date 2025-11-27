@@ -1,6 +1,6 @@
 ﻿/** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false, // ⚠️ TEMPORANEO: disabilita Strict Mode per ridurre chiamate RPC doppie
+  reactStrictMode: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -19,7 +19,21 @@ const nextConfig = {
         hostname: 'img.icons8.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'bonk-battle.vercel.app',
+        pathname: '/r2/**',
+      },
     ],
+  },
+  // ⭐ PROXY: Serve immagini R2 attraverso Vercel
+  async rewrites() {
+    return [
+      {
+        source: '/r2/:path*',
+        destination: 'https://pub-cfdd9da14dd945a2bf1ea4e5b9b0ce2c.r2.dev/:path*',
+      },
+    ];
   },
 }
 

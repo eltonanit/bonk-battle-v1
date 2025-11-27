@@ -22,17 +22,20 @@ export function CoinsTab() {
       // Fetch all BONK tokens
       const allTokens = await fetchAllBonkTokens();
 
-      // Filter by creator (we don't have creator field in TokenBattleState, so we need to check mint ownership or use another approach)
-      // For now, we'll show all tokens as a temporary solution
-      // TODO: Add creator field to TokenBattleState or track in Supabase
-
       console.log(`📊 Found ${allTokens.length} total BONK tokens`);
 
-      // Sort by creation timestamp (newest first)
-      allTokens.sort((a, b) => b.creationTimestamp - a.creationTimestamp);
+      // Filter only tokens created by this user
+      const userCreatedTokens = allTokens.filter(
+        token => token.creator.toString() === publicKey.toBase58()
+      );
 
-      setCoins(allTokens);
-      console.log(`✅ Loaded ${allTokens.length} BONK tokens`);
+      console.log(`🎨 Found ${userCreatedTokens.length} tokens created by ${publicKey.toBase58()}`);
+
+      // Sort by creation timestamp (newest first)
+      userCreatedTokens.sort((a, b) => b.creationTimestamp - a.creationTimestamp);
+
+      setCoins(userCreatedTokens);
+      console.log(`✅ Loaded ${userCreatedTokens.length} user-created BONK tokens`);
 
     } catch (error) {
       console.error('❌ Error fetching created coins:', error);
@@ -103,24 +106,9 @@ export function CoinsTab() {
     );
   }
 
-  if (coins.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">🚀</div>
-        <div className="text-xl font-bold mb-2">No coins created yet</div>
-        <div className="text-gray-400 mb-6">Create your first token and become a creator</div>
-        <Link
-          href="/create"
-          className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
-        >
-          Create Your First Coin
-        </Link>
-      </div>
-    );
-  }
-
   return (
     <div>
+      {/* Header with buttons - always visible when logged in */}
       <div className="flex items-center justify-between mb-6">
         <div className="text-lg font-bold text-white">
           Your Tokens ({coins.length})
@@ -132,6 +120,21 @@ export function CoinsTab() {
           + Create New
         </Link>
       </div>
+
+      {/* Empty state */}
+      {coins.length === 0 ? (
+        <div className="text-center py-12 bg-[#1a1f2e] border border-[#2a3544] rounded-xl">
+          <div className="text-6xl mb-4">🚀</div>
+          <div className="text-xl font-bold mb-2">No coins created yet</div>
+          <div className="text-gray-400 mb-6">Create your first token and become a creator</div>
+          <Link
+            href="/create"
+            className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
+          >
+            Create Your First Coin
+          </Link>
+        </div>
+      ) : (
 
       <div className="space-y-3">
         {coins.map((coin) => {
@@ -227,6 +230,7 @@ export function CoinsTab() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }
