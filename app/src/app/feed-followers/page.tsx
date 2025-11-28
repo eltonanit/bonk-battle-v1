@@ -189,39 +189,82 @@ export default function FeedFollowersPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {feed.map((item) => (
-                    <div
-                      key={item.id}
-                      className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center gap-4"
-                    >
-                      {/* User Profile Photo */}
-                      <img
-                        src="/profilo.png"
-                        alt={item.wallet.slice(0, 4)}
-                        className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                      />
+                  {feed.map((item) => {
+                    // Special layout for started_follow
+                    if (item.action_type === 'started_follow') {
+                      const followedWallet = (item.metadata?.followed_wallet as string) || '';
+                      const followedShort = followedWallet.slice(0, 5);
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-white">
-                            {item.wallet.slice(0, 4)}
-                          </span>
-                          {renderActionText(item)}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {item.created_at ? formatTimeAgo(item.created_at) : 'just now'}
-                        </div>
-                      </div>
+                      return (
+                        <div
+                          key={item.id}
+                          className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4"
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Follower photo + name */}
+                            <img
+                              src="/profilo.png"
+                              alt={item.wallet.slice(0, 5)}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                            <span className="font-semibold text-white">
+                              {item.wallet.slice(0, 5)}
+                            </span>
 
-                      {item.token_image && (
+                            <span className="text-gray-400">started following</span>
+
+                            {/* Followed photo + name */}
+                            <img
+                              src="/profilo.png"
+                              alt={followedShort}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                            <span className="font-semibold text-cyan-400">
+                              {followedShort}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            {item.created_at ? formatTimeAgo(item.created_at) : 'just now'}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Default layout for other actions
+                    return (
+                      <div
+                        key={item.id}
+                        className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 flex items-center gap-4"
+                      >
+                        {/* User Profile Photo */}
                         <img
-                          src={item.token_image}
-                          alt={item.token_symbol || ''}
-                          className="w-10 h-10 rounded-lg object-cover"
+                          src="/profilo.png"
+                          alt={item.wallet.slice(0, 5)}
+                          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                         />
-                      )}
-                    </div>
-                  ))}
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-white">
+                              {item.wallet.slice(0, 5)}
+                            </span>
+                            {renderActionText(item)}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {item.created_at ? formatTimeAgo(item.created_at) : 'just now'}
+                          </div>
+                        </div>
+
+                        {item.token_image && (
+                          <img
+                            src={item.token_image}
+                            alt={item.token_symbol || ''}
+                            className="w-10 h-10 rounded-lg object-cover"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

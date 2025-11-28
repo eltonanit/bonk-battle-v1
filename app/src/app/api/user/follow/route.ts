@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('activity_feed').insert({
         wallet: followerWallet,
         action_type: 'started_follow',
+        created_at: new Date().toISOString(),
         metadata: {
           followed_wallet: followingWallet,
           followed_short: `${followingWallet.slice(0, 4)}...${followingWallet.slice(-4)}`
