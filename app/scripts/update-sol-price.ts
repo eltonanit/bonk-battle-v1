@@ -1,4 +1,4 @@
-// scripts/update-sol-price.ts
+// app/scripts/update-sol-price.ts
 /**
  * BONK BATTLE - Keeper Script per aggiornare prezzo SOL
  *

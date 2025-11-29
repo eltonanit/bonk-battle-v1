@@ -34,6 +34,16 @@ const TICKER_COLORS = [
   '#93EAEB'   // Blu
 ];
 
+/**
+ * Validates if a string is a valid image URL for next/image
+ * Must be absolute URL (http/https) or start with /
+ */
+function isValidImageUrl(url: string | undefined): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/');
+}
+
 export function FOMOTicker() {
   const [allEvents, setAllEvents] = useState<RealEvent[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -94,14 +104,9 @@ export function FOMOTicker() {
           // Crea eventi "created" da TUTTI i token
           createdEvents = allTokens.map(token => {
             const mintStr = token.mint.toString();
-            const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+            // ⭐ V2 FIX: creator might be undefined, fallback to mint
+            const creatorStr = token.creator?.toString() || mintStr;
             const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
-
-            // console.log('🔍 Token:', {
-            //   mint: mintStr.slice(0, 8),
-            //   creator: creatorStr.slice(0, 8),
-            //   isSame: mintStr === creatorStr,
-            // });
 
             return {
               signature: mintStr,
@@ -112,7 +117,7 @@ export function FOMOTicker() {
               tokenName: token.name || mintStr.slice(0, 8),
               tokenSymbol: token.symbol || 'UNK',
               tokenImage: token.image,
-              amount: (token.solCollected || 0) / 1e9,
+              amount: (token.solCollected ?? token.realSolReserves ?? 0) / 1e9, // ⭐ V2: use solCollected or realSolReserves
               tier: 2,
               timestamp: token.creationTimestamp * 1000,
             };
@@ -125,7 +130,8 @@ export function FOMOTicker() {
 
           if (tokensWithVolume.length > 0) {
             mockBuyEvents = tokensWithVolume.slice(0, 10).map((token, idx) => {
-              const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+              // ⭐ V2 FIX: creator might be undefined, fallback to mint
+              const creatorStr = token.creator?.toString() || token.mint.toString();
               return {
                 signature: 'mock-buy-' + idx,
                 mint: token.mint.toString(),
@@ -135,7 +141,7 @@ export function FOMOTicker() {
                 tokenName: token.name || token.mint.toString().slice(0, 8),
                 tokenSymbol: token.symbol || 'UNK',
                 tokenImage: token.image,
-                amount: token.totalTradeVolume / 1e9, // ⭐ FIX: removed /10 division
+                amount: token.totalTradeVolume / 1e9,
                 tier: 2,
                 timestamp: Date.now() - (idx * 1000),
               };
@@ -303,10 +309,10 @@ export function FOMOTicker() {
                   BATTLE STARTED:
                 </span>
 
-                {currentEvent.tokenImage && (
+                {isValidImageUrl(currentEvent.tokenImage) && (
                   <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
-                      src={currentEvent.tokenImage}
+                      src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
                       width={24}
                       height={24}
@@ -320,10 +326,10 @@ export function FOMOTicker() {
                   VS
                 </span>
 
-                {currentEvent.opponentImage && (
+                {isValidImageUrl(currentEvent.opponentImage) && (
                   <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
-                      src={currentEvent.opponentImage}
+                      src={currentEvent.opponentImage!}
                       alt={currentEvent.opponentSymbol || 'Opponent'}
                       width={24}
                       height={24}
@@ -337,10 +343,10 @@ export function FOMOTicker() {
               <>
                 {/* Created/Buy Event */}
                 {/* Token Image LEFT */}
-                {currentEvent.tokenImage && (
+                {isValidImageUrl(currentEvent.tokenImage) && (
                   <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                     <Image
-                      src={currentEvent.tokenImage}
+                      src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
                       width={24}
                       height={24}

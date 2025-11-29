@@ -17,10 +17,46 @@ export enum BattleStatus {
   VictoryPending = 3,
   /** Token has been listed on the exchange */
   Listed = 4,
+  /** Token pool has been created on Raydium */
+  PoolCreated = 5,  // V2: NEW!
 }
 
 /**
- * Token Battle State
+ * Battle Tier Enum (V2)
+ * 
+ * Determines victory thresholds for the token
+ */
+export enum BattleTier {
+  /** Test tier - lower thresholds for devnet testing */
+  Test = 0,
+  /** Production tier - full thresholds for mainnet */
+  Production = 1,
+}
+
+/**
+ * Tier Configuration
+ */
+export const TIER_CONFIG = {
+  [BattleTier.Test]: {
+    name: 'Test',
+    description: 'For testing on devnet',
+    initialMcUsd: 280,
+    victoryMcUsd: 5500,
+    victoryVolumeUsd: 200,
+    targetSol: 28,
+  },
+  [BattleTier.Production]: {
+    name: 'Production',
+    description: 'For mainnet battles',
+    initialMcUsd: 1270,
+    victoryMcUsd: 25000,
+    victoryVolumeUsd: 20000,
+    targetSol: 127,
+  },
+};
+
+/**
+ * Token Battle State V2
  *
  * Main account that tracks all state for a token participating in BONK BATTLE.
  * This is stored in a PDA derived from ['battle_state', mint].
@@ -28,8 +64,16 @@ export enum BattleStatus {
 export interface TokenBattleState {
   /** The mint address of the token */
   mint: PublicKey;
-  /** Total SOL collected from buys (in lamports) */
-  solCollected: BN;
+  /** Battle tier (0 = Test, 1 = Production) - V2 */
+  tier: BattleTier;
+  /** Virtual SOL reserves for bonding curve (V2) */
+  virtualSolReserves: BN;
+  /** Virtual token reserves for bonding curve (V2) */
+  virtualTokenReserves: BN;
+  /** Real SOL reserves (actual SOL in pool) (V2) */
+  realSolReserves: BN;
+  /** Real token reserves (actual tokens in pool) (V2) */
+  realTokenReserves: BN;
   /** Total number of tokens sold */
   tokensSold: BN;
   /** Cumulative trade volume in SOL (in lamports) */
@@ -42,8 +86,6 @@ export interface TokenBattleState {
   opponentMint: PublicKey;
   /** Unix timestamp when token was created */
   creationTimestamp: BN;
-  /** Unix timestamp when token qualified for battle */
-  qualificationTimestamp: BN;
   /** Unix timestamp of last trade */
   lastTradeTimestamp: BN;
   /** Unix timestamp when battle started */
@@ -54,6 +96,12 @@ export interface TokenBattleState {
   listingTimestamp: BN;
   /** PDA bump seed */
   bump: number;
+  /** Token name */
+  name: string;
+  /** Token symbol */
+  symbol: string;
+  /** Token metadata URI */
+  uri: string;
 }
 
 /**
@@ -80,21 +128,23 @@ export interface PriceOracle {
 // ============================================================================
 
 /**
- * Event: Gladiator Forged
+ * Event: Gladiator Forged (V2)
  *
  * Emitted when a new token is created in the BONK BATTLE arena.
  */
 export interface GladiatorForged {
   mint: PublicKey;
   creator: PublicKey;
+  tier: BattleTier;
   initialMarketCapUsd: BN;
-  initialMarketCapLamports: BN;
-  solPriceAtCreation: BN;
+  virtualSolInit: BN;
+  constantK: BN;  // u128
+  targetSol: BN;
   timestamp: BN;
 }
 
 /**
- * Event: Token Purchased
+ * Event: Token Purchased (V2)
  *
  * Emitted when someone buys tokens from the bonding curve.
  */
@@ -104,11 +154,13 @@ export interface TokenPurchased {
   solAmount: BN;
   tokensReceived: BN;
   newMarketCapUsd: BN;
+  virtualSolReserves: BN;
+  virtualTokenReserves: BN;
   solPrice: BN;
 }
 
 /**
- * Event: Token Sold
+ * Event: Token Sold (V2)
  *
  * Emitted when someone sells tokens back to the bonding curve.
  */
@@ -118,6 +170,8 @@ export interface TokenSold {
   tokenAmount: BN;
   solReceived: BN;
   newMarketCapUsd: BN;
+  virtualSolReserves: BN;
+  virtualTokenReserves: BN;
   solPrice: BN;
 }
 
@@ -134,7 +188,7 @@ export interface GladiatorQualified {
 }
 
 /**
- * Event: Battle Started
+ * Event: Battle Started (V2)
  *
  * Emitted when two tokens enter into battle.
  */
@@ -143,6 +197,7 @@ export interface BattleStarted {
   tokenB: PublicKey;
   mcAUsd: BN;
   mcBUsd: BN;
+  tier: BattleTier;
   timestamp: BN;
 }
 
@@ -204,26 +259,29 @@ export interface PriceUpdated {
 // ============================================================================
 
 /**
- * Arguments for create_battle_token instruction
+ * Arguments for create_battle_token instruction (V2)
  */
 export interface CreateBattleTokenArgs {
   name: string;
   symbol: string;
   uri: string;
+  tier: number;  // V2: NEW!
 }
 
 /**
- * Arguments for buy_token instruction
+ * Arguments for buy_token instruction (V2)
  */
 export interface BuyTokenArgs {
   solAmount: BN;
+  minTokensOut: BN;  // V2: NEW! Slippage protection
 }
 
 /**
- * Arguments for sell_token instruction
+ * Arguments for sell_token instruction (V2)
  */
 export interface SellTokenArgs {
   tokenAmount: BN;
+  minSolOut: BN;  // V2: NEW! Slippage protection
 }
 
 /**
@@ -241,38 +299,40 @@ export interface UpdateSolPriceArgs {
 }
 
 // ============================================================================
-// Error Codes
+// Error Codes (V2)
 // ============================================================================
 
 /**
- * Custom error codes from the BONK BATTLE program
+ * Custom error codes from the BONK BATTLE program V2
  */
 export enum BonkBattleError {
   InvalidTokenName = 6000,
   InvalidTokenSymbol = 6001,
   InvalidTokenUri = 6002,
-  AmountTooSmall = 6003,
-  AmountTooLarge = 6004,
-  TradingInactive = 6005,
-  InsufficientOutput = 6006,
-  ExceedsSupply = 6007,
-  InsufficientLiquidity = 6008,
-  InsufficientBalance = 6009,
-  NotQualified = 6010,
-  SelfBattle = 6011,
-  UnfairMatch = 6012,
-  NotInBattle = 6013,
-  NoVictoryAchieved = 6014,
-  InvalidBattleState = 6015,
-  NotOpponents = 6016,
-  InvalidTreasury = 6017,
-  Unauthorized = 6018,
-  MathOverflow = 6019,
-  InvalidCurveState = 6020,
-  PriceUpdateTooSoon = 6021,
-  WouldExceedGraduation = 6022,
-  NotReadyForListing = 6023,
-  NoLiquidityToWithdraw = 6024,
+  InvalidTier = 6003,        // V2: NEW
+  TierMismatch = 6004,       // V2: NEW
+  AmountTooSmall = 6005,
+  AmountTooLarge = 6006,
+  TradingInactive = 6007,
+  InsufficientOutput = 6008,
+  SlippageExceeded = 6009,   // V2: NEW
+  ExceedsSupply = 6010,
+  InsufficientLiquidity = 6011,
+  InsufficientBalance = 6012,
+  NotQualified = 6013,
+  SelfBattle = 6014,
+  UnfairMatch = 6015,
+  NotInBattle = 6016,
+  NoVictoryAchieved = 6017,
+  InvalidBattleState = 6018,
+  NotOpponents = 6019,
+  InvalidTreasury = 6020,
+  Unauthorized = 6021,
+  MathOverflow = 6022,
+  InvalidCurveState = 6023,
+  WouldExceedGraduation = 6024,
+  NotReadyForListing = 6025,
+  NoLiquidityToWithdraw = 6026,
 }
 
 /**
@@ -282,10 +342,13 @@ export const ERROR_MESSAGES: Record<BonkBattleError, string> = {
   [BonkBattleError.InvalidTokenName]: 'Invalid token name: must be 1-50 characters',
   [BonkBattleError.InvalidTokenSymbol]: 'Invalid token symbol: must be 1-10 characters',
   [BonkBattleError.InvalidTokenUri]: 'Invalid token URI: must be <= 200 characters',
+  [BonkBattleError.InvalidTier]: 'Invalid tier: must be 0 (Test) or 1 (Production)',
+  [BonkBattleError.TierMismatch]: 'Tier mismatch: both tokens must be same tier',
   [BonkBattleError.AmountTooSmall]: 'Amount too small: minimum transaction required',
   [BonkBattleError.AmountTooLarge]: 'Amount too large: maximum transaction exceeded',
   [BonkBattleError.TradingInactive]: 'Trading is inactive for this token',
   [BonkBattleError.InsufficientOutput]: 'Insufficient output from bonding curve',
+  [BonkBattleError.SlippageExceeded]: 'Slippage exceeded: output less than minimum',
   [BonkBattleError.ExceedsSupply]: 'Exceeds available token supply',
   [BonkBattleError.InsufficientLiquidity]: 'Insufficient liquidity in pool',
   [BonkBattleError.InsufficientBalance]: 'Insufficient token balance',
@@ -300,7 +363,6 @@ export const ERROR_MESSAGES: Record<BonkBattleError, string> = {
   [BonkBattleError.Unauthorized]: 'Unauthorized: invalid keeper authority',
   [BonkBattleError.MathOverflow]: 'Mathematical overflow in calculation',
   [BonkBattleError.InvalidCurveState]: 'Invalid bonding curve state',
-  [BonkBattleError.PriceUpdateTooSoon]: 'Price update too soon, must wait 24 hours',
   [BonkBattleError.WouldExceedGraduation]: 'Would exceed graduation threshold',
   [BonkBattleError.NotReadyForListing]: 'Token not ready for listing',
   [BonkBattleError.NoLiquidityToWithdraw]: 'No liquidity to withdraw for listing',
@@ -311,29 +373,37 @@ export const ERROR_MESSAGES: Record<BonkBattleError, string> = {
 // ============================================================================
 
 /**
- * Parsed account data for TokenBattleState
+ * Parsed account data for TokenBattleState V2
  */
 export interface ParsedTokenBattleState {
   mint: PublicKey;
-  creator: PublicKey; // ⭐ NUOVO: wallet del creatore
-  solCollected: number;
+  tier: BattleTier;  // V2: NEW
+  virtualSolReserves: number;  // V2: NEW
+  virtualTokenReserves: number;  // V2: NEW
+  realSolReserves: number;  // V2: NEW
+  realTokenReserves: number;  // V2: NEW
   tokensSold: number;
   totalTradeVolume: number;
   isActive: boolean;
   battleStatus: BattleStatus;
   opponentMint: PublicKey;
   creationTimestamp: number;
-  qualificationTimestamp: number;
   lastTradeTimestamp: number;
   battleStartTimestamp: number;
   victoryTimestamp: number;
   listingTimestamp: number;
   bump: number;
-  // Metadata (optional, populated from Supabase)
-  name?: string;
-  symbol?: string;
-  uri?: string;
-  image?: string;
+  // Metadata
+  name: string;
+  symbol: string;
+  uri: string;
+  image?: string;  // Parsed from uri JSON
+  // Computed fields
+  marketCapUsd?: number;
+  pricePerToken?: number;
+  // ⭐ Backwards compatibility (V1 fields)
+  creator?: PublicKey;  // V1 compat: not stored in V2, derived from first tx
+  solCollected?: number;  // V1 compat: now use realSolReserves
 }
 
 /**
@@ -345,3 +415,33 @@ export interface ParsedPriceOracle extends Omit<PriceOracle, 'solPriceUsd' | 'la
   nextUpdateTimestamp: number;
   updateCount: number;
 }
+
+/**
+ * Battle status display helpers
+ */
+export const BATTLE_STATUS_LABELS: Record<BattleStatus, string> = {
+  [BattleStatus.Created]: 'New',
+  [BattleStatus.Qualified]: 'Qualified',
+  [BattleStatus.InBattle]: 'In Battle',
+  [BattleStatus.VictoryPending]: 'Victory!',
+  [BattleStatus.Listed]: 'Listed',
+  [BattleStatus.PoolCreated]: 'Pool Created',
+};
+
+export const BATTLE_STATUS_COLORS: Record<BattleStatus, string> = {
+  [BattleStatus.Created]: 'text-gray-400',
+  [BattleStatus.Qualified]: 'text-yellow-500',
+  [BattleStatus.InBattle]: 'text-red-500',
+  [BattleStatus.VictoryPending]: 'text-green-500',
+  [BattleStatus.Listed]: 'text-cyan-500',
+  [BattleStatus.PoolCreated]: 'text-purple-500',
+};
+
+export const BATTLE_STATUS_BG_COLORS: Record<BattleStatus, string> = {
+  [BattleStatus.Created]: 'bg-gray-500/20',
+  [BattleStatus.Qualified]: 'bg-yellow-500/20',
+  [BattleStatus.InBattle]: 'bg-red-500/20',
+  [BattleStatus.VictoryPending]: 'bg-green-500/20',
+  [BattleStatus.Listed]: 'bg-cyan-500/20',
+  [BattleStatus.PoolCreated]: 'bg-purple-500/20',
+};

@@ -23,6 +23,16 @@ const CREATED_COLORS = [
   '#93EAEB'   // Azzurro
 ];
 
+/**
+ * Validates if a string is a valid image URL for next/image
+ * Must be absolute URL (http/https) or start with /
+ */
+function isValidImageUrl(url: string | undefined): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('/');
+}
+
 export function CreatedTicker() {
   const [createdEvents, setCreatedEvents] = useState<CreatedEvent[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -38,7 +48,8 @@ export function CreatedTicker() {
           // Crea eventi "created" da TUTTI i token
           const events = allTokens.map(token => {
             const mintStr = token.mint.toString();
-            const creatorStr = token.creator.toString();
+            // ⭐ V2 FIX: creator might be undefined, fallback to mint
+            const creatorStr = token.creator?.toString() || mintStr;
             const creatorShort = creatorStr.slice(0, 5);
 
             return {
@@ -150,10 +161,10 @@ export function CreatedTicker() {
             }}
           >
             {/* Token Image LEFT */}
-            {currentEvent.tokenImage && (
+            {isValidImageUrl(currentEvent.tokenImage) && (
               <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                 <Image
-                  src={currentEvent.tokenImage}
+                  src={currentEvent.tokenImage!}
                   alt={currentEvent.tokenSymbol}
                   width={24}
                   height={24}

@@ -70,7 +70,8 @@ export function FOMOTicker() {
           // Crea eventi "created" da TUTTI i token
           createdEvents = allTokens.map(token => {
             const mintStr = token.mint.toString();
-            const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+            // ⭐ V2 FIX: creator might be undefined, fallback to mint
+            const creatorStr = token.creator?.toString() || mintStr;
             const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
 
             return {
@@ -82,7 +83,8 @@ export function FOMOTicker() {
               tokenName: token.name || mintStr.slice(0, 8),
               tokenSymbol: token.symbol || 'UNK',
               tokenImage: token.image,
-              amount: (token.solCollected || 0) / 1e9,
+              // ⭐ V2 FIX: use solCollected or realSolReserves
+              amount: (token.solCollected ?? token.realSolReserves ?? 0) / 1e9,
               tier: 2,
               timestamp: token.creationTimestamp * 1000,
             };
@@ -95,7 +97,8 @@ export function FOMOTicker() {
 
           if (tokensWithVolume.length > 0) {
             mockBuyEvents = tokensWithVolume.slice(0, 10).map((token, idx) => {
-              const creatorStr = token.creator.toString(); // ⭐ USA IL CREATOR
+              // ⭐ V2 FIX: creator might be undefined, fallback to mint
+              const creatorStr = token.creator?.toString() || token.mint.toString();
               return {
                 signature: 'mock-buy-' + idx,
                 mint: token.mint.toString(),

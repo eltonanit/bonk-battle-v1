@@ -11,16 +11,26 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
-import { useTokenBattleState } from '@/hooks/useTokenBattleState';
-import { usePriceOracle, useCalculateMarketCapUsd } from '@/hooks/usePriceOracle';
-import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
-import { BattleStatus } from '@/types/bonk';
+import { useTokenBattleState, calculateMarketCapFromReserves, calculatePricePerToken } from '@/hooks/useTokenBattleState';
+import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { BattleStatus, TIER_CONFIG, BattleTier } from '@/types/bonk';
 import { TradingPanel } from '@/components/token/TradingPanel';
 import { TokenHero } from '@/components/token/TokenHero';
 import { PriceChart } from '@/components/token/PriceChart';
 import { BondingCurveCard } from '@/components/token/BondingCurveCard';
-import { QualificationPopup } from '@/components/token/QualificationPopup'; 
-import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
+import { QualificationPopup } from '@/components/token/QualificationPopup';
+
+/**
+ * Validates if a string is a valid Solana public key
+ */
+function isValidPublicKey(address: string): boolean {
+  try {
+    new PublicKey(address);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export default function TokenDetailPage() {
   const params = useParams();
@@ -30,24 +40,46 @@ export default function TokenDetailPage() {
   // ⭐ Stato per tracciare se popup è stato chiuso
   const [qualificationPopupDismissed, setQualificationPopupDismissed] = useState(false);
 
-  // Parse mint PublicKey
-  const mint = new PublicKey(mintAddress);
+  // ⭐ Validate mint address before parsing
+  const isValidMint = isValidPublicKey(mintAddress);
 
-  // Fetch token battle state
+  // Parse mint PublicKey (only if valid)
+  const mint = isValidMint ? new PublicKey(mintAddress) : null;
+
+  // ⭐ ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // Fetch token battle state (pass null if invalid mint)
   const { state, loading, error, refetch } = useTokenBattleState(mint);
 
   // Fetch SOL price oracle
   const { solPriceUsd } = usePriceOracle();
 
-  // Calculate market cap in USD
-  const marketCapUsd = useCalculateMarketCapUsd(state?.solCollected ?? 0);
+  // ⭐ V2: Calculate market cap from virtual reserves
+  const marketCapUsd = state && solPriceUsd
+    ? calculateMarketCapFromReserves(
+      state.virtualSolReserves,
+      state.virtualTokenReserves,
+      solPriceUsd
+    )
+    : null;
+
+  // ⭐ V2: Calculate price per token
+  const pricePerToken = state && solPriceUsd
+    ? calculatePricePerToken(
+      state.virtualSolReserves,
+      state.virtualTokenReserves,
+      solPriceUsd
+    )
+    : null;
+
+  // ⭐ V2: Get tier config
+  const tierConfig = state ? TIER_CONFIG[state.tier ?? BattleTier.Test] : TIER_CONFIG[BattleTier.Test];
 
   // ⭐ INCREMENT VIEW quando user entra nella pagina
   useEffect(() => {
-    if (publicKey && mintAddress) {
+    if (publicKey && mintAddress && isValidMint) {
       incrementView(mintAddress, publicKey.toString());
     }
-  }, [publicKey, mintAddress]);
+  }, [publicKey, mintAddress, isValidMint]);
 
   async function incrementView(tokenMint: string, wallet: string) {
     try {
@@ -67,6 +99,44 @@ export default function TokenDetailPage() {
     } catch (err) {
       console.error('Failed to increment view:', err);
     }
+  }
+
+  // ⭐ DEBUG: Log state data to see what we're getting
+  useEffect(() => {
+    if (state) {
+      console.log('🔍 Token State V2 Debug:', {
+        name: state.name,
+        symbol: state.symbol,
+        uri: state.uri,
+        image: state.image,
+        tier: state.tier,
+        virtualSolReserves: state.virtualSolReserves,
+        virtualTokenReserves: state.virtualTokenReserves,
+        realSolReserves: state.realSolReserves,
+        realTokenReserves: state.realTokenReserves,
+        battleStatus: state.battleStatus,
+      });
+    }
+  }, [state]);
+
+  // ⭐ CONDITIONAL RETURNS AFTER ALL HOOKS
+
+  // Show error for invalid mint address
+  if (!isValidMint || !mint) {
+    return (
+      <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <div className="text-6xl mb-4">❌</div>
+          <div className="text-xl font-bold mb-2">Invalid Token Address</div>
+          <div className="text-gray-400 text-sm mb-4">
+            The token address &quot;{mintAddress}&quot; is not a valid Solana address.
+          </div>
+          <a href="/" className="text-cyan-400 hover:text-cyan-300">
+            ← Back to Home
+          </a>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -93,6 +163,9 @@ export default function TokenDetailPage() {
       </div>
     );
   }
+
+  // ⭐ V2: Calculate SOL raised from real reserves
+  const solRaised = state.realSolReserves / 1e9;
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
@@ -138,26 +211,25 @@ export default function TokenDetailPage() {
                   name: state.name || mintAddress.slice(0, 8) + '...',
                   symbol: state.symbol || 'UNK',
                   metadataUri: state.uri || '',
-                  creator: state.mint,
                   createdAt: state.creationTimestamp,
-                  tier: 1,
-                  mint: mintAddress
+                  tier: state.tier ?? BattleTier.Test,
+                  mint: mintAddress,
+                  battleStatus: state.battleStatus,
+                  marketCapUsd: marketCapUsd ?? undefined
                 }}
-                preloadedMetadata={state.name ? {
-                  name: state.name,
-                  symbol: state.symbol || '',
+                preloadedMetadata={{
+                  name: state.name || mintAddress.slice(0, 8) + '...',
+                  symbol: state.symbol || 'UNK',
                   uri: state.uri || '',
                   image: state.image
-                } : undefined}
+                }}
               />
 
-
-
-              {/* Chart Section */}
+              {/* Chart Section - V2: use realSolReserves instead of solCollected */}
               <PriceChart token={{
-                solRaised: state.solCollected / 1e9,
-                virtualSolInit: VIRTUAL_RESERVE / 1e9,
-                constantK: (BigInt(VIRTUAL_RESERVE) * BigInt(VIRTUAL_SUPPLY)).toString(),
+                solRaised: solRaised,
+                virtualSolInit: state.virtualSolReserves / 1e9,
+                constantK: (BigInt(state.virtualSolReserves) * BigInt(state.virtualTokenReserves)).toString(),
                 createdAt: state.creationTimestamp,
                 name: state.name || mintAddress.slice(0, 8),
                 symbol: state.symbol || 'BONK'
@@ -202,10 +274,12 @@ export default function TokenDetailPage() {
                 <div className="text-xs text-gray-500 mt-2">Profit indicator</div>
               </div>
 
-              {/* Bonding Curve Progress */}
+              {/* Bonding Curve Progress - V2: pass tier and volume */}
               <BondingCurveCard
                 marketCapUsd={marketCapUsd}
                 battleStatus={state.battleStatus}
+                tier={state.tier ?? BattleTier.Test}
+                totalVolumeUsd={solPriceUsd ? (state.totalTradeVolume / 1e9) * solPriceUsd : 0}
               />
 
               {/* Holder Distribution (Placeholder) */}

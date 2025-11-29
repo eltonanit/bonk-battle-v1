@@ -13,6 +13,31 @@ export interface TokenMetadata {
 
 const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
+/**
+ * Helper to parse metadata that might be stored as JSON string
+ * Handles cases where name/symbol/uri contain the full JSON object
+ */
+function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image' | 'description'): string {
+    if (!value) return '';
+
+    // Check if the value looks like JSON (starts with { or [)
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            // Try common field names (case insensitive)
+            const fieldLower = field.toLowerCase();
+            const fieldUpper = field.toUpperCase();
+            return parsed[field] || parsed[fieldLower] || parsed[fieldUpper] || parsed.NAME || parsed.name || '';
+        } catch {
+            // Not valid JSON, return as is
+            return value;
+        }
+    }
+
+    return value;
+}
+
 // Cache to avoid re-fetching the same metadata
 const metadataCache: Record<string, TokenMetadata> = {};
 
@@ -43,35 +68,58 @@ export function useTokenMetadata(mintAddress: string) {
                     .eq('mint', mintAddress)
                     .single();
 
-                if (tokenData && !supabaseError && tokenData.name) {
-                    // console.log('📦 Metadata fetched from Supabase cache for', mintAddress);
+                if (tokenData && !supabaseError) {
+                    // ⭐ Parse metadata - handle case where name/symbol contain JSON
+                    const rawName = tokenData.name || '';
+                    const rawSymbol = tokenData.symbol || '';
+                    const name = parseMetadataField(rawName, 'name') || rawName;
+                    const symbol = parseMetadataField(rawSymbol, 'symbol') ||
+                                   parseMetadataField(rawName, 'symbol') || // Try to get symbol from name JSON
+                                   rawSymbol;
 
-                    let image = tokenData.image || '';
+                    // Only proceed if we have a valid name
+                    if (name) {
+                        // ⭐ Parse image from multiple sources
+                        let image = tokenData.image || '';
 
-                    // If we have URI but no image in DB, try to fetch JSON (client-side, no RPC)
-                    if (!image && tokenData.uri) {
-                        try {
-                            const response = await fetch(tokenData.uri);
-                            const json = await response.json();
-                            image = json.image;
-                        } catch (e) {
-                            console.warn('Failed to fetch metadata JSON from URI:', e);
+                        // Try from rawName if it's JSON
+                        if (!image && rawName) {
+                            image = parseMetadataField(rawName, 'image') || '';
                         }
-                    }
 
-                    const meta = {
-                        name: tokenData.name,
-                        symbol: tokenData.symbol,
-                        uri: tokenData.uri,
-                        image: image
-                    };
+                        // If we have URI but no image in DB, try to fetch JSON (client-side, no RPC)
+                        if (!image && tokenData.uri) {
+                            try {
+                                // First try parsing URI as JSON (in case metadata is embedded)
+                                const uriStr = tokenData.uri.trim();
+                                if (uriStr.startsWith('{')) {
+                                    const uriJson = JSON.parse(uriStr);
+                                    image = uriJson.image || uriJson.IMAGE || '';
+                                } else {
+                                    // Otherwise fetch from URL
+                                    const response = await fetch(tokenData.uri);
+                                    const json = await response.json();
+                                    image = json.image;
+                                }
+                            } catch (e) {
+                                console.warn('Failed to fetch metadata JSON from URI:', e);
+                            }
+                        }
 
-                    metadataCache[mintAddress] = meta;
-                    if (isMounted) {
-                        setMetadata(meta);
-                        setLoading(false);
+                        const meta = {
+                            name,
+                            symbol,
+                            uri: tokenData.uri,
+                            image: image
+                        };
+
+                        metadataCache[mintAddress] = meta;
+                        if (isMounted) {
+                            setMetadata(meta);
+                            setLoading(false);
+                        }
+                        return;
                     }
-                    return;
                 }
 
                 // 2. Fallback to RPC if not in DB

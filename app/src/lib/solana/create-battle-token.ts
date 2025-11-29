@@ -1,4 +1,5 @@
 // src/lib/solana/create-battle-token.ts
+// BONK BATTLE V2 - Con supporto Tier
 import {
   Connection,
   PublicKey,
@@ -21,6 +22,37 @@ import { RPC_ENDPOINT } from '@/config/solana';
 const CREATE_BATTLE_TOKEN_DISCRIMINATOR = Buffer.from([
   251, 0, 33, 123, 229, 128, 151, 242
 ]);
+
+/**
+ * Battle Tier enum
+ * Must match the on-chain Rust enum
+ */
+export enum BattleTier {
+  Test = 0,        // Devnet testing - lower thresholds
+  Production = 1,  // Mainnet - full thresholds
+}
+
+/**
+ * Tier configuration details
+ */
+export const TIER_CONFIG = {
+  [BattleTier.Test]: {
+    name: 'Test',
+    description: 'For testing on devnet',
+    initialMcUsd: 280,
+    victoryMcUsd: 5500,
+    victoryVolumeUsd: 200,
+    targetSol: 28,
+  },
+  [BattleTier.Production]: {
+    name: 'Production',
+    description: 'For mainnet battles',
+    initialMcUsd: 1270,
+    victoryMcUsd: 25000,
+    victoryVolumeUsd: 20000,
+    targetSol: 127,
+  },
+};
 
 /**
  * Serializes a string with 4-byte length prefix (Rust String format)
@@ -48,6 +80,15 @@ function validateTokenMetadata(name: string, symbol: string, uri: string): void 
 }
 
 /**
+ * Validates tier value
+ */
+function validateTier(tier: number): void {
+  if (tier !== 0 && tier !== 1) {
+    throw new Error('InvalidTier: must be 0 (Test) or 1 (Production)');
+  }
+}
+
+/**
  * Create Battle Token Response
  */
 export interface CreateBattleTokenResult {
@@ -59,6 +100,8 @@ export interface CreateBattleTokenResult {
   battleState: PublicKey;
   /** The mint keypair (useful for further operations) */
   mintKeypair: Keypair;
+  /** The tier used for this token */
+  tier: BattleTier;
 }
 
 /**
@@ -75,6 +118,7 @@ export interface CreateBattleTokenResult {
  * @param symbol - Token symbol (1-10 characters)
  * @param uri - Token metadata URI (max 200 characters)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
+ * @param tier - Battle tier: 0 = Test (devnet), 1 = Production (mainnet)
  * @returns Promise resolving to transaction signature, mint, and battle state
  *
  * @throws Error if validation fails or transaction fails
@@ -86,7 +130,8 @@ export interface CreateBattleTokenResult {
  *   'My Battle Token',
  *   'BATTLE',
  *   'https://arweave.net/...',
- *   wallet.signTransaction
+ *   wallet.signTransaction,
+ *   BattleTier.Test  // or 0
  * );
  * console.log('Mint:', result.mint.toString());
  * console.log('Signature:', result.signature);
@@ -97,7 +142,8 @@ export async function createBattleToken(
   name: string,
   symbol: string,
   uri: string,
-  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>
+  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
+  tier: number = BattleTier.Test  // Default: Test tier
 ): Promise<CreateBattleTokenResult> {
   console.log('🎮 Starting create battle token transaction...');
   console.log('📋 Token Details:');
@@ -105,10 +151,18 @@ export async function createBattleToken(
   console.log('  Symbol:', symbol);
   console.log('  URI:', uri);
   console.log('  Creator:', wallet.toString());
+  console.log('  Tier:', tier === 0 ? '🧪 Test' : '🚀 Production');
+
+  const tierConfig = TIER_CONFIG[tier as BattleTier];
+  console.log('📊 Tier Config:');
+  console.log('  Initial MC:', `$${tierConfig.initialMcUsd}`);
+  console.log('  Victory MC:', `$${tierConfig.victoryMcUsd}`);
+  console.log('  Victory Volume:', `$${tierConfig.victoryVolumeUsd}`);
 
   // Validate input
   try {
     validateTokenMetadata(name, symbol, uri);
+    validateTier(tier);
   } catch (error) {
     console.error('❌ Validation error:', error);
     throw error;
@@ -148,17 +202,19 @@ export async function createBattleToken(
     console.log('📍 Price Oracle PDA:', priceOraclePDA.toString(), `(bump: ${priceOracleBump})`);
 
     // ========================================================================
-    // Step 3: Build instruction data
+    // Step 3: Build instruction data (V2 - includes tier!)
     // ========================================================================
     const nameData = serializeString(name);
     const symbolData = serializeString(symbol);
     const uriData = serializeString(uri);
+    const tierData = Buffer.from([tier]); // u8: 0 = Test, 1 = Production
 
     const instructionData = Buffer.concat([
       CREATE_BATTLE_TOKEN_DISCRIMINATOR,
       nameData,
       symbolData,
       uriData,
+      tierData,  // NEW in V2!
     ]);
 
     console.log('📦 Instruction data size:', instructionData.length, 'bytes');
@@ -259,12 +315,14 @@ export async function createBattleToken(
 
     console.log('✅ Transaction confirmed!');
     console.log('🎮 Battle token created successfully!');
+    console.log(`⚔️ Tier: ${tier === 0 ? 'Test' : 'Production'}`);
 
     return {
       signature,
       mint: mintKeypair.publicKey,
       battleState: battleStatePDA,
       mintKeypair,
+      tier: tier as BattleTier,
     };
 
   } catch (error: unknown) {
@@ -291,14 +349,18 @@ export async function createBattleToken(
       throw new Error('Transaction cancelled by user');
     }
 
-    // BONK BATTLE specific errors (from IDL)
+    // BONK BATTLE specific errors (from IDL V2)
     if (errorMessage.includes('0x1770')) { // 6000
       throw new Error('Invalid token name: must be 1-50 characters');
     } else if (errorMessage.includes('0x1771')) { // 6001
       throw new Error('Invalid token symbol: must be 1-10 characters');
     } else if (errorMessage.includes('0x1772')) { // 6002
       throw new Error('Invalid token URI: must be <= 200 characters');
-    } else if (errorMessage.includes('0x1782')) { // 6018
+    } else if (errorMessage.includes('0x1773')) { // 6003
+      throw new Error('Invalid tier: must be 0 (Test) or 1 (Production)');
+    } else if (errorMessage.includes('0x1774')) { // 6004
+      throw new Error('Tier mismatch: both tokens must be same tier');
+    } else if (errorMessage.includes('0x1785')) { // 6021
       throw new Error('Unauthorized: invalid keeper authority');
     } else if (errorMessage.includes('custom program error')) {
       const errorCode = errorMessage.match(/0x[0-9a-fA-F]+/)?.[0];
@@ -319,12 +381,12 @@ export async function createBattleToken(
 export async function estimateCreateBattleTokenRent(
   connection: Connection
 ): Promise<number> {
-  // Battle State account size (from IDL)
-  const BATTLE_STATE_SIZE = 8 + 32 + 8 + 8 + 8 + 1 + 1 + 32 + 8 + 8 + 8 + 8 + 8 + 1; // ~210 bytes
+  // Battle State account size V2 (with new fields)
+  const BATTLE_STATE_SIZE = 8 + 32 + 1 + 8 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 32 + 8 + 8 + 8 + 8 + 8 + 1 + 54 + 14 + 204; // ~400 bytes
   const rentExemption = await connection.getMinimumBalanceForRentExemption(BATTLE_STATE_SIZE);
 
   // Add mint account rent + ATA rent + buffer
-  const totalRent = rentExemption + 0.002 * 1e9 + 0.002 * 1e9; // ~0.005 SOL
+  const totalRent = rentExemption + 0.002 * 1e9 + 0.002 * 1e9; // ~0.006 SOL
 
   return totalRent / 1e9;
 }

@@ -1,10 +1,35 @@
 // app/src/lib/solana/fetch-all-bonk-tokens.ts
 import { Connection, PublicKey } from '@solana/web3.js';
 import { BONK_BATTLE_PROGRAM_ID, BattleStatus } from './constants';
+import { BattleTier } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import { supabase } from '@/lib/supabase';
 import type { ParsedTokenBattleState } from '@/types/bonk';
-import { fetchTokenMetadata } from './fetch-token-metadata';
+
+/**
+ * Helper to parse metadata that might be stored as JSON string
+ * Handles cases where name/symbol/uri contain the full JSON object
+ */
+function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image' | 'description'): string {
+  if (!value) return '';
+
+  // Check if the value looks like JSON (starts with { or [)
+  const trimmed = value.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      // Try common field names (case insensitive)
+      const fieldLower = field.toLowerCase();
+      const fieldUpper = field.toUpperCase();
+      return parsed[field] || parsed[fieldLower] || parsed[fieldUpper] || parsed.NAME || parsed.name || '';
+    } catch {
+      // Not valid JSON, return as is
+      return value;
+    }
+  }
+
+  return value;
+}
 
 /**
  * Fetches all TokenBattleState accounts from the BONK BATTLE program
@@ -25,38 +50,62 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
 
         // Convert Supabase data to ParsedTokenBattleState format
         supabaseTokens.push(...cachedTokens.map((token: any) => {
-          // Parse image from URI if not already in image field
-          let image = token.image || '';
-          if (!image && token.uri) {
-            try {
-              const metadata = JSON.parse(token.uri);
-              image = metadata.image || '';
-            } catch {
-              // URI is not JSON, keep empty
-            }
+          // ⭐ Parse metadata - try URI JSON FIRST, then fallback to name/symbol fields
+          // Try to extract from URI first (which might contain full JSON metadata)
+          let nameFromUri = '';
+          let symbolFromUri = '';
+          let imageFromUri = '';
+
+          if (token.uri) {
+            nameFromUri = parseMetadataField(token.uri, 'name');
+            symbolFromUri = parseMetadataField(token.uri, 'symbol');
+            imageFromUri = parseMetadataField(token.uri, 'image');
+          }
+
+          const rawName = token.name || '';
+          const rawSymbol = token.symbol || '';
+
+          // Priority: URI JSON > name field JSON > raw name field
+          const name = nameFromUri || parseMetadataField(rawName, 'name') || rawName;
+          const symbol = symbolFromUri ||
+                         parseMetadataField(rawSymbol, 'symbol') ||
+                         parseMetadataField(rawName, 'symbol') ||
+                         rawSymbol;
+
+          // ⭐ Parse image from multiple sources
+          // Priority: direct image > URI JSON > rawName JSON
+          let image = token.image || imageFromUri || '';
+
+          // Try from rawName if it's JSON and still no image
+          if (!image && rawName) {
+            image = parseMetadataField(rawName, 'image') || '';
           }
 
           return {
             mint: new PublicKey(token.mint),
-            creator: new PublicKey(token.creator || token.mint), // ⭐ NUOVO: fallback a mint se non c'è creator
-            solCollected: token.sol_collected || 0,
+            tier: (token.tier ?? BattleTier.Test) as BattleTier,
+            virtualSolReserves: token.virtual_sol_reserves || 0,
+            virtualTokenReserves: token.virtual_token_reserves || 0,
+            realSolReserves: token.real_sol_reserves || 0,
+            realTokenReserves: token.real_token_reserves || 0,
             tokensSold: token.tokens_sold || 0,
             totalTradeVolume: token.total_trade_volume || 0,
             isActive: token.is_active ?? true,
             battleStatus: token.battle_status || BattleStatus.Created,
             opponentMint: new PublicKey(token.opponent_mint || '11111111111111111111111111111111'),
             creationTimestamp: token.creation_timestamp || Math.floor(Date.now() / 1000),
-            qualificationTimestamp: token.qualification_timestamp || 0,
             lastTradeTimestamp: token.last_trade_timestamp || 0,
             battleStartTimestamp: token.battle_start_timestamp || 0,
             victoryTimestamp: token.victory_timestamp || 0,
             listingTimestamp: token.listing_timestamp || 0,
-            battleEndTimestamp: 0,
             bump: token.bump || 0,
-            name: token.name || '',
-            symbol: token.symbol || '',
+            name,
+            symbol,
             uri: token.uri || '',
             image,
+            // ⭐ Backwards compatibility
+            solCollected: token.real_sol_reserves || token.sol_collected || 0,
+            creator: token.creator ? new PublicKey(token.creator) : undefined,
           };
         }));
       }
@@ -156,13 +205,20 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
           return str;
         }
 
-        // Parse all fields
+        // ========================================================================
+        // Parse all fields - V2 STRUCTURE
+        // ========================================================================
         const mint = readPublicKey();
 
-        // ⭐ Read creator field (all tokens should have this after contract update)
-        const creator = readPublicKey();
+        // Parse tier (1 byte) - V2
+        const tier = readU8() as BattleTier;
 
-        const solCollected = readU64();
+        // Parse virtual/real reserves (V2)
+        const virtualSolReserves = readU64();
+        const virtualTokenReserves = readU64();
+        const realSolReserves = readU64();
+        const realTokenReserves = readU64();
+
         const tokensSold = readU64();
         const totalTradeVolume = readU64();
         const isActive = readBool();
@@ -184,54 +240,76 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
         const battleStartTimestamp = readI64();
         const victoryTimestamp = readI64();
         const listingTimestamp = readI64();
-        const qualificationTimestamp = readI64(); // ← This was in the struct but not being read!
         const bump = readU8();
 
         // ⭐ NEW: Read metadata fields
-        const name = readString();
-        const symbol = readString();
+        const rawName = readString();
+        const rawSymbol = readString();
         const uri = readString();
 
-        // ⭐ Parse image from URI (URI contains the metadata JSON directly, not a URL)
-        let image: string | undefined;
+        // ⭐ Parse metadata - try URI JSON FIRST, then fallback to name/symbol fields
+        let nameFromUri = '';
+        let symbolFromUri = '';
+        let imageFromUri = '';
+
         if (uri) {
+          nameFromUri = parseMetadataField(uri, 'name');
+          symbolFromUri = parseMetadataField(uri, 'symbol');
+          imageFromUri = parseMetadataField(uri, 'image');
+        }
+
+        // Priority: URI JSON > name field JSON > raw name field
+        const name = nameFromUri || parseMetadataField(rawName, 'name') || rawName;
+        const symbol = symbolFromUri ||
+                       parseMetadataField(rawSymbol, 'symbol') ||
+                       parseMetadataField(rawName, 'symbol') ||
+                       rawSymbol;
+
+        // ⭐ Parse image from multiple sources
+        // Priority: URI JSON > rawName JSON > fetch from URI URL
+        let image: string | undefined = imageFromUri || undefined;
+
+        // Try from rawName if it's JSON and still no image
+        if (!image && rawName) {
+          image = parseMetadataField(rawName, 'image') || undefined;
+        }
+
+        // Try fetching from URI URL if still no image
+        if (!image && uri && !uri.startsWith('{')) {
           try {
-            // Try to parse URI as JSON first (it's the metadata object, not a URL)
-            const metadata = JSON.parse(uri);
+            const response = await fetch(uri);
+            const metadata = await response.json();
             image = metadata.image;
-          } catch (jsonError) {
-            // If it's not JSON, try fetching it as a URL (fallback)
-            try {
-              const response = await fetch(uri);
-              const metadata = await response.json();
-              image = metadata.image;
-            } catch (fetchError) {
-              // Could not get image
-            }
+          } catch {
+            // Could not get image
           }
         }
 
         const parsedState: ParsedTokenBattleState = {
           mint,
-          creator, // ⭐ NUOVO: wallet del creatore
-          solCollected: Number(solCollected),
+          tier,
+          virtualSolReserves: Number(virtualSolReserves),
+          virtualTokenReserves: Number(virtualTokenReserves),
+          realSolReserves: Number(realSolReserves),
+          realTokenReserves: Number(realTokenReserves),
           tokensSold: Number(tokensSold),
           totalTradeVolume: Number(totalTradeVolume),
           isActive,
           battleStatus,
           opponentMint,
           creationTimestamp: Number(creationTimestamp),
-          qualificationTimestamp: Number(qualificationTimestamp),
           lastTradeTimestamp: Number(lastTradeTimestamp),
           battleStartTimestamp: Number(battleStartTimestamp),
           victoryTimestamp: Number(victoryTimestamp),
           listingTimestamp: Number(listingTimestamp),
           bump,
-          // ⭐ Metadata
+          // ⭐ Metadata (parsed from JSON if needed)
           name,
           symbol,
           uri,
           image,
+          // ⭐ Backwards compatibility
+          solCollected: Number(realSolReserves),
         };
 
         parsedTokens.push(parsedState);
