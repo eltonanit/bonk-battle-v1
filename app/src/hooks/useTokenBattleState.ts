@@ -1,14 +1,33 @@
 /**
  * ========================================================================
- * BONK BATTLE V2 - OPTIMIZED TOKEN BATTLE STATE HOOK
+ * BONK BATTLE V2 - TOKEN BATTLE STATE HOOK
  * ========================================================================
+ *
+ * Parsing structure matches DEPLOYED on-chain TokenBattleState V2:
  * 
- * V2 Changes:
- * ✅ New fields: tier, virtualSolReserves, virtualTokenReserves, realSolReserves, realTokenReserves
- * ✅ Removed: solCollected, creator (now computed from reserves)
- * ✅ New status: PoolCreated
- * ✅ Market cap calculated from virtual reserves
- * 
+ * pub struct TokenBattleState {
+ *     pub mint: Pubkey,                    // 32 bytes
+ *     pub tier: BattleTier,                // 1 byte
+ *     pub virtual_sol_reserves: u64,       // 8 bytes
+ *     pub virtual_token_reserves: u64,     // 8 bytes
+ *     pub real_sol_reserves: u64,          // 8 bytes
+ *     pub real_token_reserves: u64,        // 8 bytes
+ *     pub tokens_sold: u64,                // 8 bytes
+ *     pub total_trade_volume: u64,         // 8 bytes
+ *     pub is_active: bool,                 // 1 byte
+ *     pub battle_status: BattleStatus,     // 1 byte
+ *     pub opponent_mint: Pubkey,           // 32 bytes
+ *     pub creation_timestamp: i64,         // 8 bytes
+ *     pub last_trade_timestamp: i64,       // 8 bytes
+ *     pub battle_start_timestamp: i64,     // 8 bytes
+ *     pub victory_timestamp: i64,          // 8 bytes
+ *     pub listing_timestamp: i64,          // 8 bytes
+ *     pub bump: u8,                        // 1 byte
+ *     pub name: String,                    // 4 + N bytes
+ *     pub symbol: String,                  // 4 + M bytes
+ *     pub uri: String,                     // 4 + P bytes
+ * }
+ *
  * ========================================================================
  */
 
@@ -18,26 +37,34 @@ import { supabase } from '@/lib/supabase';
 import { connection, executeWithRetry } from '@/lib/solana';
 import { getBattleStatePDA } from '@/lib/solana/pdas';
 import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
-import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
 import { queryKeys } from '@/lib/queryClient';
+import { BattleStatus, BattleTier } from '@/types/bonk';
 
 /**
- * Helper to parse metadata that might be stored as JSON string
+ * Parsed Token Battle State V2 - matches on-chain structure
  */
-function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image' | 'description'): string {
-  if (!value) return '';
-
-  const trimmed = value.trim();
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    try {
-      const parsed = JSON.parse(trimmed);
-      return parsed[field] || parsed[field.toLowerCase()] || parsed[field.toUpperCase()] || '';
-    } catch {
-      return value;
-    }
-  }
-
-  return value;
+export interface ParsedTokenBattleState {
+  mint: PublicKey;
+  tier: BattleTier;
+  virtualSolReserves: number;
+  virtualTokenReserves: number;
+  realSolReserves: number;
+  realTokenReserves: number;
+  tokensSold: number;
+  totalTradeVolume: number;
+  isActive: boolean;
+  battleStatus: BattleStatus;
+  opponentMint: PublicKey;
+  creationTimestamp: number;
+  lastTradeTimestamp: number;
+  battleStartTimestamp: number;
+  victoryTimestamp: number;
+  listingTimestamp: number;
+  bump: number;
+  name: string;
+  symbol: string;
+  uri: string;
+  image?: string;
 }
 
 /**
@@ -51,7 +78,7 @@ export interface UseTokenBattleStateResult {
 }
 
 /**
- * Fetch token battle state da Supabase (priorità) o RPC (fallback)
+ * Fetch token battle state from Supabase (priority) or RPC (fallback)
  */
 async function fetchTokenBattleState(
   mint: PublicKey
@@ -65,45 +92,32 @@ async function fetchTokenBattleState(
       .single();
 
     if (tokenData && !supabaseError) {
-      console.log('⚡ Battle State fetched from Supabase cache');
+      console.log('⚡ Battle State V2 fetched from Supabase cache');
 
-      // Parse metadata - handle JSON in any field
+      // Get metadata - prioritize direct fields, fallback to parsing URI
       let name = tokenData.name || '';
       let symbol = tokenData.symbol || '';
       let image = tokenData.image || '';
 
-      // Try to extract from uri if it's JSON
-      if (tokenData.uri) {
-        const nameFromUri = parseMetadataField(tokenData.uri, 'name');
-        const symbolFromUri = parseMetadataField(tokenData.uri, 'symbol');
-        const imageFromUri = parseMetadataField(tokenData.uri, 'image');
-
-        if (nameFromUri) name = nameFromUri;
-        if (symbolFromUri) symbol = symbolFromUri;
-        if (imageFromUri) image = imageFromUri;
-      }
-
-      // Parse from name field if it's JSON
-      if (!name || name.startsWith('{')) {
-        const parsedName = parseMetadataField(tokenData.name || '', 'name');
-        if (parsedName) name = parsedName;
-      }
-
-      // ⭐ Parse from symbol field if it's JSON (common V2 issue)
-      if (!symbol || symbol.startsWith('{')) {
-        const parsedSymbol = parseMetadataField(tokenData.symbol || '', 'symbol');
-        if (parsedSymbol) symbol = parsedSymbol;
-
-        // Also try to get name/image from symbol if it's JSON
-        if (!name) {
-          const nameFromSymbol = parseMetadataField(tokenData.symbol || '', 'name');
-          if (nameFromSymbol) name = nameFromSymbol;
-        }
-        if (!image) {
-          const imageFromSymbol = parseMetadataField(tokenData.symbol || '', 'image');
-          if (imageFromSymbol) image = imageFromSymbol;
+      // If URI is JSON, try to extract metadata from it
+      if (tokenData.uri && tokenData.uri.startsWith('{')) {
+        try {
+          const metadata = JSON.parse(tokenData.uri);
+          if (!name && metadata.name) name = metadata.name;
+          if (!symbol && metadata.symbol) symbol = metadata.symbol;
+          if (!image && metadata.image) image = metadata.image;
+        } catch {
+          // URI is not valid JSON, ignore
         }
       }
+
+      console.log('📊 Supabase V2 data:', {
+        name,
+        symbol,
+        tier: tokenData.tier,
+        virtual_sol_reserves: tokenData.virtual_sol_reserves,
+        battle_status: tokenData.battle_status
+      });
 
       return {
         mint: new PublicKey(tokenData.mint),
@@ -150,7 +164,7 @@ async function fetchTokenBattleState(
           throw new Error(`Invalid account owner`);
         }
 
-        // Parse V2 account data
+        // Parse account data - V2 STRUCTURE
         const data = accountInfo.data;
         let offset = 8; // Skip discriminator
 
@@ -177,65 +191,58 @@ async function fetchTokenBattleState(
           return Number(value);
         };
 
-        // Helper to read string (4-byte length prefix + UTF-8)
+        // Helper to read Borsh string (4-byte length prefix + UTF-8 content)
         const readString = (): string => {
+          if (offset + 4 > data.length) return '';
           const length = data.readUInt32LE(offset);
           offset += 4;
-          const str = data.slice(offset, offset + length).toString('utf8');
+          if (length === 0 || length > 500 || offset + length > data.length) return '';
+          const str = data.slice(offset, offset + length).toString('utf8').replace(/\0/g, '').trim();
           offset += length;
           return str;
         };
 
         // ========== PARSE V2 STRUCTURE ==========
 
-        // mint (32 bytes)
+        // mint (32 bytes) - offset 8 → 40
         const mintPubkey = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // tier (1 byte) - V2 NEW
+        // tier (1 byte) - offset 40 → 41
         const tier = data[offset] as BattleTier;
         offset += 1;
 
-        // virtual_sol_reserves (8 bytes) - V2 NEW
+        // virtual_sol_reserves (8 bytes) - offset 41 → 49
         const virtualSolReserves = parseU64();
 
-        // virtual_token_reserves (8 bytes) - V2 NEW
+        // virtual_token_reserves (8 bytes) - offset 49 → 57
         const virtualTokenReserves = parseU64();
 
-        // real_sol_reserves (8 bytes) - V2 NEW
+        // real_sol_reserves (8 bytes) - offset 57 → 65
         const realSolReserves = parseU64();
 
-        // real_token_reserves (8 bytes) - V2 NEW
+        // real_token_reserves (8 bytes) - offset 65 → 73
         const realTokenReserves = parseU64();
 
-        // tokens_sold (8 bytes)
+        // tokens_sold (8 bytes) - offset 73 → 81
         const tokensSold = parseU64();
 
-        // total_trade_volume (8 bytes)
+        // total_trade_volume (8 bytes) - offset 81 → 89
         const totalTradeVolume = parseU64();
 
-        // is_active (1 byte)
+        // is_active (1 byte) - offset 89 → 90
         const isActive = data[offset] !== 0;
         offset += 1;
 
-        // battle_status (1 byte)
-        const battleStatusIndex = data[offset];
-        const battleStatusMap: Record<number, BattleStatus> = {
-          0: BattleStatus.Created,
-          1: BattleStatus.Qualified,
-          2: BattleStatus.InBattle,
-          3: BattleStatus.VictoryPending,
-          4: BattleStatus.Listed,
-          5: BattleStatus.PoolCreated,
-        };
-        const battleStatus = battleStatusMap[battleStatusIndex] ?? BattleStatus.Created;
+        // battle_status (1 byte) - offset 90 → 91
+        const battleStatusRaw = data[offset];
         offset += 1;
 
-        // opponent_mint (32 bytes)
+        // opponent_mint (32 bytes) - offset 91 → 123
         const opponentMint = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // timestamps (5 x i64)
+        // timestamps (5 x i64 = 40 bytes)
         const creationTimestamp = parseI64();
         const lastTradeTimestamp = parseI64();
         const battleStartTimestamp = parseI64();
@@ -246,33 +253,22 @@ async function fetchTokenBattleState(
         const bump = data[offset];
         offset += 1;
 
-        // metadata strings
-        const rawName = readString();
-        const rawSymbol = readString();
+        // metadata strings (Borsh format)
+        const name = readString();
+        const symbol = readString();
         const uri = readString();
 
-        // Parse metadata - handle JSON in name/uri
-        let name = parseMetadataField(rawName, 'name') || rawName;
-        let symbol = parseMetadataField(rawSymbol, 'symbol') ||
-          parseMetadataField(rawName, 'symbol') ||
-          rawSymbol;
-
-        // Try to get image from uri if it's JSON
+        // Extract image from URI if it's JSON
         let image: string | undefined;
         if (uri) {
           try {
-            const metadata = JSON.parse(uri);
-            image = metadata.image || metadata.IMAGE;
-            if (!name && metadata.name) name = metadata.name;
-            if (!symbol && metadata.symbol) symbol = metadata.symbol;
+            if (uri.startsWith('{')) {
+              const metadata = JSON.parse(uri);
+              image = metadata.image || metadata.IMAGE;
+            }
           } catch {
-            // URI is not JSON, might be a URL
+            // URI is not JSON
           }
-        }
-
-        // Try to get image from rawName if it's JSON
-        if (!image && rawName) {
-          image = parseMetadataField(rawName, 'image') || undefined;
         }
 
         const parsedState: ParsedTokenBattleState = {
@@ -285,7 +281,7 @@ async function fetchTokenBattleState(
           tokensSold,
           totalTradeVolume,
           isActive,
-          battleStatus,
+          battleStatus: battleStatusRaw as BattleStatus,
           opponentMint,
           creationTimestamp,
           lastTradeTimestamp,
@@ -299,7 +295,14 @@ async function fetchTokenBattleState(
           image,
         };
 
-        console.log('✅ Battle State V2 fetched from RPC:', parsedState);
+        console.log('✅ Battle State V2 fetched from RPC:', {
+          name: parsedState.name,
+          symbol: parsedState.symbol,
+          tier: parsedState.tier,
+          virtualSolReserves: parsedState.virtualSolReserves,
+          battleStatus: parsedState.battleStatus
+        });
+
         return parsedState;
       },
       `battleState-${mint.toString()}`,
@@ -314,7 +317,7 @@ async function fetchTokenBattleState(
 
 /**
  * ========================================================================
- * OPTIMIZED HOOK WITH REACT QUERY
+ * MAIN HOOK WITH REACT QUERY
  * ========================================================================
  */
 export function useTokenBattleState(
@@ -377,31 +380,37 @@ export function useCanTokenBattle(mint: PublicKey | null): boolean {
 }
 
 /**
- * Calculate market cap from virtual reserves
- * Formula: MC = (virtualSolReserves / 1e9) * solPriceUsd * (totalSupply / virtualTokenReserves)
+ * ========================================================================
+ * V2 CALCULATION FUNCTIONS
+ * ========================================================================
+ */
+
+// Total supply: 1B tokens with 9 decimals
+const TOTAL_SUPPLY = 1_000_000_000_000_000_000; // 1B * 10^9
+
+/**
+ * Calculate market cap from virtual reserves (V2)
+ * Formula: MC = (virtualSolReserves / virtualTokenReserves) * totalSupply * solPriceUsd
  */
 export function calculateMarketCapFromReserves(
   virtualSolReserves: number,
   virtualTokenReserves: number,
   solPriceUsd: number,
-  totalSupply: number = 1_000_000_000 * 1e6 // 1B tokens with 6 decimals
+  totalSupply: number = TOTAL_SUPPLY
 ): number {
   if (virtualTokenReserves === 0) return 0;
 
-  // Price per token in SOL = virtualSolReserves / virtualTokenReserves
-  const pricePerTokenSol = virtualSolReserves / virtualTokenReserves;
+  // MC in lamports = (virtualSolReserves * totalSupply) / virtualTokenReserves
+  const mcLamports = (virtualSolReserves * totalSupply) / virtualTokenReserves;
+  
+  // Convert to USD: mcLamports / 1e9 (lamports to SOL) * solPriceUsd / 1e6 (price has 6 decimals)
+  const mcUsd = (mcLamports / 1e9) * (solPriceUsd / 1e6);
 
-  // Price per token in USD
-  const pricePerTokenUsd = (pricePerTokenSol / 1e9) * solPriceUsd;
-
-  // Market cap = price per token * total supply
-  const marketCap = pricePerTokenUsd * totalSupply;
-
-  return marketCap;
+  return mcUsd;
 }
 
 /**
- * Calculate price per token from reserves
+ * Calculate price per token from reserves (V2)
  */
 export function calculatePricePerToken(
   virtualSolReserves: number,
@@ -410,8 +419,39 @@ export function calculatePricePerToken(
 ): number {
   if (virtualTokenReserves === 0) return 0;
 
-  const pricePerTokenSol = virtualSolReserves / virtualTokenReserves;
-  const pricePerTokenUsd = (pricePerTokenSol / 1e9) * solPriceUsd;
+  // Price per token in lamports
+  const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
+  
+  // Convert to USD
+  const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * (solPriceUsd / 1e6);
 
   return pricePerTokenUsd;
+}
+
+/**
+ * Calculate tokens out for a given SOL input (constant product formula)
+ */
+export function calculateTokensOut(
+  solIn: number,
+  virtualSolReserves: number,
+  virtualTokenReserves: number
+): number {
+  if (virtualSolReserves === 0) return 0;
+  
+  const tokensOut = (virtualTokenReserves * solIn) / (virtualSolReserves + solIn);
+  return tokensOut;
+}
+
+/**
+ * Calculate SOL out for a given token input (constant product formula)
+ */
+export function calculateSolOut(
+  tokensIn: number,
+  virtualSolReserves: number,
+  virtualTokenReserves: number
+): number {
+  if (virtualTokenReserves === 0) return 0;
+  
+  const solOut = (virtualSolReserves * tokensIn) / (virtualTokenReserves + tokensIn);
+  return solOut;
 }
