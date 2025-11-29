@@ -1,7 +1,7 @@
 // =================================================================
 // FILE: contracts/programs/contracts/src/lib.rs
 // BONK BATTLE V2 - CONSTANT PRODUCT BONDING CURVE (xy = k)
-// Like Pump.fun/Stonks with 14.68x multiplier
+// Like Pump.fun/Stonks with 3x multiplier (TEST MODE)
 // =================================================================
 
 use anchor_lang::prelude::*;
@@ -57,9 +57,9 @@ impl Default for BattleTier {
     }
 }
 
-// ============ TIER TEST ============
-// Target: $5,500 MC | Moltiplicatore: 14.68x
-// MC Iniziale: ~$375 | SOL raccolti: ~5.8 SOL
+// ============ TIER TEST (3x MULTIPLIER) ============
+// Target: ~$1,200 MC | Moltiplicatore: 3x
+// MC Iniziale: ~$375 | SOL raccolti: ~4 SOL
 
 /// Virtual SOL iniziali per TIER TEST (2.05 SOL)
 pub const TEST_VIRTUAL_SOL_INIT: u64 = 2_050_000_000; // 2.05 SOL in lamports
@@ -67,14 +67,14 @@ pub const TEST_VIRTUAL_SOL_INIT: u64 = 2_050_000_000; // 2.05 SOL in lamports
 /// Costante k per TIER TEST (virtual_sol * virtual_token)
 pub const TEST_CONSTANT_K: u128 = 2_199_650_000_000_000_000_000_000_000;
 
-/// Target SOL per graduation TIER TEST (~28 SOL per $5,500 MC a $196/SOL)
-pub const TEST_TARGET_SOL: u64 = 28_060_000_000; // 28.06 SOL in lamports
+/// Target SOL per graduation TIER TEST (6 SOL per ~$1,200 MC) - 3x MULTIPLIER
+pub const TEST_TARGET_SOL: u64 = 6_000_000_000; // 6 SOL in lamports
 
 /// Volume check per vittoria TIER TEST
 pub const TEST_VICTORY_VOLUME_USD: u64 = 200; // $200
 
-/// MC vittoria TIER TEST
-pub const TEST_VICTORY_MC_USD: u64 = 5_500; // $5,500
+/// MC vittoria TIER TEST - 3x MULTIPLIER
+pub const TEST_VICTORY_MC_USD: u64 = 1_200; // $1,200
 
 // ============ TIER PRODUCTION ============
 // Target: $25,000 MC | Moltiplicatore: 14.68x
