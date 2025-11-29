@@ -23,7 +23,7 @@ import {
     sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import {
-    TOKEN_2022_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
     getAssociatedTokenAddressSync,
     createAssociatedTokenAccountInstruction,
     ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
             mint,
             battleStatePDA,
             true, // allowOwnerOffCurve
-            TOKEN_2022_PROGRAM_ID
+            TOKEN_PROGRAM_ID
         );
         console.log('Contract Token Account:', contractTokenAccount.toString());
 
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
             mint,
             keeperKeypair.publicKey,
             false,
-            TOKEN_2022_PROGRAM_ID
+            TOKEN_PROGRAM_ID
         );
         console.log('Keeper Token Account:', keeperTokenAccount.toString());
 
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
                 keeperTokenAccount,
                 keeperKeypair.publicKey,
                 mint,
-                TOKEN_2022_PROGRAM_ID,
+                TOKEN_PROGRAM_ID,
                 ASSOCIATED_TOKEN_PROGRAM_ID
             );
             instructions.push(createATAIx);
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
                 { pubkey: keeperTokenAccount, isSigner: false, isWritable: true },
                 { pubkey: keeperKeypair.publicKey, isSigner: true, isWritable: true },
                 { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-                { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+                { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
                 { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
             ],
             programId: PROGRAM_ID,
