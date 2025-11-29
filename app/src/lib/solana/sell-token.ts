@@ -1,4 +1,5 @@
 // src/lib/solana/sell-token.ts
+// BONK BATTLE V2 - Con min_sol_out per slippage protection
 import {
   Connection,
   PublicKey,
@@ -32,9 +33,9 @@ const TREASURY_WALLET = new PublicKey('5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nH
 /**
  * Serializes a u64 value to little-endian bytes
  */
-function serializeU64(value: number): Buffer {
+function serializeU64(value: number | bigint): Buffer {
   const buf = Buffer.alloc(8);
-  const bigValue = BigInt(Math.floor(value));
+  const bigValue = typeof value === 'bigint' ? value : BigInt(Math.floor(value));
 
   for (let i = 0; i < 8; i++) {
     buf[i] = Number((bigValue >> BigInt(i * 8)) & BigInt(0xff));
@@ -61,7 +62,7 @@ export interface SellTokenResult {
  * This function:
  * 1. Derives all necessary PDAs (battle_state, user_token_account, price_oracle)
  * 2. Checks user's token balance
- * 3. Builds the sell_token instruction with token amount
+ * 3. Builds the sell_token instruction with token amount and min_sol_out
  * 4. Burns tokens and transfers SOL back to user
  *
  * The actual SOL received is calculated by the bonding curve formula on-chain
@@ -71,6 +72,7 @@ export interface SellTokenResult {
  * @param mint - Token mint address to sell
  * @param tokenAmount - Amount of tokens to sell (in token units with decimals, e.g., 1000000 for 1 token with 6 decimals)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
+ * @param minSolOut - Minimum SOL to receive in lamports (slippage protection), default 0 = no slippage check
  * @returns Promise resolving to transaction signature and amounts
  *
  * @throws Error if insufficient token balance, trading inactive, or transaction fails
@@ -81,7 +83,8 @@ export interface SellTokenResult {
  *   wallet.publicKey,
  *   new PublicKey('mint-address'),
  *   1_000_000, // 1 token (6 decimals)
- *   wallet.signTransaction
+ *   wallet.signTransaction,
+ *   0          // no slippage protection
  * );
  * console.log('Signature:', result.signature);
  * console.log('Tokens sold:', result.tokenAmount);
@@ -91,13 +94,15 @@ export async function sellToken(
   wallet: PublicKey,
   mint: PublicKey,
   tokenAmount: number,
-  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>
+  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
+  minSolOut: number = 0  // V2: Slippage protection (0 = disabled)
 ): Promise<SellTokenResult> {
-  console.log('💸 Starting sell token transaction...');
+  console.log('💸 Starting sell token transaction (V2)...');
   console.log('📋 Sell Details:');
   console.log('  Wallet:', wallet.toString());
   console.log('  Token Mint:', mint.toString());
   console.log('  Token Amount:', tokenAmount);
+  console.log('  Min SOL Out:', minSolOut, 'lamports (slippage protection)');
 
   // Validate input
   if (tokenAmount <= 0) {
@@ -166,17 +171,20 @@ export async function sellToken(
     console.log('📍 Price Oracle PDA:', priceOraclePDA.toString());
 
     // ========================================================================
-    // Step 3: Build instruction data
+    // Step 3: Build instruction data (V2 - includes min_sol_out!)
     // ========================================================================
     const tokenAmountData = serializeU64(tokenAmount);
+    const minSolOutData = serializeU64(minSolOut); // V2: NEW!
 
     const instructionData = Buffer.concat([
       SELL_TOKEN_DISCRIMINATOR,
       tokenAmountData,
+      minSolOutData,  // V2: Slippage protection
     ]);
 
     console.log('📦 Instruction data size:', instructionData.length, 'bytes');
     console.log('📦 Token amount:', tokenAmount);
+    console.log('📦 Min SOL out:', minSolOut, 'lamports');
 
     // ========================================================================
     // Step 4: Build accounts array (order must match IDL)
@@ -198,7 +206,7 @@ export async function sellToken(
       data: instructionData,
     });
 
-    console.log('✅ Sell instruction built');
+    console.log('✅ Sell instruction built (V2)');
 
     // ========================================================================
     // Step 5: Build transaction with compute budget
@@ -298,24 +306,26 @@ export async function sellToken(
       throw new Error('Transaction cancelled by user');
     }
 
-    // BONK BATTLE specific errors (from IDL)
-    if (errorMessage.includes('0x1773')) { // 6003
+    // BONK BATTLE V2 specific errors (from IDL)
+    if (errorMessage.includes('0x1775')) { // 6005 - AmountTooSmall
       throw new Error('Amount too small: minimum transaction required');
-    } else if (errorMessage.includes('0x1774')) { // 6004
+    } else if (errorMessage.includes('0x1776')) { // 6006 - AmountTooLarge
       throw new Error('Amount too large: maximum transaction exceeded');
-    } else if (errorMessage.includes('0x1775')) { // 6005
+    } else if (errorMessage.includes('0x1777')) { // 6007 - TradingInactive
       throw new Error('Trading is inactive for this token');
-    } else if (errorMessage.includes('0x1776')) { // 6006
+    } else if (errorMessage.includes('0x1778')) { // 6008 - InsufficientOutput
       throw new Error('Insufficient output from bonding curve');
-    } else if (errorMessage.includes('0x1778')) { // 6008
+    } else if (errorMessage.includes('0x1779')) { // 6009 - SlippageExceeded
+      throw new Error('Slippage exceeded: received less SOL than minimum');
+    } else if (errorMessage.includes('0x177b')) { // 6011 - InsufficientLiquidity
       throw new Error('Insufficient liquidity in pool');
-    } else if (errorMessage.includes('0x1779')) { // 6009
+    } else if (errorMessage.includes('0x177c')) { // 6012 - InsufficientBalance
       throw new Error('Insufficient token balance');
-    } else if (errorMessage.includes('0x1781')) { // 6017
+    } else if (errorMessage.includes('0x1784')) { // 6020 - InvalidTreasury
       throw new Error('Invalid treasury wallet address');
-    } else if (errorMessage.includes('0x1783')) { // 6019
+    } else if (errorMessage.includes('0x1786')) { // 6022 - MathOverflow
       throw new Error('Mathematical overflow in calculation');
-    } else if (errorMessage.includes('0x1784')) { // 6020
+    } else if (errorMessage.includes('0x1787')) { // 6023 - InvalidCurveState
       throw new Error('Invalid bonding curve state');
     } else if (errorMessage.includes('custom program error')) {
       const errorCode = errorMessage.match(/0x[0-9a-fA-F]+/)?.[0];
