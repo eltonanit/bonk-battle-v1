@@ -402,7 +402,7 @@ export function calculateMarketCapFromReserves(
 
   // MC in lamports = (virtualSolReserves * totalSupply) / virtualTokenReserves
   const mcLamports = (virtualSolReserves * totalSupply) / virtualTokenReserves;
-  
+
   // Convert to USD: mcLamports / 1e9 (lamports to SOL) * solPriceUsd / 1e6 (price has 6 decimals)
   const mcUsd = (mcLamports / 1e9) * (solPriceUsd / 1e6);
 
@@ -421,7 +421,7 @@ export function calculatePricePerToken(
 
   // Price per token in lamports
   const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
-  
+
   // Convert to USD
   const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * (solPriceUsd / 1e6);
 
@@ -437,7 +437,7 @@ export function calculateTokensOut(
   virtualTokenReserves: number
 ): number {
   if (virtualSolReserves === 0) return 0;
-  
+
   const tokensOut = (virtualTokenReserves * solIn) / (virtualSolReserves + solIn);
   return tokensOut;
 }
@@ -451,7 +451,7 @@ export function calculateSolOut(
   virtualTokenReserves: number
 ): number {
   if (virtualTokenReserves === 0) return 0;
-  
+
   const solOut = (virtualSolReserves * tokensIn) / (virtualTokenReserves + tokensIn);
   return solOut;
 }
