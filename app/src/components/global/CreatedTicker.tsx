@@ -154,7 +154,7 @@ export function CreatedTicker() {
         <div className="flex justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-0.5 px-1 py-0.5 text-xs lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
+            className={'ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
             style={{
               backgroundColor: CREATED_COLORS[safeIndex % CREATED_COLORS.length],
               borderRadius: 0,
@@ -162,7 +162,7 @@ export function CreatedTicker() {
           >
             {/* Token Image LEFT */}
             {isValidImageUrl(currentEvent.tokenImage) && (
-              <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
+              <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                 <Image
                   src={currentEvent.tokenImage!}
                   alt={currentEvent.tokenSymbol}
@@ -174,20 +174,20 @@ export function CreatedTicker() {
               </div>
             )}
 
-            <span className="whitespace-nowrap font-normal uppercase text-xs lg:text-sm">
+            <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
               {currentEvent.user}
             </span>
 
-            <span className="whitespace-nowrap text-xs lg:text-sm font-normal">
+            <span className="whitespace-nowrap text-base lg:text-sm font-normal">
               CREATED
             </span>
 
-            <span className="whitespace-nowrap font-normal uppercase text-xs lg:text-sm">
+            <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
               {currentEvent.tokenSymbol}
             </span>
 
             {/* User Avatar RIGHT */}
-            <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
+            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
               <Image
                 src="/profilo.png"
                 alt={currentEvent.user}

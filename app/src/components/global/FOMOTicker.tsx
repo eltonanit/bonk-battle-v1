@@ -213,7 +213,7 @@ export function FOMOTicker() {
         },
         async (payload) => {
           const trade = payload.new as any;
-          
+
           // Fetch token info
           const { data: tokenInfo } = await supabase
             .from('tokens')
