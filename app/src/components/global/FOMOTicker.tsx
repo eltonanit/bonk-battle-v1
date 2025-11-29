@@ -1,43 +1,35 @@
 ﻿'use client';
 
 import { useEffect, useState } from 'react';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
-import { RPC_ENDPOINT } from '@/config/solana';
-import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
 
-interface RealEvent {
+interface RealTradeEvent {
+  id: string;
   signature: string;
   mint: string;
-  type: 'bought' | 'created' | 'sell' | 'started_battle';
-  user: string;
-  userFull: string;
+  type: 'buy' | 'sell' | 'created' | 'battle';
+  walletShort: string;
+  walletFull: string;
   tokenName: string;
   tokenSymbol: string;
   tokenImage?: string;
-  amount: number;
-  tier: number;
+  solAmount: number;
   timestamp: number;
   // For battle events
   opponentMint?: string;
-  opponentName?: string;
   opponentSymbol?: string;
   opponentImage?: string;
 }
 
-// Solo 3 colori: Verde, Giallo, Blu
+// 3 colori: Verde, Giallo, Blu
 const TICKER_COLORS = [
   '#A4F4B6',  // Verde
   '#EFFE16',  // Giallo
   '#93EAEB'   // Blu
 ];
 
-/**
- * Validates if a string is a valid image URL for next/image
- * Must be absolute URL (http/https) or start with /
- */
 function isValidImageUrl(url: string | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
   const trimmed = url.trim();
@@ -45,237 +37,252 @@ function isValidImageUrl(url: string | undefined): boolean {
 }
 
 export function FOMOTicker() {
-  const [allEvents, setAllEvents] = useState<RealEvent[]>([]);
+  const [events, setEvents] = useState<RealTradeEvent[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Fetch real trades from Supabase
   useEffect(() => {
-    async function loadExistingTokens() {
+    async function fetchRealTrades() {
       try {
-        const allTokens = await fetchAllBonkTokens();
+        // 1. Fetch recent trades from user_trades table
+        const { data: trades, error: tradesError } = await supabase
+          .from('user_trades')
+          .select('*')
+          .order('block_time', { ascending: false })
+          .limit(20);
 
-        // ⭐ SEMPRE crea eventi, anche se vuoti (fallback)
-        let createdEvents: RealEvent[] = [];
-        let mockBuyEvents: RealEvent[] = [];
-        let battleEventsData: RealEvent[] = [];
-
-        if (allTokens.length > 0) {
-          // ⭐ Crea eventi BATTLE (token con opponentMint valido)
-          const battlingTokens = allTokens.filter(token => {
-            const opponentStr = token.opponentMint?.toString();
-            return opponentStr && opponentStr !== '11111111111111111111111111111111' && token.battleStatus === 2; // 2 = InBattle
-          });
-
-          const processed = new Set<string>();
-          for (const token of battlingTokens) {
-            const mintStr = token.mint.toString();
-            if (processed.has(mintStr)) continue;
-
-            const opponentMint = token.opponentMint?.toString();
-            if (!opponentMint) continue;
-
-            const opponent = allTokens.find(t => t.mint.toString() === opponentMint);
-            if (!opponent) continue;
-
-            battleEventsData.push({
-              signature: `battle-${mintStr}-${opponentMint}`,
-              mint: mintStr,
-              type: 'started_battle',
-              user: 'BATTLE',
-              userFull: 'BATTLE',
-              tokenName: token.name || token.symbol || mintStr.slice(0, 8),
-              tokenSymbol: token.symbol || 'UNK',
-              tokenImage: token.image,
-              amount: 0,
-              tier: 3,
-              timestamp: Date.now(),
-              opponentMint: opponentMint,
-              opponentName: opponent.name || opponent.symbol || opponentMint.slice(0, 8),
-              opponentSymbol: opponent.symbol || 'UNK',
-              opponentImage: opponent.image,
-            });
-
-            processed.add(mintStr);
-            processed.add(opponentMint);
-          }
-
-
-          // Crea eventi "created" da TUTTI i token
-          createdEvents = allTokens.map(token => {
-            const mintStr = token.mint.toString();
-            // ⭐ V2 FIX: creator might be undefined, fallback to mint
-            const creatorStr = token.creator?.toString() || mintStr;
-            const creatorShort = creatorStr.slice(0, 5); // Primi 5 caratteri del WALLET
-
-            return {
-              signature: mintStr,
-              mint: mintStr,
-              type: 'created' as const,
-              user: creatorShort, // ⭐ MOSTRA IL CREATOR WALLET
-              userFull: creatorStr, // ⭐ CREATOR WALLET COMPLETO
-              tokenName: token.name || mintStr.slice(0, 8),
-              tokenSymbol: token.symbol || 'UNK',
-              tokenImage: token.image,
-              amount: (token.solCollected ?? token.realSolReserves ?? 0) / 1e9, // ⭐ V2: use solCollected or realSolReserves
-              tier: 2,
-              timestamp: token.creationTimestamp * 1000,
-            };
-          });
-
-          createdEvents.sort((a, b) => b.timestamp - a.timestamp);
-
-          // Crea eventi "buy" dai token con volume
-          const tokensWithVolume = allTokens.filter(token => token.totalTradeVolume > 0);
-
-          if (tokensWithVolume.length > 0) {
-            mockBuyEvents = tokensWithVolume.slice(0, 10).map((token, idx) => {
-              // ⭐ V2 FIX: creator might be undefined, fallback to mint
-              const creatorStr = token.creator?.toString() || token.mint.toString();
-              return {
-                signature: 'mock-buy-' + idx,
-                mint: token.mint.toString(),
-                type: 'bought' as const,
-                user: creatorStr.slice(0, 5), // ⭐ MOSTRA IL CREATOR WALLET
-                userFull: creatorStr, // ⭐ CREATOR WALLET COMPLETO
-                tokenName: token.name || token.mint.toString().slice(0, 8),
-                tokenSymbol: token.symbol || 'UNK',
-                tokenImage: token.image,
-                amount: token.totalTradeVolume / 1e9,
-                tier: 2,
-                timestamp: Date.now() - (idx * 1000),
-              };
-            });
-          } else {
-            // ⭐ FALLBACK: Se non ci sono buy, usa i created come buy
-            mockBuyEvents = createdEvents.slice(0, 10).map((event, idx) => ({
-              ...event,
-              type: 'bought' as const,
-              timestamp: Date.now() - (idx * 1000),
-            }));
-          }
+        if (tradesError) {
+          console.error('Error fetching trades:', tradesError);
         }
 
-        // ⭐ Combina solo eventi BATTLE e BUY (i CREATED sono nel CreatedTicker)
-        const combined: RealEvent[] = [
-          ...battleEventsData,  // Battle events first
-          ...mockBuyEvents,  // Buy events (if any)
+        // 2. Fetch token info for each unique mint
+        const mintSet = new Set<string>();
+        trades?.forEach(t => mintSet.add(t.token_mint));
+        const mints = Array.from(mintSet);
+
+        const { data: tokens, error: tokensError } = await supabase
+          .from('tokens')
+          .select('mint, name, symbol, image, battle_status, opponent_mint')
+          .in('mint', mints);
+
+        if (tokensError) {
+          console.error('Error fetching tokens:', tokensError);
+        }
+
+        // Create token lookup map
+        const tokenMap = new Map<string, { name: string; symbol: string; image?: string; battleStatus: number; opponentMint?: string }>();
+        tokens?.forEach(t => {
+          tokenMap.set(t.mint, {
+            name: t.name || t.mint.slice(0, 8),
+            symbol: t.symbol || 'UNK',
+            image: t.image,
+            battleStatus: t.battle_status || 0,
+            opponentMint: t.opponent_mint,
+          });
+        });
+
+        // 3. Convert trades to events
+        const tradeEvents: RealTradeEvent[] = (trades || []).map(trade => {
+          const tokenInfo = tokenMap.get(trade.token_mint);
+          return {
+            id: trade.id,
+            signature: trade.signature,
+            mint: trade.token_mint,
+            type: trade.trade_type === 'buy' ? 'buy' : 'sell',
+            walletShort: trade.wallet_address.slice(0, 5),
+            walletFull: trade.wallet_address,
+            tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
+            tokenSymbol: tokenInfo?.symbol || 'UNK',
+            tokenImage: tokenInfo?.image,
+            solAmount: Number(trade.sol_amount) / 1e9, // Convert from lamports
+            timestamp: new Date(trade.block_time).getTime(),
+          };
+        });
+
+        // 4. Fetch recently created tokens
+        const { data: recentTokens, error: recentError } = await supabase
+          .from('tokens')
+          .select('*')
+          .order('creation_timestamp', { ascending: false })
+          .limit(10);
+
+        if (recentError) {
+          console.error('Error fetching recent tokens:', recentError);
+        }
+
+        const createEvents: RealTradeEvent[] = (recentTokens || []).map(token => ({
+          id: `created-${token.mint}`,
+          signature: token.mint,
+          mint: token.mint,
+          type: 'created' as const,
+          walletShort: token.mint.slice(0, 5),
+          walletFull: token.mint,
+          tokenName: token.name || token.mint.slice(0, 8),
+          tokenSymbol: token.symbol || 'UNK',
+          tokenImage: token.image,
+          solAmount: Number(token.real_sol_reserves || 0) / 1e9,
+          timestamp: (token.creation_timestamp || 0) * 1000,
+        }));
+
+        // 5. Fetch battle events (tokens currently in battle)
+        const { data: battlingTokens, error: battleError } = await supabase
+          .from('tokens')
+          .select('*')
+          .eq('battle_status', 2) // InBattle
+          .not('opponent_mint', 'is', null)
+          .limit(10);
+
+        if (battleError) {
+          console.error('Error fetching battles:', battleError);
+        }
+
+        // Get opponent info
+        const opponentMints = battlingTokens?.map(t => t.opponent_mint).filter(Boolean) || [];
+        const { data: opponents } = await supabase
+          .from('tokens')
+          .select('mint, symbol, image')
+          .in('mint', opponentMints);
+
+        const opponentMap = new Map<string, { symbol: string; image?: string }>();
+        opponents?.forEach(o => opponentMap.set(o.mint, { symbol: o.symbol || 'UNK', image: o.image }));
+
+        const battleEvents: RealTradeEvent[] = [];
+        const processedBattles = new Set<string>();
+
+        (battlingTokens || []).forEach(token => {
+          const pairKey = [token.mint, token.opponent_mint].sort().join('-');
+          if (processedBattles.has(pairKey)) return;
+          processedBattles.add(pairKey);
+
+          const opponentInfo = opponentMap.get(token.opponent_mint);
+          battleEvents.push({
+            id: `battle-${pairKey}`,
+            signature: pairKey,
+            mint: token.mint,
+            type: 'battle',
+            walletShort: 'BATTLE',
+            walletFull: 'BATTLE',
+            tokenName: token.name || token.mint.slice(0, 8),
+            tokenSymbol: token.symbol || 'UNK',
+            tokenImage: token.image,
+            solAmount: 0,
+            timestamp: (token.battle_start_timestamp || Date.now() / 1000) * 1000,
+            opponentMint: token.opponent_mint,
+            opponentSymbol: opponentInfo?.symbol || 'UNK',
+            opponentImage: opponentInfo?.image,
+          });
+        });
+
+        // 6. Combine all events, prioritize by type: battles > trades > created
+        const allEvents = [
+          ...battleEvents,
+          ...tradeEvents,
+          ...createEvents.filter(c => !tradeEvents.some(t => t.mint === c.mint)), // Don't duplicate
         ];
 
-        setAllEvents(combined);
+        // Sort by timestamp (newest first)
+        allEvents.sort((a, b) => b.timestamp - a.timestamp);
 
+        setEvents(allEvents.slice(0, 50)); // Keep max 50 events
       } catch (error) {
-        console.error('Error loading tokens:', error);
+        console.error('Error in fetchRealTrades:', error);
       } finally {
         setLoading(false);
       }
     }
 
-    loadExistingTokens();
+    fetchRealTrades();
+
+    // Refresh every 30 seconds
+    const refreshInterval = setInterval(fetchRealTrades, 30000);
+    return () => clearInterval(refreshInterval);
   }, []);
 
+  // Subscribe to real-time trades
   useEffect(() => {
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+    const channel = supabase
+      .channel('fomo-trades')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_trades',
+        },
+        async (payload) => {
+          const trade = payload.new as any;
+          
+          // Fetch token info
+          const { data: tokenInfo } = await supabase
+            .from('tokens')
+            .select('name, symbol, image')
+            .eq('mint', trade.token_mint)
+            .single();
 
-    const subscriptionId = connection.onLogs(
-      BONK_BATTLE_PROGRAM_ID,
-      async (logs) => {
-        try {
-          const tx = await connection.getParsedTransaction(logs.signature, {
-            maxSupportedTransactionVersion: 0,
-          });
-
-          if (!tx || !tx.meta) return;
-
-          // Check for BONK BATTLE events
-          const isBuy = logs.logs.some(log => log.includes('TokensPurchased') || log.includes('buy'));
-          const isCreate = logs.logs.some(log => log.includes('TokenCreated') || log.includes('initialize'));
-
-          if (!isBuy && !isCreate) return;
-
-          const userFull = tx.transaction.message.accountKeys[0].pubkey.toString();
-          const userShort = userFull.slice(0, 5); // 5 characters from address
-
-          let solAmount = 0;
-          if (isBuy) {
-            const preBalance = tx.meta.preBalances[0] || 0;
-            const postBalance = tx.meta.postBalances[0] || 0;
-            solAmount = (preBalance - postBalance) / 1e9;
-          }
-
-          const newEvent: RealEvent = {
-            signature: logs.signature,
-            mint: 'NEW',
-            type: isBuy ? 'bought' : 'created',
-            user: userShort,
-            userFull: userFull,
-            tokenName: 'NEW TOKEN',
-            tokenSymbol: 'NEW',
-            tokenImage: undefined,
-            amount: solAmount,
-            tier: 2,
-            timestamp: Date.now(),
+          const newEvent: RealTradeEvent = {
+            id: trade.id,
+            signature: trade.signature,
+            mint: trade.token_mint,
+            type: trade.trade_type === 'buy' ? 'buy' : 'sell',
+            walletShort: trade.wallet_address.slice(0, 5),
+            walletFull: trade.wallet_address,
+            tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
+            tokenSymbol: tokenInfo?.symbol || 'UNK',
+            tokenImage: tokenInfo?.image,
+            solAmount: Number(trade.sol_amount) / 1e9,
+            timestamp: new Date(trade.block_time).getTime(),
           };
 
-          // Add to combined events
-          setAllEvents(prev => [newEvent, ...prev].slice(0, 50));
-        } catch (error) {
-          console.error('Error parsing event:', error);
+          setEvents(prev => [newEvent, ...prev].slice(0, 50));
         }
-      },
-      'confirmed'
-    );
+      )
+      .subscribe();
 
     return () => {
-      connection.removeOnLogsListener(subscriptionId);
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  // Single ticker rotation for all events
+  // Rotate ticker
   useEffect(() => {
-    if (allEvents.length === 0) return;
+    if (events.length === 0) return;
 
     const interval = setInterval(() => {
-      const element = document.querySelector('.ticker-content');
-      if (element) {
-        void (element as HTMLElement).offsetWidth;
-      }
-
       setShake(true);
-      setCurrentIndex(prev => (prev + 1) % allEvents.length);
+      setCurrentIndex(prev => (prev + 1) % events.length);
       setTimeout(() => setShake(false), 600);
-    }, 1500); // 1.5 secondi per evento
+    }, 3000); // 3 seconds per event
 
     return () => clearInterval(interval);
-  }, [allEvents.length]);
+  }, [events.length]);
 
   if (loading) {
     return (
-      <div className="w-full">
-        <div className="w-full px-4 lg:px-6 py-3">
-          <div className="flex flex-col lg:flex-row gap-4 justify-center lg:justify-start">
-            <div
-              className="flex-1 lg:max-w-md px-5 py-3 font-bold text-sm text-black animate-pulse truncate"
-              style={{ backgroundColor: '#3b82f6', borderRadius: 0 }}
-            >
-              Loading...
-            </div>
+      <div className="mb-2 lg:mb-0">
+        <div className="px-0 lg:px-0 py-0 lg:py-0">
+          <div
+            className="px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal animate-pulse"
+            style={{ backgroundColor: '#3b82f6', borderRadius: 0 }}
+          >
+            Loading trades...
           </div>
         </div>
       </div>
     );
   }
 
-  if (allEvents.length === 0) {
+  if (events.length === 0) {
     return (
-      <div className="w-full">
-        <div className="w-full px-4 lg:px-6 py-3">
+      <div className="mb-2 lg:mb-0">
+        <div className="px-0 lg:px-0 py-0 lg:py-0">
           <Link href="/create">
             <div
-              className="px-5 py-3 font-bold text-sm text-black hover:opacity-80 transition-opacity cursor-pointer truncate"
+              className="px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-80 transition-opacity cursor-pointer"
               style={{ backgroundColor: '#3b82f6', borderRadius: 0 }}
             >
-              No tokens yet. Create the first one!
+              No trades yet. Create first token!
             </div>
           </Link>
         </div>
@@ -283,12 +290,8 @@ export function FOMOTicker() {
     );
   }
 
-  const currentEvent = allEvents[currentIndex];
-
-  // Determina il colore - solo 3 colori: verde, giallo, blu
-  const getEventColor = () => {
-    return TICKER_COLORS[currentIndex % TICKER_COLORS.length];
-  };
+  const currentEvent = events[currentIndex];
+  const color = TICKER_COLORS[currentIndex % TICKER_COLORS.length];
 
   return (
     <div className="mb-2 lg:mb-0">
@@ -296,21 +299,16 @@ export function FOMOTicker() {
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={'ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ' + (shake ? 'ticker-shake' : '')}
-            style={{
-              backgroundColor: getEventColor(),
-              borderRadius: 0,
-            }}
+            className={`ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ${shake ? 'ticker-shake' : ''}`}
+            style={{ backgroundColor: color, borderRadius: 0 }}
           >
-            {currentEvent.type === 'started_battle' ? (
+            {currentEvent.type === 'battle' ? (
               <>
-                {/* Battle Event - no emoji, bold text, only images no symbols */}
                 <span className="whitespace-nowrap text-base lg:text-sm uppercase font-bold">
-                  BATTLE STARTED:
+                  ⚔️ BATTLE:
                 </span>
-
                 {isValidImageUrl(currentEvent.tokenImage) && (
-                  <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
                       src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
@@ -321,13 +319,10 @@ export function FOMOTicker() {
                     />
                   </div>
                 )}
-
-                <span className="whitespace-nowrap text-base lg:text-sm font-bold">
-                  VS
-                </span>
-
+                <span className="font-bold">{currentEvent.tokenSymbol}</span>
+                <span className="font-bold">VS</span>
                 {isValidImageUrl(currentEvent.opponentImage) && (
-                  <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20">
                     <Image
                       src={currentEvent.opponentImage!}
                       alt={currentEvent.opponentSymbol || 'Opponent'}
@@ -338,44 +333,49 @@ export function FOMOTicker() {
                     />
                   </div>
                 )}
+                <span className="font-bold">{currentEvent.opponentSymbol}</span>
               </>
             ) : (
               <>
-                {/* Created/Buy Event */}
-                {/* Token Image LEFT */}
+                {/* Token Image */}
                 {isValidImageUrl(currentEvent.tokenImage) && (
-                  <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                     <Image
                       src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
                       width={24}
                       height={24}
                       className="w-full h-full object-cover"
+                      unoptimized
                     />
                   </div>
                 )}
 
+                {/* Wallet */}
                 <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
-                  {currentEvent.user}
+                  {currentEvent.walletShort}
                 </span>
 
+                {/* Action */}
                 <span className="whitespace-nowrap text-base lg:text-sm font-normal">
-                  {currentEvent.type === 'created' ? 'CREATED' : 'bought'}
+                  {currentEvent.type === 'created' ? 'CREATED' : currentEvent.type === 'buy' ? 'bought' : 'sold'}
                 </span>
 
+                {/* Amount */}
                 <span className="whitespace-nowrap font-normal text-base lg:text-sm">
-                  {currentEvent.amount.toFixed(2)} SOL
+                  {currentEvent.solAmount.toFixed(4)} SOL
                 </span>
 
+                {/* Symbol */}
                 <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
                   {currentEvent.tokenSymbol}
                 </span>
 
-                {/* User Avatar RIGHT */}
-                <div className="w-6 h-6 lg:w-6 lg:h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
+                {/* User Avatar */}
+                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                   <Image
                     src="/profilo.png"
-                    alt={currentEvent.user}
+                    alt={currentEvent.walletShort}
                     width={24}
                     height={24}
                     className="w-full h-full object-cover"
