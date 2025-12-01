@@ -129,6 +129,41 @@ export async function POST(request: NextRequest) {
         // Native SOL mint (wrapped SOL)
         const SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
 
+        // Raydium requires mintA address < mintB address
+        // Compare addresses to determine order
+        const solMintStr = SOL_MINT.toString();
+        const tokenMintStr = mint.toString();
+        const solFirst = solMintStr < tokenMintStr;
+
+        console.log('  SOL Mint:', solMintStr);
+        console.log('  Token Mint:', tokenMintStr);
+        console.log('  SOL first?', solFirst);
+
+        // Convert amounts
+        const solAmountBN = new BN(solForPool * LAMPORTS_PER_SOL);
+        // tokensForPool is in human units (206.9M = 206_900_000)
+        // Need to multiply by 10^decimals to get smallest units
+        const tokenAmountBN = new BN(tokensForPool).mul(new BN(10).pow(new BN(TOKEN_DECIMALS)));
+
+        console.log('  SOL Amount (lamports):', solAmountBN.toString());
+        console.log('  Token Amount (smallest):', tokenAmountBN.toString());
+
+        // Set mintA/mintB based on address order
+        const mintA = {
+            address: solFirst ? SOL_MINT.toString() : mint.toString(),
+            decimals: solFirst ? 9 : TOKEN_DECIMALS,
+            programId: TOKEN_PROGRAM_ID.toString(),
+        };
+
+        const mintB = {
+            address: solFirst ? mint.toString() : SOL_MINT.toString(),
+            decimals: solFirst ? TOKEN_DECIMALS : 9,
+            programId: TOKEN_PROGRAM_ID.toString(),
+        };
+
+        const mintAAmount = solFirst ? solAmountBN : tokenAmountBN;
+        const mintBAmount = solFirst ? tokenAmountBN : solAmountBN;
+
         // Get fee configs
         console.log('📝 Getting fee configs...');
         const feeConfigs = await raydium.api.getCpmmConfigs();
@@ -142,24 +177,6 @@ export async function POST(request: NextRequest) {
         });
 
         console.log('✅ Fee configs loaded:', feeConfigs.length);
-
-        // Get token info for SOL
-        const mintA = {
-            address: SOL_MINT.toString(),
-            decimals: 9,
-            programId: TOKEN_PROGRAM_ID.toString(),
-        };
-
-        // Get token info for battle token
-        const mintB = {
-            address: mint.toString(),
-            decimals: TOKEN_DECIMALS,
-            programId: TOKEN_PROGRAM_ID.toString(),
-        };
-
-        // Convert amounts to lamports/smallest units
-        const mintAAmount = new BN(solForPool * LAMPORTS_PER_SOL);
-        const mintBAmount = new BN(tokensForPool * Math.pow(10, TOKEN_DECIMALS));
 
         console.log('  Mint A Amount:', mintAAmount.toString(), 'lamports');
         console.log('  Mint B Amount:', mintBAmount.toString(), 'tokens');
