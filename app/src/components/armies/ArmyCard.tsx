@@ -137,7 +137,7 @@ export function ArmyCard({ army, isOnFire = false }: ArmyCardProps) {
               Created {new Date(army.created_at).toLocaleDateString()}
             </div>
 
-            <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-colors">
+            <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-all border border-orange-300/50 shadow-[0_0_10px_rgba(249,115,22,0.4)] hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]">
               Join Army →
             </button>
           </div>

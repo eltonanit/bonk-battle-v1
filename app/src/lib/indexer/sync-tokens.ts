@@ -3,19 +3,37 @@ import { supabase } from '@/lib/supabase';
 import { BONK_BATTLE_PROGRAM_ID, BattleStatus } from '@/lib/solana/constants';
 import { RPC_ENDPOINT } from '@/config/solana';
 
+/**
+ * Helper to parse metadata that might be stored as JSON string
+ */
+function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image'): string {
+    if (!value) return '';
+    const trimmed = value.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            return parsed[field] || parsed[field.toLowerCase()] || '';
+        } catch {
+            return value;
+        }
+    }
+    return value;
+}
+
 export async function syncTokensToSupabase() {
-    console.log('🔄 Starting token sync...');
+    console.log('🔄 Starting token sync (V2)...');
 
     try {
         const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-        const METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s');
 
         // 1. Fetch all accounts from RPC
-        // We remove filters to ensure we get everything, then filter in memory
         const response = await connection.getProgramAccounts(BONK_BATTLE_PROGRAM_ID);
         const accounts = response as any[];
 
         console.log(`📦 Fetched ${accounts.length} accounts from RPC`);
+
+        // TokenBattleState discriminator from IDL
+        const TOKEN_BATTLE_STATE_DISCRIMINATOR = Buffer.from([54, 102, 185, 22, 231, 3, 228, 117]);
 
         const tokensToUpsert = [];
 
@@ -23,109 +41,153 @@ export async function syncTokensToSupabase() {
             try {
                 const data = account.account.data;
 
-                // Basic validation
-                if (data.length < 100) continue;
+                // Check discriminator
+                const accountDiscriminator = data.slice(0, 8);
+                if (!accountDiscriminator.equals(TOKEN_BATTLE_STATE_DISCRIMINATOR)) {
+                    continue;
+                }
 
-                // Parse Logic
+                // ⭐ V2 STRUCTURE PARSING
                 let offset = 8; // Skip discriminator
 
-                const mint = new PublicKey(data.slice(offset, offset + 32));
-                offset += 32;
+                // Helper functions
+                const readPublicKey = (): PublicKey => {
+                    const pk = new PublicKey(data.slice(offset, offset + 32));
+                    offset += 32;
+                    return pk;
+                };
 
-                const readU64 = () => {
+                const readU64 = (): number => {
                     let value = 0n;
                     for (let i = 0; i < 8; i++) {
                         value |= BigInt(data[offset + i]) << BigInt(i * 8);
                     }
                     offset += 8;
+                    // Cap at safe JavaScript Number.MAX_SAFE_INTEGER to avoid precision loss
+                    const maxSafe = BigInt(Number.MAX_SAFE_INTEGER);
+                    if (value > maxSafe) value = maxSafe;
                     return Number(value);
                 };
 
-                const readI64 = () => {
+                const readI64 = (): number => {
                     let value = 0n;
                     for (let i = 0; i < 8; i++) {
                         value |= BigInt(data[offset + i]) << BigInt(i * 8);
                     }
                     offset += 8;
-                    // Handle signed
                     if (value >= 0x8000000000000000n) {
                         value = value - 0x10000000000000000n;
                     }
                     return Number(value);
                 };
 
-                const solCollected = readU64();
+                const readU8 = (): number => {
+                    const value = data[offset];
+                    offset += 1;
+                    return value;
+                };
+
+                const readBool = (): boolean => {
+                    const value = data[offset] !== 0;
+                    offset += 1;
+                    return value;
+                };
+
+                const readString = (): string => {
+                    const length = data.readUInt32LE(offset);
+                    offset += 4;
+                    // Remove null bytes and trim
+                    const str = data.slice(offset, offset + length).toString('utf8').replace(/\0/g, '').trim();
+                    offset += length;
+                    return str;
+                };
+
+                // Parse V2 fields
+                const mint = readPublicKey();
+                const tier = readU8();
+
+                // V2: Virtual/Real reserves
+                const virtualSolReserves = readU64();
+                const virtualTokenReserves = readU64();
+                const realSolReserves = readU64();
+                const realTokenReserves = readU64();
+
                 const tokensSold = readU64();
                 const totalTradeVolume = readU64();
-
-                const isActive = data[offset] !== 0;
-                offset += 1;
-
-                const battleStatusRaw = data[offset];
-                offset += 1;
-
-                const opponentMint = new PublicKey(data.slice(offset, offset + 32));
-                offset += 32;
-
+                const isActive = readBool();
+                const battleStatusRaw = readU8();
+                const opponentMint = readPublicKey();
                 const creationTimestamp = readI64();
-                const qualificationTimestamp = readI64();
                 const lastTradeTimestamp = readI64();
                 const battleStartTimestamp = readI64();
                 const victoryTimestamp = readI64();
                 const listingTimestamp = readI64();
-                const bump = data[offset];
+                const bump = readU8();
 
-                // --- METADATA FETCHING ---
-                let name = '';
-                let symbol = '';
+                // ⭐ V2: Read metadata directly from account (with bounds check)
+                let rawName = '';
+                let rawSymbol = '';
                 let uri = '';
-                // let image = ''; // We can fetch this later or client-side from URI
 
-                try {
-                    const [metadataPDA] = PublicKey.findProgramAddressSync(
-                        [
-                            Buffer.from('metadata'),
-                            METADATA_PROGRAM_ID.toBuffer(),
-                            mint.toBuffer(),
-                        ],
-                        METADATA_PROGRAM_ID
-                    );
-
-                    const accountInfo = await connection.getAccountInfo(metadataPDA);
-                    if (accountInfo) {
-                        const metaData = accountInfo.data;
-                        // Skip discriminator (1) + update authority (32) + mint (32)
-                        let metaOffset = 1 + 32 + 32;
-
-                        const nameLen = metaData.readUInt32LE(metaOffset);
-                        metaOffset += 4;
-                        name = metaData.slice(metaOffset, metaOffset + nameLen).toString('utf8').replace(/\0/g, '').trim();
-                        metaOffset += nameLen;
-
-                        const symbolLen = metaData.readUInt32LE(metaOffset);
-                        metaOffset += 4;
-                        symbol = metaData.slice(metaOffset, metaOffset + symbolLen).toString('utf8').replace(/\0/g, '').trim();
-                        metaOffset += symbolLen;
-
-                        const uriLen = metaData.readUInt32LE(metaOffset);
-                        metaOffset += 4;
-                        uri = metaData.slice(metaOffset, metaOffset + uriLen).toString('utf8').replace(/\0/g, '').trim();
+                // Check if there's enough data for metadata strings
+                if (offset + 4 <= data.length) {
+                    try {
+                        rawName = readString();
+                        if (offset + 4 <= data.length) {
+                            rawSymbol = readString();
+                            if (offset + 4 <= data.length) {
+                                uri = readString();
+                            }
+                        }
+                    } catch {
+                        // V1 account without metadata strings - that's ok
                     }
-                } catch (metaErr) {
-                    console.warn(`⚠️ Failed to fetch metadata for ${mint.toString()}:`, metaErr);
                 }
 
-                // Prepare object for Supabase
+                // Parse metadata (may be JSON)
+                let nameFromUri = '';
+                let symbolFromUri = '';
+                let imageFromUri = '';
+
+                if (uri) {
+                    nameFromUri = parseMetadataField(uri, 'name');
+                    symbolFromUri = parseMetadataField(uri, 'symbol');
+                    imageFromUri = parseMetadataField(uri, 'image');
+                }
+
+                // Clean strings of any remaining null bytes
+                const cleanStr = (s: string) => s.replace(/\0/g, '').trim();
+
+                const name = cleanStr(nameFromUri || parseMetadataField(rawName, 'name') || rawName);
+                const symbol = cleanStr(symbolFromUri || parseMetadataField(rawSymbol, 'symbol') || parseMetadataField(rawName, 'symbol') || rawSymbol);
+                let image = cleanStr(imageFromUri || parseMetadataField(rawName, 'image') || '');
+
+                // Try fetching image from URI URL if still no image
+                if (!image && uri && !uri.startsWith('{')) {
+                    try {
+                        const response = await fetch(uri);
+                        const metadata = await response.json();
+                        image = metadata.image || '';
+                    } catch {
+                        // Could not get image
+                    }
+                }
+
+                // Prepare object for Supabase (V2 fields)
                 tokensToUpsert.push({
                     mint: mint.toString(),
-                    sol_collected: solCollected,
+                    tier: tier,
+                    virtual_sol_reserves: virtualSolReserves,
+                    virtual_token_reserves: virtualTokenReserves,
+                    real_sol_reserves: realSolReserves,
+                    real_token_reserves: realTokenReserves,
+                    sol_collected: realSolReserves, // Backwards compatibility
                     tokens_sold: tokensSold,
                     total_trade_volume: totalTradeVolume,
                     is_active: isActive,
                     battle_status: battleStatusRaw,
                     opponent_mint: opponentMint.toString(),
                     creation_timestamp: creationTimestamp,
-                    qualification_timestamp: qualificationTimestamp,
                     last_trade_timestamp: lastTradeTimestamp,
                     battle_start_timestamp: battleStartTimestamp,
                     victory_timestamp: victoryTimestamp,
@@ -134,6 +196,7 @@ export async function syncTokensToSupabase() {
                     name: name,
                     symbol: symbol,
                     uri: uri,
+                    image: image,
                     updated_at: new Date().toISOString()
                 });
 

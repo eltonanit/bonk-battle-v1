@@ -63,19 +63,22 @@ function OnBattleItem({ token }: { token: UserToken }) {
 
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
-      {/* Left: Token info */}
-      <div className="flex items-center gap-3">
+      {/* Left: Token info - Clickable */}
+      <Link href={`/token/${token.mint}`} className="flex items-center gap-3 hover:opacity-80 transition">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
           {token.image ? (
-            <Image src={token.image} alt={token.symbol} width={48} height={48} className="object-cover" />
+            <Image src={token.image} alt={token.symbol || 'Token'} width={48} height={48} className="object-cover w-full h-full" unoptimized />
           ) : (
-            <div className="w-full h-full flex items-center justify-center font-bold">
-              {token.symbol.slice(0, 2)}
+            <div className="w-full h-full flex items-center justify-center font-bold text-white">
+              {token.symbol?.slice(0, 2) || '??'}
             </div>
           )}
         </div>
-        <span className="font-bold text-lg">{token.symbol}</span>
-      </div>
+        <div>
+          <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
+          <span className="text-xs text-white/50">{token.name || token.mint.slice(0, 8)}</span>
+        </div>
+      </Link>
 
       {/* Center: Score + Opponent */}
       <div className="flex items-center gap-2">
@@ -84,7 +87,7 @@ function OnBattleItem({ token }: { token: UserToken }) {
         <span className="text-xl font-bold text-white/80">0</span>
         {token.opponentImage && (
           <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 ml-2">
-            <Image src={token.opponentImage} alt="opponent" width={32} height={32} className="object-cover" />
+            <Image src={token.opponentImage} alt="opponent" width={32} height={32} className="object-cover w-full h-full" unoptimized />
           </div>
         )}
       </div>
@@ -198,19 +201,22 @@ function QualifyItem({ token, onFindOpponent }: {
 
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
-      {/* Left: Token info */}
-      <div className="flex items-center gap-3">
+      {/* Left: Token info - Clickable */}
+      <Link href={`/token/${token.mint}`} className="flex items-center gap-3 hover:opacity-80 transition">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
           {token.image ? (
-            <Image src={token.image} alt={token.symbol} width={48} height={48} className="object-cover" />
+            <Image src={token.image} alt={token.symbol || 'Token'} width={48} height={48} className="object-cover w-full h-full" unoptimized />
           ) : (
-            <div className="w-full h-full flex items-center justify-center font-bold">
-              {token.symbol.slice(0, 2)}
+            <div className="w-full h-full flex items-center justify-center font-bold text-white">
+              {token.symbol?.slice(0, 2) || '??'}
             </div>
           )}
         </div>
-        <span className="font-bold text-lg">{token.symbol}</span>
-      </div>
+        <div>
+          <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
+          <span className="text-xs text-white/50">{token.name || token.mint.slice(0, 8)}</span>
+        </div>
+      </Link>
 
       {/* Right: Find Opponent button + Timer */}
       <div className="flex items-center gap-2">
@@ -240,24 +246,24 @@ function QualifyItem({ token, onFindOpponent }: {
 function NewItem({ token }: { token: UserToken }) {
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
-      {/* Left: Token info */}
-      <div className="flex items-center gap-3">
+      {/* Left: Token info - Clickable */}
+      <Link href={`/token/${token.mint}`} className="flex items-center gap-3 hover:opacity-80 transition">
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
           {token.image ? (
-            <Image src={token.image} alt={token.symbol} width={48} height={48} className="object-cover" />
+            <Image src={token.image} alt={token.symbol} width={48} height={48} className="object-cover w-full h-full" unoptimized />
           ) : (
-            <div className="w-full h-full flex items-center justify-center font-bold">
-              {token.symbol.slice(0, 2)}
+            <div className="w-full h-full flex items-center justify-center font-bold text-white">
+              {token.symbol?.slice(0, 2) || '??'}
             </div>
           )}
         </div>
         <div>
-          <span className="font-bold text-lg block">{token.symbol}</span>
+          <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
           <span className="text-xs text-white/50">
-            {(token.solCollected / 1e9).toFixed(2)} SOL collected
+            {token.name || token.mint.slice(0, 8)}
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Right: Qualify button */}
       <Link

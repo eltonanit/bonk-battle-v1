@@ -35,7 +35,7 @@ export function YourArmyTab() {
 
       // Filter tokens created by this wallet
       const userTokens = allTokens
-        .filter(token => token.creator.toString() === publicKey.toString())
+        .filter(token => token.creator?.toString() === publicKey.toString())
         .map(token => ({
           mint: token.mint.toString(),
           name: token.name || 'Unknown',

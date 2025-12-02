@@ -51,7 +51,7 @@ export default function ArmiesPage() {
             {/* Create Army Button */}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-all border border-orange-300/50 shadow-[0_0_10px_rgba(249,115,22,0.4)] hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]"
             >
               + Create Army
             </button>

@@ -11,6 +11,7 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
+import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 
 export function DesktopHeader() {
   const { connected, publicKey, disconnect } = useWallet();
@@ -132,12 +133,8 @@ export function DesktopHeader() {
                   )}
                 </Link>
 
-                {/* Join ARMY Button */}
-                <Link href="/armies">
-                  <button className="bg-bonk-gold text-black px-5 py-2 rounded-lg font-bold text-sm hover:bg-bonk-gold/90 transition-colors whitespace-nowrap">
-                    Join ARMY
-                  </button>
-                </Link>
+                {/* Join ARMY Button - Animato con spade */}
+                <JoinArmyButton size="md" />
               </>
             )}
 
@@ -204,6 +201,16 @@ export function DesktopHeader() {
 
                     {/* Menu */}
                     <div className="absolute top-full right-0 mt-2 min-w-[180px] bg-bonk-card border border-bonk-orange-brand rounded-lg shadow-xl overflow-hidden z-50">
+                      <Link
+                        href="/profile"
+                        onClick={() => setShowDropdown(false)}
+                        className="w-full px-4 py-3 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2 text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Profile</span>
+                      </Link>
                       <button
                         onClick={handleCopyAddress}
                         className="w-full px-4 py-3 text-left text-white hover:bg-white/5 transition-colors flex items-center gap-2 text-sm"

@@ -26,7 +26,7 @@ export function CoinsTab() {
 
       // Filter only tokens created by this user
       const userCreatedTokens = allTokens.filter(
-        token => token.creator.toString() === publicKey.toBase58()
+        token => token.creator?.toString() === publicKey.toBase58()
       );
 
       console.log(`🎨 Found ${userCreatedTokens.length} tokens created by ${publicKey.toBase58()}`);
