@@ -136,7 +136,7 @@ export function Header() {
           <div className="px-3 py-2 flex items-center justify-end gap-1.5">
             {/* X (Twitter) Icon */}
             <a
-              href="https://x.com/BonkBattle_"
+              href="https://x.com/bonk_battle?s=20"
               target="_blank"
               rel="noopener noreferrer"
               className="p-1.5 hover:opacity-80 transition-opacity"
@@ -343,7 +343,7 @@ export function Header() {
             <div className="px-4 pb-6 space-y-1">
               {/* Follow us on X - Top */}
               <a
-                href="https://x.com/BonkBattle_"
+                href="https://x.com/bonk_battle?s=20"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 text-[#FFB088] font-medium text-sm"
@@ -477,7 +477,7 @@ export function Header() {
 
               {/* Follow us on X */}
               <a
-                href="https://x.com/BonkBattle_"
+                href="https://x.com/bonk_battle?s=20"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 px-4 py-3 text-white font-medium text-base hover:bg-white/5 rounded-lg transition-colors"

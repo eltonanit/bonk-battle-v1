@@ -383,17 +383,24 @@ export function BalancesTab() {
   // Calculate totals (only from valid data)
   const validPositions = positions.filter(p => p.isValidData);
   const totalValue = validPositions.reduce((sum, p) => sum + p.currentValueUsd, 0);
+  const totalBought = validPositions.reduce((sum, p) => sum + p.boughtValueUsd, 0);
+  const totalPnl = totalValue - totalBought;
+  const totalPnlPercent = totalBought > 0 ? (totalPnl / totalBought) * 100 : 0;
+  const isTotalProfit = totalPnl >= 0;
 
   return (
     <div className="space-y-3">
-      {/* Portfolio Summary */}
+      {/* Portfolio Summary - Phantom Style */}
       {validPositions.length > 0 && (
-        <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-xl p-4 border border-orange-500/30">
-          <div className="text-center">
-            <p className="text-gray-400 text-sm">Total Portfolio Value</p>
-            <p className="text-2xl font-bold text-white">{formatUsd(totalValue)}</p>
-            <p className="text-xs text-gray-500">{validPositions.length} positions</p>
-          </div>
+        <div className="py-6 text-center">
+          {/* Large Balance Number */}
+          <p className="text-4xl font-bold text-white mb-2">
+            ${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          {/* P/L Below */}
+          <p className={`text-sm font-medium ${isTotalProfit ? 'text-green-400' : 'text-red-400'}`}>
+            {isTotalProfit ? '+' : ''}{formatUsd(totalPnl)} {isTotalProfit ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+          </p>
         </div>
       )}
 

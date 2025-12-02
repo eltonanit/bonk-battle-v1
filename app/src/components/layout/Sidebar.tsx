@@ -187,7 +187,7 @@ export function Sidebar() {
         <div className="flex items-center justify-center gap-4 px-4 py-3">
           {/* X (Twitter) */}
           <a
-            href="https://x.com/bonkbattle"
+            href="https://x.com/bonk_battle?s=20"
             target="_blank"
             rel="noopener noreferrer"
             className="opacity-60 hover:opacity-100 transition-opacity"
