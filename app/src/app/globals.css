@@ -94,59 +94,37 @@
 
 @keyframes shakeHorizontal {
   0% {
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
-
-  5% {
-    transform: translateX(-55vw) scale(1.05);
-  }
-
   10% {
-    transform: translateX(60vw) scale(1.05);
+    transform: translateX(-8px);
   }
-
-  15% {
-    transform: translateX(-58vw) scale(1.04);
-  }
-
   20% {
-    transform: translateX(55vw) scale(1.04);
+    transform: translateX(8px);
   }
-
-  25% {
-    transform: translateX(-52vw) scale(1.03);
-  }
-
   30% {
-    transform: translateX(50vw) scale(1.03);
+    transform: translateX(-6px);
   }
-
   40% {
-    transform: translateX(-42vw) scale(1.02);
+    transform: translateX(6px);
   }
-
   50% {
-    transform: translateX(35vw) scale(1.02);
+    transform: translateX(-4px);
   }
-
   60% {
-    transform: translateX(-28vw) scale(1.01);
+    transform: translateX(4px);
   }
-
   70% {
-    transform: translateX(20vw) scale(1.01);
+    transform: translateX(-2px);
   }
-
   80% {
-    transform: translateX(-12vw) scale(1);
+    transform: translateX(2px);
   }
-
   90% {
-    transform: translateX(6vw) scale(1);
+    transform: translateX(-1px);
   }
-
   100% {
-    transform: translateX(0) scale(1);
+    transform: translateX(0);
   }
 }
 

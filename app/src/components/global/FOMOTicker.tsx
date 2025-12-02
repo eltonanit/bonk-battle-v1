@@ -285,7 +285,7 @@ export function FOMOTicker() {
       setShake(true);
       setCurrentIndex(prev => (prev + 1) % events.length);
       setTimeout(() => setShake(false), 600);
-    }, 3000); // 3 seconds per event
+    }, 900); // 0.9 seconds per event
 
     return () => clearInterval(interval);
   }, [events.length]);
