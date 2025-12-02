@@ -145,8 +145,8 @@ export function TokenGridBonk() {
       .filter(t => t.battleStatus === BattleStatus.InBattle)
       .map(token => {
         // ⭐ REAL conversion using oracle price
-        const mcUsd = lamportsToUsd(token.solCollected);
-        const volumeUsd = lamportsToUsd(token.totalTradeVolume);
+        const mcUsd = lamportsToUsd(token.solCollected ?? 0);
+        const volumeUsd = lamportsToUsd(token.totalTradeVolume ?? 0);
 
         // Calculate progress toward victory
         const mcProgress = Math.min((mcUsd / VICTORY_MC_USD) * 100, 100);
@@ -176,9 +176,9 @@ export function TokenGridBonk() {
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
     image: token.image || null, // ⭐ Use 'image' field (not imageUri)
-    marketCapUsd: lamportsToUsd(token.solCollected),
-    volumeUsd: lamportsToUsd(token.totalTradeVolume),
-    solCollected: token.solCollected / 1e9 // Convert to SOL for display
+    marketCapUsd: lamportsToUsd(token.solCollected ?? 0),
+    volumeUsd: lamportsToUsd(token.totalTradeVolume ?? 0),
+    solCollected: (token.solCollected ?? 0) / 1e9 // Convert to SOL for display
   });
 
   // Count for display
