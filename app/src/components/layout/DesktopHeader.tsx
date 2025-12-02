@@ -173,9 +173,9 @@ export function DesktopHeader() {
                     />
                   </div>
 
-                  {/* ⭐ Address formattato (6...4 caratteri) */}
-                  <span className="text-white font-mono text-sm font-semibold">
-                    {publicKey && formatAddress(publicKey.toString())}
+                  {/* ⭐ Username o Address */}
+                  <span className="text-white text-sm font-semibold">
+                    {profile?.username || (publicKey && formatAddress(publicKey.toString()))}
                   </span>
 
                   {/* Arrow Down Triangle - Arancione chiaro */}

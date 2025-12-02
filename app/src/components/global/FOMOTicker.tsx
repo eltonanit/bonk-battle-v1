@@ -12,6 +12,7 @@ interface RealTradeEvent {
   type: 'buy' | 'sell' | 'created' | 'battle' | 'won';
   walletShort: string;
   walletFull: string;
+  username?: string; // Username dell'utente dal database
   userAvatar?: string; // Avatar dell'utente dal database
   tokenName: string;
   tokenSymbol: string;
@@ -94,19 +95,22 @@ export function FOMOTicker() {
 
         const { data: users } = await supabase
           .from('users')
-          .select('wallet_address, avatar_url')
+          .select('wallet_address, avatar_url, username')
           .in('wallet_address', wallets);
 
-        const userAvatarMap = new Map<string, string>();
+        // Map per avatar e username degli utenti
+        const userMap = new Map<string, { avatar?: string; username?: string }>();
         users?.forEach(u => {
-          if (u.avatar_url) {
-            userAvatarMap.set(u.wallet_address, u.avatar_url);
-          }
+          userMap.set(u.wallet_address, {
+            avatar: u.avatar_url || undefined,
+            username: u.username || undefined,
+          });
         });
 
         // 3. Convert trades to events
         const tradeEvents: RealTradeEvent[] = (trades || []).map(trade => {
           const tokenInfo = tokenMap.get(trade.token_mint);
+          const userInfo = userMap.get(trade.wallet_address);
           return {
             id: trade.id,
             signature: trade.signature,
@@ -114,7 +118,8 @@ export function FOMOTicker() {
             type: trade.trade_type === 'buy' ? 'buy' : 'sell',
             walletShort: trade.wallet_address.slice(0, 5),
             walletFull: trade.wallet_address,
-            userAvatar: userAvatarMap.get(trade.wallet_address),
+            username: userInfo?.username,
+            userAvatar: userInfo?.avatar,
             tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
             tokenSymbol: tokenInfo?.symbol || 'UNK',
             tokenImage: tokenInfo?.image,
@@ -272,6 +277,13 @@ export function FOMOTicker() {
             .eq('mint', trade.token_mint)
             .single();
 
+          // Fetch user info (avatar + username)
+          const { data: userInfo } = await supabase
+            .from('users')
+            .select('avatar_url, username')
+            .eq('wallet_address', trade.wallet_address)
+            .single();
+
           const newEvent: RealTradeEvent = {
             id: trade.id,
             signature: trade.signature,
@@ -279,6 +291,8 @@ export function FOMOTicker() {
             type: trade.trade_type === 'buy' ? 'buy' : 'sell',
             walletShort: trade.wallet_address.slice(0, 5),
             walletFull: trade.wallet_address,
+            username: userInfo?.username || undefined,
+            userAvatar: userInfo?.avatar_url || undefined,
             tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
             tokenSymbol: tokenInfo?.symbol || 'UNK',
             tokenImage: tokenInfo?.image,
@@ -431,9 +445,9 @@ export function FOMOTicker() {
                   />
                 </div>
 
-                {/* Wallet - BOLD + UNDERLINED */}
+                {/* Username o Wallet - BOLD + UNDERLINED */}
                 <span className="whitespace-nowrap font-bold uppercase text-base lg:text-sm underline">
-                  {currentEvent.walletShort}
+                  {currentEvent.username || currentEvent.walletShort}
                 </span>
 
                 {/* Action */}
