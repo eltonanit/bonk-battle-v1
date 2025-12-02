@@ -192,6 +192,69 @@ export function Tagline() {
           animation: electric-border 1.5s ease-in-out infinite;
           border: 2px solid #9333ea;
         }
+
+        @keyframes electric-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 4px #a855f7,
+              0 0 8px #c084fc,
+              0 0 12px #c084fc;
+          }
+          50% {
+            box-shadow:
+              0 0 6px #c084fc,
+              0 0 12px #a855f7,
+              0 0 18px #9333ea;
+          }
+        }
+
+        @keyframes spark-flash {
+          0%, 100% { opacity: 0; transform: scale(0.8); }
+          10%, 30% { opacity: 1; transform: scale(1.2); }
+          50% { opacity: 0.3; transform: scale(1); }
+          70%, 90% { opacity: 1; transform: scale(1.3); }
+        }
+
+        .clash-royale-border {
+          background: linear-gradient(180deg, #d8b4fe 0%, #c084fc 15%, #a855f7 35%, #9333ea 55%, #7c3aed 75%, #6d28d9 100%);
+          padding: 4px;
+          border-radius: 16px;
+          animation: electric-pulse 1.5s ease-in-out infinite;
+          position: relative;
+        }
+
+        .clash-royale-border::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 16px;
+          background: transparent;
+          box-shadow:
+            inset 2px 0 8px rgba(255, 255, 255, 0.3),
+            inset -2px 0 8px rgba(255, 255, 255, 0.3),
+            inset 0 2px 8px rgba(255, 255, 255, 0.3),
+            inset 0 -2px 8px rgba(255, 255, 255, 0.3);
+          pointer-events: none;
+        }
+
+        .clash-royale-inner {
+          background: linear-gradient(180deg, #1e1245 0%, #120a2e 50%, #0a0618 100%);
+          border-radius: 12px;
+          padding: 16px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* Spark particles */
+        .spark {
+          position: absolute;
+          width: 6px;
+          height: 6px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 8px #fff, 0 0 15px #c084fc, 0 0 25px #a855f7;
+          animation: spark-flash 0.6s ease-in-out infinite;
+        }
       `}</style>
 
       {/* ⭐ LAYOUT: Mobile stack (images first), Desktop grid */}
@@ -203,34 +266,54 @@ export function Tagline() {
           <div className="hidden lg:block">
             {/* Titolo EPIC BATTLE - CENTRATO */}
             <h2
-              className="text-2xl font-extrabold mb-3 flex items-center justify-center gap-2"
+              className="text-3xl font-extrabold mb-4 flex items-center justify-center gap-3"
               style={{
                 color: '#a855f7',
                 textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
               }}
             >
-              <span className="text-2xl">⚔️</span>
+              <span className="text-3xl">⚔️</span>
               EPIC BATTLE
-              <span className="text-2xl">⚔️</span>
+              <span className="text-3xl">⚔️</span>
             </h2>
 
-            {/* BattleCard - Most Recent Battle - Con bordo elettrico viola */}
+            {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
             {latestBattle ? (
-              <div className="electric-border rounded-xl overflow-hidden transform scale-90 origin-top">
-                <BattleCard
-                  tokenA={toBattleToken(latestBattle.tokenA)}
-                  tokenB={toBattleToken(latestBattle.tokenB)}
-                  targetMC={VICTORY_MC_USD}
-                  targetVol={VICTORY_VOLUME_USD}
-                  isEpicBattle={true}
-                />
+              <div className="clash-royale-border transform scale-90 origin-top">
+                {/* Electric Sparks */}
+                <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
+                <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.2s' }} />
+                <div className="spark" style={{ bottom: '20%', left: '30%', animationDelay: '0.4s' }} />
+                <div className="spark" style={{ top: '-2px', left: '60%', animationDelay: '0.6s' }} />
+                <div className="spark" style={{ bottom: '-2px', right: '40%', animationDelay: '0.3s' }} />
+                <div className="spark" style={{ top: '30%', left: '-2px', animationDelay: '0.5s' }} />
+                <div className="spark" style={{ bottom: '10%', right: '-2px', animationDelay: '0.1s' }} />
+                <div className="spark" style={{ top: '-2px', left: '20%', animationDelay: '0.7s' }} />
+
+                <div className="clash-royale-inner !p-0">
+                  <BattleCard
+                    tokenA={toBattleToken(latestBattle.tokenA)}
+                    tokenB={toBattleToken(latestBattle.tokenB)}
+                    targetMC={VICTORY_MC_USD}
+                    targetVol={VICTORY_VOLUME_USD}
+                    isEpicBattle={true}
+                  />
+                </div>
               </div>
             ) : (
-              <div className="electric-border rounded-xl p-6 text-center bg-bonk-card transform scale-90 origin-top">
-                <div className="text-3xl mb-2">⚔️</div>
-                <div className="text-base font-bold text-white mb-1">No Active Battles</div>
-                <div className="text-bonk-text text-xs">
-                  Battles start when two qualified tokens are matched.
+              <div className="clash-royale-border transform scale-90 origin-top">
+                {/* Electric Sparks */}
+                <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
+                <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.3s' }} />
+                <div className="spark" style={{ bottom: '-2px', left: '50%', animationDelay: '0.5s' }} />
+                <div className="spark" style={{ top: '-2px', right: '30%', animationDelay: '0.2s' }} />
+
+                <div className="clash-royale-inner text-center">
+                  <div className="text-3xl mb-2">⚔️</div>
+                  <div className="text-base font-bold text-white mb-1">No Active Battles</div>
+                  <div className="text-gray-400 text-xs">
+                    Battles start when two qualified tokens are matched.
+                  </div>
                 </div>
               </div>
             )}

@@ -128,7 +128,7 @@ export default function BattleDetailPage() {
   const getProgress = (state: typeof stateA) => {
     if (!state || !solPriceUsd) return { mc: 0, vol: 0, mcUsd: 0, volUsd: 0 };
     
-    const mcUsd = lamportsToUsd(state.solCollected);
+    const mcUsd = lamportsToUsd(state.realSolReserves);
     const volUsd = lamportsToUsd(state.totalTradeVolume);
     
     return {
@@ -434,7 +434,7 @@ export default function BattleDetailPage() {
               {/* Chart */}
               {currentState && (
                 <PriceChart token={{
-                  solRaised: currentState.solCollected / 1e9,
+                  solRaised: currentState.realSolReserves / 1e9,
                   virtualSolInit: VIRTUAL_RESERVE / 1e9,
                   constantK: (BigInt(VIRTUAL_RESERVE) * BigInt(VIRTUAL_SUPPLY)).toString(),
                   createdAt: currentState.creationTimestamp,
@@ -482,13 +482,22 @@ export default function BattleDetailPage() {
             {/* RIGHT COLUMN - Trading */}
             <div className="lg:col-span-4 space-y-6">
               {/* Trading Panel */}
-              {currentMint && (
-                <TradingPanel 
-                  mint={currentMint} 
+              {currentMint && currentState && (
+                <TradingPanel
+                  mint={currentMint}
+                  tokenState={{
+                    symbol: currentState.symbol || 'TOKEN',
+                    image: getTokenImage(currentState),
+                    solCollected: currentState.realSolReserves,
+                    totalTradeVolume: currentState.totalTradeVolume,
+                    virtualSolReserves: currentState.virtualSolReserves,
+                    realSolReserves: currentState.realSolReserves,
+                  }}
+                  solPriceUsd={solPriceUsd || 0}
                   onSuccess={() => {
                     refetchA();
                     refetchB();
-                  }} 
+                  }}
                 />
               )}
 

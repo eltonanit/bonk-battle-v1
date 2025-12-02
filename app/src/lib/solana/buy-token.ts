@@ -396,6 +396,13 @@ export async function buyToken(
       throw new Error('Mathematical overflow in calculation');
     } else if (errorMessage.includes('0x1787')) { // 6023 - InvalidCurveState
       throw new Error('Invalid bonding curve state');
+    } else if (
+      errorMessage.includes('0x1788') ||
+      errorMessage.includes('WouldExceedGraduation') ||
+      errorMessage.includes('6024')
+    ) {
+      // 6024 - WouldExceedGraduation - Token reached victory threshold!
+      throw new Error('GRADUATION_READY: This token has reached the victory threshold!');
     } else if (errorMessage.includes('custom program error')) {
       const errorCode = errorMessage.match(/0x[0-9a-fA-F]+/)?.[0];
       throw new Error(`Program error ${errorCode}. Check Solscan for details.`);

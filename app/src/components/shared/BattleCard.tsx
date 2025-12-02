@@ -5,6 +5,115 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
+// CSS for radiating glow effect and diamond pattern
+const radiateStyles = `
+  .epic-diamond-bg {
+    background:
+      linear-gradient(45deg, #581c87 25%, transparent 25%, transparent 75%, #581c87 75%),
+      linear-gradient(45deg, #581c87 25%, transparent 25%, transparent 75%, #581c87 75%),
+      linear-gradient(-45deg, #6d28d9 25%, transparent 25%, transparent 75%, #6d28d9 75%),
+      linear-gradient(-45deg, #6d28d9 25%, transparent 25%, transparent 75%, #6d28d9 75%);
+    background-color: #4c1d95;
+    background-size: 30px 30px;
+    background-position: 0 0, 15px 15px, 0 0, 15px 15px;
+    position: relative;
+  }
+
+  .epic-diamond-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(139, 92, 246, 0.15) 10px,
+        rgba(139, 92, 246, 0.15) 20px
+      ),
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 10px,
+        rgba(139, 92, 246, 0.15) 10px,
+        rgba(139, 92, 246, 0.15) 20px
+      );
+    pointer-events: none;
+  }
+
+  @keyframes radiate-glow {
+    0% {
+      box-shadow:
+        0 0 40px rgba(192, 132, 252, 1),
+        0 0 80px rgba(168, 85, 247, 0.8),
+        0 0 120px rgba(147, 51, 234, 0.6),
+        0 0 160px rgba(126, 34, 206, 0.4);
+    }
+    50% {
+      box-shadow:
+        0 0 60px rgba(216, 180, 254, 1),
+        0 0 120px rgba(192, 132, 252, 0.9),
+        0 0 180px rgba(168, 85, 247, 0.7),
+        0 0 240px rgba(147, 51, 234, 0.5);
+    }
+    100% {
+      box-shadow:
+        0 0 40px rgba(192, 132, 252, 1),
+        0 0 80px rgba(168, 85, 247, 0.8),
+        0 0 120px rgba(147, 51, 234, 0.6),
+        0 0 160px rgba(126, 34, 206, 0.4);
+    }
+  }
+
+  @keyframes radiate-rays {
+    0% {
+      opacity: 0.7;
+      transform: scale(1) rotate(0deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.3) rotate(8deg);
+    }
+    100% {
+      opacity: 0.7;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  .epic-radiate {
+    animation: radiate-glow 0.5s ease-in-out;
+  }
+
+  .epic-radiate::before {
+    content: '';
+    position: absolute;
+    inset: -25px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      rgba(216, 180, 254, 0.7) 20deg,
+      rgba(192, 132, 252, 0.5) 40deg,
+      transparent 60deg,
+      transparent 100deg,
+      rgba(192, 132, 252, 0.7) 120deg,
+      rgba(168, 85, 247, 0.5) 140deg,
+      transparent 160deg,
+      transparent 200deg,
+      rgba(168, 85, 247, 0.7) 220deg,
+      rgba(147, 51, 234, 0.5) 240deg,
+      transparent 260deg,
+      transparent 300deg,
+      rgba(147, 51, 234, 0.7) 320deg,
+      rgba(126, 34, 206, 0.5) 340deg,
+      transparent 360deg
+    );
+    border-radius: 24px;
+    animation: radiate-rays 0.5s ease-in-out;
+    z-index: -1;
+    filter: blur(12px);
+  }
+`;
+
 interface BattleToken {
   mint: string;
   name: string;
@@ -192,9 +301,19 @@ export function BattleCard({
 
   return (
     <Link href={battleUrl} className="block">
+      {/* Inject radiate styles */}
+      {isEpicBattle && <style jsx global>{radiateStyles}</style>}
+
       <div className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer">
         {/* Battle Header */}
-        <div className="battle-grid-bg px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden">
+        <div
+          className={`${!isEpicBattle ? 'battle-grid-bg' : ''} px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
+          style={isEpicBattle ? {
+            backgroundColor: '#5b21b6',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 0 L40 20 L20 40 L0 20 Z' fill='%236d28d9' stroke='%237c3aed' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundSize: '40px 40px'
+          } : {}}
+        >
           {/* Background Attack Strip - Token A */}
           <div
             className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'
@@ -219,17 +338,26 @@ export function BattleCard({
           <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
             {/* Token A Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0 ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''
-                }`}
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''
+                } ${isEpicBattle && attackA ? 'epic-radiate' : ''}`}
+              style={isEpicBattle ? {
+                padding: '3px',
+                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)',
+                boxShadow: attackA
+                  ? '0 0 30px rgba(192, 132, 252, 0.9), 0 0 60px rgba(168, 85, 247, 0.7), 0 0 90px rgba(147, 51, 234, 0.5)'
+                  : '0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(147, 51, 234, 0.3)'
+              } : { backgroundColor: '#2a3544' }}
             >
-              <Image
-                src={getTokenImage(tokenA)}
-                alt={tokenA.symbol}
-                width={128}
-                height={128}
-                className="w-full h-full object-cover"
-                unoptimized
-              />
+              <div className={`w-full h-full rounded-lg overflow-hidden ${isEpicBattle ? 'bg-[#1a1035]' : ''}`}>
+                <Image
+                  src={getTokenImage(tokenA)}
+                  alt={tokenA.symbol}
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
             </div>
 
             {/* Score Center */}
@@ -242,17 +370,26 @@ export function BattleCard({
 
             {/* Token B Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-[#2a3544] flex-shrink-0 ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''
-                }`}
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''
+                } ${isEpicBattle && attackB ? 'epic-radiate' : ''}`}
+              style={isEpicBattle ? {
+                padding: '3px',
+                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)',
+                boxShadow: attackB
+                  ? '0 0 30px rgba(192, 132, 252, 0.9), 0 0 60px rgba(168, 85, 247, 0.7), 0 0 90px rgba(147, 51, 234, 0.5)'
+                  : '0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(147, 51, 234, 0.3)'
+              } : { backgroundColor: '#2a3544' }}
             >
-              <Image
-                src={getTokenImage(tokenB)}
-                alt={tokenB.symbol}
-                width={128}
-                height={128}
-                className="w-full h-full object-cover"
-                unoptimized
-              />
+              <div className={`w-full h-full rounded-lg overflow-hidden ${isEpicBattle ? 'bg-[#1a1035]' : ''}`}>
+                <Image
+                  src={getTokenImage(tokenB)}
+                  alt={tokenB.symbol}
+                  width={128}
+                  height={128}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
             </div>
           </div>
         </div>
