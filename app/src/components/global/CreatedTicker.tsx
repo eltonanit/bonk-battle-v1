@@ -160,7 +160,31 @@ export function CreatedTicker() {
               borderRadius: 0,
             }}
           >
-            {/* Token Image LEFT */}
+            {/* User Avatar FIRST */}
+            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
+              <Image
+                src="/profilo.png"
+                alt={currentEvent.user}
+                width={24}
+                height={24}
+                className="w-full h-full object-cover"
+              />
+            </div>
+
+            {/* Address - BOLD + UNDERLINED */}
+            <span className="whitespace-nowrap font-bold uppercase text-base lg:text-sm underline">
+              {currentEvent.user}
+            </span>
+
+            <span className="whitespace-nowrap text-base lg:text-sm font-normal">
+              CREATED
+            </span>
+
+            <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
+              ${currentEvent.tokenSymbol}
+            </span>
+
+            {/* Token Image LAST */}
             {isValidImageUrl(currentEvent.tokenImage) && (
               <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                 <Image
@@ -173,29 +197,6 @@ export function CreatedTicker() {
                 />
               </div>
             )}
-
-            <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
-              {currentEvent.user}
-            </span>
-
-            <span className="whitespace-nowrap text-base lg:text-sm font-normal">
-              CREATED
-            </span>
-
-            <span className="whitespace-nowrap font-normal uppercase text-base lg:text-sm">
-              {currentEvent.tokenSymbol}
-            </span>
-
-            {/* User Avatar RIGHT */}
-            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
-              <Image
-                src="/profilo.png"
-                alt={currentEvent.user}
-                width={24}
-                height={24}
-                className="w-full h-full object-cover"
-              />
-            </div>
           </Link>
         </div>
       </div>

@@ -95,8 +95,8 @@ export function MobileBottomNav() {
           <Link
             href="/winners"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/winners')
-                ? 'text-yellow-400 bg-yellow-400/10'
-                : 'text-yellow-400/60'
+                ? 'text-white bg-white/10'
+                : 'text-white/60'
               }`}
           >
             <span className="w-6 h-6">
