@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -10,17 +11,18 @@ interface CreatedEvent {
   mint: string;
   user: string;
   userFull: string;
+  userAvatar?: string; // Avatar dell'utente dal database
   tokenName: string;
   tokenSymbol: string;
   tokenImage?: string;
   timestamp: number;
 }
 
-// Colori CREATED (verde/giallo/azzurro)
+// Colori CREATED (verde/giallo/azzurro) - più chiari
 const CREATED_COLORS = [
-  '#A4F4B6',  // Verde
-  '#EFFE16',  // Giallo
-  '#93EAEB'   // Azzurro
+  '#C0F8CD',  // Verde chiaro
+  '#F5F530',  // Giallo (meno chiaro)
+  '#B0F4F5'   // Azzurro chiaro
 ];
 
 /**
@@ -45,6 +47,27 @@ export function CreatedTicker() {
         const allTokens = await fetchAllBonkTokens();
 
         if (allTokens.length > 0) {
+          // Collect all creator wallet addresses
+          const creatorWallets = new Set<string>();
+          allTokens.forEach(token => {
+            const creatorStr = token.creator?.toString();
+            if (creatorStr) creatorWallets.add(creatorStr);
+          });
+          const wallets = Array.from(creatorWallets);
+
+          // Fetch user avatars from database
+          const { data: users } = await supabase
+            .from('users')
+            .select('wallet_address, avatar_url')
+            .in('wallet_address', wallets);
+
+          const userAvatarMap = new Map<string, string>();
+          users?.forEach(u => {
+            if (u.avatar_url) {
+              userAvatarMap.set(u.wallet_address, u.avatar_url);
+            }
+          });
+
           // Crea eventi "created" da TUTTI i token
           const events = allTokens.map(token => {
             const mintStr = token.mint.toString();
@@ -57,6 +80,7 @@ export function CreatedTicker() {
               mint: mintStr,
               user: creatorShort,
               userFull: creatorStr,
+              userAvatar: userAvatarMap.get(creatorStr),
               tokenName: token.name || token.symbol || mintStr.slice(0, 8),
               tokenSymbol: token.symbol || 'UNK',
               tokenImage: token.image,
@@ -89,7 +113,7 @@ export function CreatedTicker() {
       setTimeout(() => setShake(false), 400);
 
       setCurrentIndex((prev) => (prev + 1) % createdEvents.length);
-    }, 5000); // Cambia ogni 5 secondi
+    }, 900); // Cambia ogni 0.9 secondi
 
     return () => clearInterval(timer);
   }, [createdEvents]);
@@ -163,11 +187,12 @@ export function CreatedTicker() {
             {/* User Avatar FIRST */}
             <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
               <Image
-                src="/profilo.png"
+                src={currentEvent.userAvatar || '/profilo.png'}
                 alt={currentEvent.user}
                 width={24}
                 height={24}
                 className="w-full h-full object-cover"
+                unoptimized
               />
             </div>
 

@@ -144,8 +144,12 @@ export function TokenGridBonk() {
     return allTokens
       .filter(t => t.battleStatus === BattleStatus.InBattle)
       .map(token => {
-        // ⭐ REAL conversion using oracle price
-        const mcUsd = lamportsToUsd(token.solCollected ?? 0);
+        // ⭐ REAL MC using bonding curve formula
+        const virtualSol = token.virtualSolReserves ?? 0;
+        const virtualToken = token.virtualTokenReserves ?? 0;
+        const mcUsd = virtualToken > 0
+          ? ((virtualSol * 1_000_000_000) / (virtualToken / 1e9) / 1e9) * (solPriceUsd || 0)
+          : 0;
         const volumeUsd = lamportsToUsd(token.totalTradeVolume ?? 0);
 
         // Calculate progress toward victory
@@ -170,15 +174,33 @@ export function TokenGridBonk() {
 
   const filteredTokens = getFilteredTokens();
 
+  // Costanti bonding curve (dal contratto)
+  const TOTAL_SUPPLY = 1_000_000_000; // 1B token
+
+  // ⭐ Calculate MC using correct bonding curve formula
+  const calculateMarketCapUsd = (token: ParsedTokenBattleState): number => {
+    const virtualSol = token.virtualSolReserves ?? 0;
+    const virtualToken = token.virtualTokenReserves ?? 0;
+
+    if (virtualToken === 0 || !solPriceUsd) return 0;
+
+    // MC = (virtualSolReserves × TOTAL_SUPPLY) / virtualTokenReserves × SOL_PRICE
+    // In lamports: virtualSol is in lamports, virtualToken is in token decimals
+    const mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9);
+    const mcInUsd = (mcInLamports / 1e9) * solPriceUsd;
+
+    return mcInUsd;
+  };
+
   // ⭐ Convert token state to BattleCard format with REAL USD values
   const toBattleToken = (token: ParsedTokenBattleState) => ({
     mint: token.mint.toString(),
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
-    image: token.image || null, // ⭐ Use 'image' field (not imageUri)
-    marketCapUsd: lamportsToUsd(token.solCollected ?? 0),
+    image: token.image || null,
+    marketCapUsd: calculateMarketCapUsd(token),
     volumeUsd: lamportsToUsd(token.totalTradeVolume ?? 0),
-    solCollected: (token.solCollected ?? 0) / 1e9 // Convert to SOL for display
+    solCollected: (token.realSolReserves ?? 0) / 1e9 // Use realSolReserves
   });
 
   // Count for display

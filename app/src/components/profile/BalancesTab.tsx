@@ -219,23 +219,31 @@ export function BalancesTab() {
           continue; // User doesn't own this token
         }
 
-        // Calculate CURRENT value from bonding curve
-        const solCollectedLamports = token.solCollected;
-        const solCollectedSOL = solCollectedLamports / 1e9;
-        const tokensSold = BigInt(token.tokensSold);
+        // ⭐ Calculate CURRENT value using bonding curve formula (SELL)
+        // sol_out = (virtualSolReserves × tokens_to_sell) / (virtualTokenReserves + tokens_to_sell)
+        const virtualSol = token.virtualSolReserves ?? 0;
+        const virtualToken = token.virtualTokenReserves ?? 0;
+        const realSol = token.realSolReserves ?? token.solCollected ?? 0;
 
         console.log(`\n🎮 Token: ${token.symbol || mintStr.slice(0, 8)}`);
-        console.log(`   SOL collected: ${solCollectedSOL.toFixed(4)} SOL`);
-        console.log(`   Tokens sold: ${tokensSold.toString()}`);
+        console.log(`   Virtual SOL: ${(virtualSol / 1e9).toFixed(4)} SOL`);
+        console.log(`   Virtual Token: ${(virtualToken / 1e9).toFixed(0)} tokens`);
+        console.log(`   Real SOL: ${(realSol / 1e9).toFixed(4)} SOL`);
         console.log(`   User balance: ${userBalance.toString()}`);
 
-        // User's share = (userBalance / tokensSold) * solCollected
+        // Calculate SOL out if user sells all their tokens (bonding curve formula)
         let userSolShare = 0;
-        if (tokensSold > 0n) {
-          userSolShare = (Number(userBalance) / Number(tokensSold)) * solCollectedSOL;
+        if (virtualToken > 0) {
+          const tokensToSell = Number(userBalance);
+          // sol_out = (virtualSol * tokensToSell) / (virtualToken + tokensToSell)
+          const solOutLamports = (virtualSol * tokensToSell) / (virtualToken + tokensToSell);
+
+          // Cap at real SOL reserves (can't withdraw more than exists)
+          userSolShare = Math.min(solOutLamports / 1e9, realSol / 1e9);
         }
 
         const currentValueUsd = userSolShare * currentSolPrice;
+        console.log(`   SOL if sold: ${userSolShare.toFixed(4)} SOL`);
         console.log(`   Current value: $${currentValueUsd.toFixed(2)}`);
 
         // Get BOUGHT value from trade history
@@ -269,9 +277,9 @@ export function BalancesTab() {
           tokenSymbol: token.symbol || mintStr.slice(0, 4).toUpperCase(),
           tokenImage: token.image || '',
           battleStatus: token.battleStatus,
-          solCollected: solCollectedLamports,
+          solCollected: realSol,
           userTokenBalance: userBalance,
-          tokensSold,
+          tokensSold: BigInt(token.tokensSold ?? 0),
           boughtValueUsd,
           currentValueUsd,
         });

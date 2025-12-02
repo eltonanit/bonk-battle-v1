@@ -313,9 +313,13 @@ export function BattleCard({
                 <span className="text-[10px] lg:text-[11px] text-gray-400">MC</span>
                 <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 mb-2">
                 <span className="text-[10px] lg:text-[11px] text-gray-400">VOL</span>
                 <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetVol)}</span>
+              </div>
+              {/* Initial MC Reference */}
+              <div className="border-t border-[#3b415a] pt-2 mt-1">
+                <span className="text-[9px] text-gray-500">Start: ~$375</span>
               </div>
             </div>
 

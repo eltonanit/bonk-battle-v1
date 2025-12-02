@@ -41,11 +41,32 @@ function TimeAgo({ timestamp }: { timestamp: number }) {
   return <span>{timeAgo}</span>;
 }
 
+// Costanti dalla bonding curve (come nel contratto)
+const TOTAL_SUPPLY = 1_000_000_000; // 1B token (senza decimali per display)
+const SOL_PRICE_USD = 230; // Fallback price, idealmente da oracle
+
 export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
   // ⭐ NO MORE RPC CALLS! Use data passed from parent
   const state = tokenState;
-  const marketCapUsd = (state.solCollected / 1e9) * 100; // Simplified calculation
   const mintAddress = state.mint.toString();
+
+  // ⭐ CORRECT MC CALCULATION using bonding curve formula
+  // MC = (virtualSolReserves × TOTAL_SUPPLY) / virtualTokenReserves × SOL_PRICE
+  const calculateMarketCapUsd = (): number => {
+    const virtualSol = state.virtualSolReserves ?? 0;
+    const virtualToken = state.virtualTokenReserves ?? 0;
+
+    if (virtualToken === 0) return 0;
+
+    // MC in SOL = (virtualSol / 1e9) × (TOTAL_SUPPLY × 1e9) / virtualToken
+    // Semplificato: MC in SOL = virtualSol × TOTAL_SUPPLY / virtualToken
+    const mcInSol = (virtualSol * TOTAL_SUPPLY) / virtualToken;
+    const mcInUsd = (mcInSol / 1e9) * SOL_PRICE_USD;
+
+    return mcInUsd;
+  };
+
+  const marketCapUsd = calculateMarketCapUsd();
 
   // ⭐ Use metadata from token state (already loaded from blockchain)
   const metadata = state.name ? {
@@ -130,21 +151,41 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
           </div>
         </div>
 
-        {/* Progress to Qualification (only for Created status) */}
-        {state.battleStatus === BattleStatus.Created && marketCapUsd !== null && (
-          <div className="mt-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Progress to Qualification</span>
-              <span>{((marketCapUsd / 5100) * 100).toFixed(0)}%</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div
-                className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
-                style={{ width: `${Math.min((marketCapUsd / 5100) * 100, 100)}%` }}
-              />
-            </div>
+        {/* MC Info - Always visible */}
+        <div className="mt-3 pt-3 border-t border-bonk-border">
+          <div className="flex justify-between items-center text-xs">
+            <span className="text-gray-500">Initial MC</span>
+            <span className="text-gray-400">~$375</span>
           </div>
-        )}
+          {state.battleStatus === BattleStatus.Created && (
+            <div className="mt-2">
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Progress to Qualification ($10)</span>
+                <span>{Math.min((marketCapUsd / 10) * 100, 100).toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((marketCapUsd / 10) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {state.battleStatus === BattleStatus.InBattle && (
+            <div className="mt-2">
+              <div className="flex justify-between text-xs text-gray-400 mb-1">
+                <span>Progress to Victory ($1,200)</span>
+                <span>{Math.min((marketCapUsd / 1200) * 100, 100).toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-2 rounded-full transition-all"
+                  style={{ width: `${Math.min((marketCapUsd / 1200) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Battle Opponent (only for InBattle status) */}
         {state.battleStatus === BattleStatus.InBattle && (

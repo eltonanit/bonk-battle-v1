@@ -10,12 +10,14 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
+import { useProfile } from '@/hooks/useProfile';
 
 export function DesktopHeader() {
   const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   const { unreadCount } = useNotifications();
   const { feedUnreadCount } = useFollowers();
+  const { profile } = useProfile();
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Track se già registrato in questa sessione
@@ -162,14 +164,15 @@ export function DesktopHeader() {
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center gap-3 bg-bonk-card border-2 border-bonk-orange-brand px-3 py-2 rounded-lg hover:bg-bonk-card/80 transition-colors"
                 >
-                  {/* ⭐ Profile Image da public/profilo.png */}
+                  {/* ⭐ Profile Image dinamica */}
                   <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
                     <Image
-                      src="/profilo.png"
+                      src={profile?.avatar_url || '/profilo.png'}
                       alt="Profile"
                       width={28}
                       height={28}
                       className="w-full h-full object-cover"
+                      unoptimized
                     />
                   </div>
 

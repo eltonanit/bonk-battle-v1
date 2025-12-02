@@ -7,12 +7,14 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
+import { useProfile } from '@/hooks/useProfile';
 
 export function Header() {
   const { connected, publicKey, disconnect, select, wallets } = useWallet();
   const { setVisible } = useWalletModal();
   const { unreadCount } = useNotifications();
   const { feedUnreadCount } = useFollowers();
+  const { profile } = useProfile();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
@@ -173,11 +175,12 @@ export function Header() {
                 >
                   <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
                     <Image
-                      src="/profilo.png"
+                      src={profile?.avatar_url || '/profilo.png'}
                       alt="Profile"
                       width={28}
                       height={28}
                       className="w-full h-full object-cover"
+                      unoptimized
                     />
                   </div>
                   <svg

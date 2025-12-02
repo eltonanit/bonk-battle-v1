@@ -12,6 +12,7 @@ interface RealTradeEvent {
   type: 'buy' | 'sell' | 'created' | 'battle' | 'won';
   walletShort: string;
   walletFull: string;
+  userAvatar?: string; // Avatar dell'utente dal database
   tokenName: string;
   tokenSymbol: string;
   tokenImage?: string;
@@ -86,6 +87,23 @@ export function FOMOTicker() {
           });
         });
 
+        // 2.5. Fetch user avatars for traders
+        const walletSet = new Set<string>();
+        trades?.forEach(t => walletSet.add(t.wallet_address));
+        const wallets = Array.from(walletSet);
+
+        const { data: users } = await supabase
+          .from('users')
+          .select('wallet_address, avatar_url')
+          .in('wallet_address', wallets);
+
+        const userAvatarMap = new Map<string, string>();
+        users?.forEach(u => {
+          if (u.avatar_url) {
+            userAvatarMap.set(u.wallet_address, u.avatar_url);
+          }
+        });
+
         // 3. Convert trades to events
         const tradeEvents: RealTradeEvent[] = (trades || []).map(trade => {
           const tokenInfo = tokenMap.get(trade.token_mint);
@@ -96,6 +114,7 @@ export function FOMOTicker() {
             type: trade.trade_type === 'buy' ? 'buy' : 'sell',
             walletShort: trade.wallet_address.slice(0, 5),
             walletFull: trade.wallet_address,
+            userAvatar: userAvatarMap.get(trade.wallet_address),
             tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
             tokenSymbol: tokenInfo?.symbol || 'UNK',
             tokenImage: tokenInfo?.image,
@@ -403,11 +422,12 @@ export function FOMOTicker() {
                 {/* BUY/SELL: User Avatar - FIRST */}
                 <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
                   <Image
-                    src="/profilo.png"
+                    src={currentEvent.userAvatar || '/profilo.png'}
                     alt={currentEvent.walletShort}
                     width={24}
                     height={24}
                     className="w-full h-full object-cover"
+                    unoptimized
                   />
                 </div>
 
