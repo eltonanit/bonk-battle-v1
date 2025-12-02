@@ -173,7 +173,14 @@ export function BalancesTab() {
 
       // 2. Fetch ALL BONK tokens
       const allBonkTokens = await fetchAllBonkTokens();
-      console.log(`📊 Found ${allBonkTokens.length} BONK tokens total`);
+
+      // ⭐ Filter only valid tokens (exist in Supabase with real data)
+      const validBonkTokens = allBonkTokens.filter(token =>
+        token.virtualSolReserves > 0 &&
+        token.virtualSolReserves < MAX_REALISTIC_SOL_RESERVES
+      );
+
+      console.log(`📊 Found ${validBonkTokens.length} valid tokens (filtered from ${allBonkTokens.length})`);
 
       // 3. Get user's token accounts
       const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
@@ -206,7 +213,7 @@ export function BalancesTab() {
       // 5. Match BONK tokens with user balances and calculate P/L
       const bonkPositions: BonkPosition[] = [];
 
-      for (const token of allBonkTokens) {
+      for (const token of validBonkTokens) {
         const mintStr = token.mint.toString();
         const userBalance = userBalances.get(mintStr);
 
