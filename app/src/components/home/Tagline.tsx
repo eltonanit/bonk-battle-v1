@@ -273,7 +273,7 @@ export function Tagline() {
               }}
             >
               <span className="text-3xl">⚔️</span>
-              EPIC BATTLE
+              THE COLOSSEUM
               <span className="text-3xl">⚔️</span>
             </h2>
 

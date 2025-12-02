@@ -309,8 +309,8 @@ export function BattleCard({
         <div
           className={`${!isEpicBattle ? 'battle-grid-bg' : ''} px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
           style={isEpicBattle ? {
-            backgroundColor: '#5b21b6',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 0 L40 20 L20 40 L0 20 Z' fill='%236d28d9' stroke='%237c3aed' stroke-width='1'/%3E%3C/svg%3E")`,
+            backgroundColor: '#2D1065',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 0 L40 20 L20 40 L0 20 Z' fill='%23391A76' stroke='%23230460' stroke-width='1'/%3E%3C/svg%3E")`,
             backgroundSize: '40px 40px'
           } : {}}
         >
@@ -362,8 +362,8 @@ export function BattleCard({
 
             {/* Score Center */}
             <div className="flex flex-col items-center">
-              <span className="text-xs lg:text-sm text-gray-400 font-semibold mb-1">SCORE</span>
-              <span className="text-lg lg:text-xl font-black text-yellow-400">
+              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SCORE</span>
+              <span className="text-xl lg:text-2xl font-black text-yellow-400">
                 {formatUsd(tokenA.marketCapUsd)} - {formatUsd(tokenB.marketCapUsd)}
               </span>
             </div>
@@ -400,17 +400,17 @@ export function BattleCard({
             {/* Left Token Stats */}
             <div className="flex-1 pr-2 lg:pr-4">
               {/* ⭐ FIX: Solo testo, niente Link annidato */}
-              <p className="text-xs lg:text-sm text-orange-400 font-bold mb-2 lg:mb-3 truncate uppercase">
+              <p className="text-sm lg:text-base text-orange-400 font-bold mb-2 lg:mb-3 truncate uppercase">
                 ${tokenA.symbol}
               </p>
 
               {/* MC Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-yellow-400">
+                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-yellow-400">
                   {mcProgressA >= 100 ? '1' : '0'}
                 </span>
-                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6">MC</span>
-                <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
+                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${mcProgressA >= 100
                         ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
@@ -419,18 +419,18 @@ export function BattleCard({
                     style={{ width: `${mcProgressA}%` }}
                   />
                 </div>
-                <span className="text-[10px] lg:text-xs font-semibold text-white min-w-[40px] lg:min-w-[50px] text-right">
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
                   {formatUsd(tokenA.marketCapUsd)}
                 </span>
               </div>
 
               {/* VOL Row */}
               <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-yellow-400">
+                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-yellow-400">
                   {volProgressA >= 100 ? '1' : '0'}
                 </span>
-                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6">VOL</span>
-                <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
+                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
                         ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
@@ -439,7 +439,7 @@ export function BattleCard({
                     style={{ width: `${volProgressA}%` }}
                   />
                 </div>
-                <span className="text-[10px] lg:text-xs font-semibold text-white min-w-[40px] lg:min-w-[50px] text-right">
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
                   {formatUsd(tokenA.volumeUsd)}
                 </span>
               </div>
@@ -447,34 +447,34 @@ export function BattleCard({
 
             {/* Center Target */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
-              <span className="text-[10px] lg:text-xs text-gray-500 font-medium mb-2">TARGET</span>
+              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET</span>
               <div className="flex items-center gap-1 mb-1">
-                <span className="text-[10px] lg:text-[11px] text-gray-400">MC</span>
-                <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
+                <span className="text-xs lg:text-sm text-gray-400">MC</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
               </div>
               <div className="flex items-center gap-1 mb-2">
-                <span className="text-[10px] lg:text-[11px] text-gray-400">VOL</span>
-                <span className="text-[10px] lg:text-[11px] text-yellow-400 font-semibold">{formatUsd(targetVol)}</span>
+                <span className="text-xs lg:text-sm text-gray-400">VOL</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVol)}</span>
               </div>
               {/* Initial MC Reference */}
               <div className="border-t border-[#3b415a] pt-2 mt-1">
-                <span className="text-[9px] text-gray-500">Start: ~$375</span>
+                <span className="text-[10px] lg:text-xs text-gray-500">Start: ~$375</span>
               </div>
             </div>
 
             {/* Right Token Stats */}
             <div className="flex-1 pl-2 lg:pl-4">
               {/* ⭐ FIX: Solo testo, niente Link annidato */}
-              <p className="text-xs lg:text-sm text-orange-400 font-bold mb-2 lg:mb-3 truncate text-right uppercase">
+              <p className="text-sm lg:text-base text-orange-400 font-bold mb-2 lg:mb-3 truncate text-right uppercase">
                 ${tokenB.symbol}
               </p>
 
               {/* MC Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-[10px] lg:text-xs font-semibold text-white min-w-[40px] lg:min-w-[50px]">
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
                   {formatUsd(tokenB.marketCapUsd)}
                 </span>
-                <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
+                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${mcProgressB >= 100
                         ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
@@ -483,18 +483,18 @@ export function BattleCard({
                     style={{ width: `${mcProgressB}%` }}
                   />
                 </div>
-                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6 text-right">MC</span>
-                <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-right text-yellow-400">
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
+                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-right text-yellow-400">
                   {mcProgressB >= 100 ? '1' : '0'}
                 </span>
               </div>
 
               {/* VOL Row */}
               <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-[10px] lg:text-xs font-semibold text-white min-w-[40px] lg:min-w-[50px]">
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
                   {formatUsd(tokenB.volumeUsd)}
                 </span>
-                <div className="flex-1 h-1.5 lg:h-2 bg-[#3b415a] rounded-full overflow-hidden">
+                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${volProgressB >= 100
                         ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
@@ -503,8 +503,8 @@ export function BattleCard({
                     style={{ width: `${volProgressB}%` }}
                   />
                 </div>
-                <span className="text-[11px] lg:text-[11px] font-bold text-gray-400 w-6 lg:w-6 text-right">VOL</span>
-                <span className="text-[9px] lg:text-[11px] font-bold w-3 lg:w-4 text-right text-yellow-400">
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">VOL</span>
+                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-right text-yellow-400">
                   {volProgressB >= 100 ? '1' : '0'}
                 </span>
               </div>
