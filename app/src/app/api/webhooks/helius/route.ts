@@ -206,18 +206,28 @@ function detectEventType(event: HeliusWebhookEvent): {
     // Get SOL transfer info
     const feePayer = event.feePayer;
 
-    // Look for SOL transfer FROM user (buy) or TO user (sell)
-    const solTransferOut = event.nativeTransfers?.find(nt =>
+    // Look for the LARGEST SOL transfer FROM user (the actual trade, not rent)
+    const solTransfersOut = event.nativeTransfers?.filter(nt =>
         nt.fromUserAccount === feePayer &&
         nt.toUserAccount !== feePayer &&
         nt.amount > 0
-    );
+    ) || [];
 
-    const solTransferIn = event.nativeTransfers?.find(nt =>
+    // Get the largest one (the actual trade amount, not rent payments)
+    const solTransferOut = solTransfersOut.length > 0
+        ? solTransfersOut.reduce((max, curr) => curr.amount > max.amount ? curr : max)
+        : undefined;
+
+    // Same for SOL coming IN (for sells)
+    const solTransfersIn = event.nativeTransfers?.filter(nt =>
         nt.toUserAccount === feePayer &&
         nt.fromUserAccount !== feePayer &&
         nt.amount > 0
-    );
+    ) || [];
+
+    const solTransferIn = solTransfersIn.length > 0
+        ? solTransfersIn.reduce((max, curr) => curr.amount > max.amount ? curr : max)
+        : undefined;
 
     // Determine if buy or sell based on SOL flow
     if (solTransferOut && tokenTransfer) {

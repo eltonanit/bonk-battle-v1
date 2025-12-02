@@ -183,8 +183,16 @@ export default function BattleDetailPage() {
     return (
       <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 animate-bounce">⚔️</div>
-          <div className="text-xl font-bold">Loading battle...</div>
+          <div className="mb-4 animate-bounce">
+            <Image
+              src="/BONK-LOGO.svg"
+              alt="Bonk Battle"
+              width={64}
+              height={64}
+              className="mx-auto"
+            />
+          </div>
+          <div className="text-xl font-bold">Loading Bonk Battle...</div>
         </div>
       </div>
     );
@@ -242,32 +250,21 @@ export default function BattleDetailPage() {
             <div className="flex items-center justify-between">
               {/* Token A - Blue Background */}
               <div
-                className={`flex items-center gap-3 rounded-xl p-3 ${attackA || clash ? 'ticker-shake' : ''}`}
+                className={`rounded-xl p-3 ${attackA || clash ? 'ticker-shake' : ''}`}
                 style={{
                   backgroundColor: clash ? '#EFFE16' : '#4DB5FF',
                   boxShadow: attackA ? '0 0 20px rgba(77, 181, 255, 0.6)' : clash ? '0 0 20px rgba(239, 254, 22, 0.6)' : 'none'
                 }}
               >
-                {/* Photo + Symbol Column */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/20">
-                    <Image
-                      src={getTokenImage(stateA)}
-                      alt={stateA.symbol || 'Token A'}
-                      width={56}
-                      height={56}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
-                  <div className="font-bold text-sm mt-1 text-black">{stateA.symbol}</div>
-                </div>
-                {/* MC + VOL Column */}
-                <div className="flex flex-col">
-                  <div className="text-xs text-black/60">MC</div>
-                  <div className="font-semibold text-black text-sm">{formatUsd(progressA.mcUsd)}</div>
-                  <div className="text-xs text-black/60 mt-1">VOL</div>
-                  <div className="font-semibold text-black text-sm">{formatUsd(progressA.volUsd)}</div>
+                <div className="w-20 h-20 rounded-lg overflow-hidden bg-white/20">
+                  <Image
+                    src={getTokenImage(stateA)}
+                    alt={stateA.symbol || 'Token A'}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
                 </div>
               </div>
 
@@ -285,36 +282,25 @@ export default function BattleDetailPage() {
 
               {/* Token B - Red/Pink Background */}
               <div
-                className={`flex items-center gap-3 rounded-xl p-3 ${attackB || clash ? 'ticker-shake' : ''}`}
+                className={`rounded-xl p-3 ${attackB || clash ? 'ticker-shake' : ''}`}
                 style={{
                   backgroundColor: clash ? '#EFFE16' : '#FF5A8E',
                   boxShadow: attackB ? '0 0 20px rgba(255, 90, 142, 0.6)' : clash ? '0 0 20px rgba(239, 254, 22, 0.6)' : 'none'
                 }}
               >
-                {/* MC + VOL Column */}
-                <div className="flex flex-col text-right">
-                  <div className="text-xs text-black/60">MC</div>
-                  <div className="font-semibold text-black text-sm">{formatUsd(progressB.mcUsd)}</div>
-                  <div className="text-xs text-black/60 mt-1">VOL</div>
-                  <div className="font-semibold text-black text-sm">{formatUsd(progressB.volUsd)}</div>
-                </div>
-                {/* Photo + Symbol Column */}
-                <div className="flex flex-col items-center">
-                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/20">
-                    {stateB ? (
-                      <Image
-                        src={getTokenImage(stateB)}
-                        alt={stateB.symbol || 'Token B'}
-                        width={56}
-                        height={56}
-                        className="w-full h-full object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">❓</div>
-                    )}
-                  </div>
-                  <div className="font-bold text-sm mt-1 text-black">{stateB?.symbol || '???'}</div>
+                <div className="w-20 h-20 rounded-lg overflow-hidden bg-white/20">
+                  {stateB ? (
+                    <Image
+                      src={getTokenImage(stateB)}
+                      alt={stateB.symbol || 'Token B'}
+                      width={80}
+                      height={80}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-2xl">❓</div>
+                  )}
                 </div>
               </div>
             </div>

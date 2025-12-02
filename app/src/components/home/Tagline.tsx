@@ -4,7 +4,9 @@ import { useEffect, useState, useRef } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ParsedTokenBattleState } from '@/types/bonk';
+import { ParsedTokenBattleState, BattleStatus } from '@/types/bonk';
+import { BattleCard } from '@/components/shared/BattleCard';
+import { usePriceOracle } from '@/hooks/usePriceOracle';
 
 interface TaglineToken {
   mint: string;
@@ -16,7 +18,9 @@ interface TaglineToken {
   tier: number;
 }
 
-const SOL_PRICE_USD = 100; // TODO: Use oracle
+// Victory targets (devnet)
+const VICTORY_MC_USD = 5500;
+const VICTORY_VOLUME_USD = 100;
 
 const FEATURED_IMAGES = [
   '/tagline/1.png',
@@ -24,11 +28,18 @@ const FEATURED_IMAGES = [
   '/4.png',
 ];
 
+interface BattlePair {
+  tokenA: ParsedTokenBattleState;
+  tokenB: ParsedTokenBattleState;
+}
+
 export function Tagline() {
   const [tokens, setTokens] = useState<TaglineToken[]>([]);
+  const [latestBattle, setLatestBattle] = useState<BattlePair | null>(null);
   const tokenScrollRef = useRef<HTMLDivElement>(null);
   const [isHoveringTokens, setIsHoveringTokens] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { solPriceUsd } = usePriceOracle();
 
   useEffect(() => {
     async function loadTokens() {
@@ -38,15 +49,35 @@ export function Tagline() {
 
         if (allTokens.length === 0) return;
 
+        // Find the most recent battle (InBattle status)
+        const battlingTokens = allTokens.filter(t => t.battleStatus === BattleStatus.InBattle);
+        const processed = new Set<string>();
+
+        for (const token of battlingTokens) {
+          const mintStr = token.mint.toString();
+          if (processed.has(mintStr)) continue;
+
+          const opponentMint = token.opponentMint?.toString();
+          if (!opponentMint || opponentMint === '11111111111111111111111111111111') continue;
+
+          const opponent = allTokens.find(t => t.mint.toString() === opponentMint);
+          if (opponent) {
+            setLatestBattle({ tokenA: token, tokenB: opponent });
+            processed.add(mintStr);
+            processed.add(opponentMint);
+            break; // Only need the first/most recent battle
+          }
+        }
+
         const taglineTokens: TaglineToken[] = allTokens.slice(0, 15).map((token) => {
-          const marketCap = (token.solCollected / 1e9) * 100 * SOL_PRICE_USD; // Approx
+          const marketCap = (token.solCollected / 1e9) * 100 * (solPriceUsd || 100);
 
           return {
             mint: token.mint.toString(),
             name: token.name || token.mint.toString().substring(0, 8),
             symbol: token.symbol || 'UNK',
             imageUrl: token.image || '',
-            progress: (token.solCollected / 1e9 / 85) * 100, // Approx progress
+            progress: (token.solCollected / 1e9 / 85) * 100,
             marketCap,
             tier: 1,
           };
@@ -59,10 +90,7 @@ export function Tagline() {
     }
 
     loadTokens();
-    // Disable auto-refresh to save RPC calls for now
-    // const interval = setInterval(loadTokens, 120000);
-    // return () => clearInterval(interval);
-  }, []);
+  }, [solPriceUsd]);
 
   useEffect(() => {
     if (!tokenScrollRef.current || isHoveringTokens || tokens.length === 0) return;
@@ -96,6 +124,33 @@ export function Tagline() {
     return `$${mc.toFixed(2)}`;
   };
 
+  // Helper to calculate MC using bonding curve
+  const calculateMarketCapUsd = (token: ParsedTokenBattleState): number => {
+    const virtualSol = token.virtualSolReserves ?? 0;
+    const virtualToken = token.virtualTokenReserves ?? 0;
+    if (virtualToken === 0 || !solPriceUsd) return 0;
+    const TOTAL_SUPPLY = 1_000_000_000;
+    const mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9);
+    return (mcInLamports / 1e9) * solPriceUsd;
+  };
+
+  // Helper to convert lamports to USD
+  const lamportsToUsd = (lamports: number): number => {
+    if (!solPriceUsd) return 0;
+    return (lamports / 1e9) * solPriceUsd;
+  };
+
+  // Convert token to BattleCard format
+  const toBattleToken = (token: ParsedTokenBattleState) => ({
+    mint: token.mint.toString(),
+    name: token.name || 'Unknown',
+    symbol: token.symbol || '???',
+    image: token.image || null,
+    marketCapUsd: calculateMarketCapUsd(token),
+    volumeUsd: lamportsToUsd(token.totalTradeVolume ?? 0),
+    solCollected: (token.realSolReserves ?? 0) / 1e9
+  });
+
   return (
     <div
       className="py-5 px-5 lg:px-6 lg:py-6"
@@ -108,7 +163,7 @@ export function Tagline() {
         .carousel-scroll::-webkit-scrollbar {
           display: none;
         }
-        
+
         @keyframes pulse-glow {
           0%, 100% {
             opacity: 1;
@@ -119,9 +174,23 @@ export function Tagline() {
             transform: scale(1.02);
           }
         }
-        
+
         .animate-pulse-glow {
           animation: pulse-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes electric-border {
+          0%, 100% {
+            box-shadow: 0 0 5px #9333ea, 0 0 10px #9333ea, 0 0 15px #a855f7, 0 0 20px #a855f7;
+          }
+          50% {
+            box-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7, 0 0 30px #c084fc, 0 0 40px #c084fc;
+          }
+        }
+
+        .electric-border {
+          animation: electric-border 1.5s ease-in-out infinite;
+          border: 2px solid #9333ea;
         }
       `}</style>
 
@@ -130,89 +199,41 @@ export function Tagline() {
 
         {/* ===== LEFT SIDE (Order 2 mobile, 1 desktop) ===== */}
         <div className="order-2 lg:order-1">
-          {/* ⭐ HEADER DESKTOP ONLY - CENTRATO */}
-          <div className="hidden lg:flex flex-col items-center justify-center text-center mb-8">
-            {/* Titolo principale - ARANCIONE LUMINOSO */}
+          {/* ⭐ DESKTOP ONLY - EPIC BATTLE with BattleCard */}
+          <div className="hidden lg:block">
+            {/* Titolo EPIC BATTLE - CENTRATO */}
             <h2
-              className="text-4xl font-extrabold mb-3 flex items-center gap-2"
+              className="text-2xl font-extrabold mb-3 flex items-center justify-center gap-2"
               style={{
-                color: '#FF8A5B',
-                textShadow: '0 0 20px rgba(255, 138, 91, 0.6)'
+                color: '#a855f7',
+                textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
               }}
             >
-              BATTLE TO THE TOP
-              <span className="text-4xl">⚔️</span>
+              <span className="text-2xl">⚔️</span>
+              EPIC BATTLE
+              <span className="text-2xl">⚔️</span>
             </h2>
 
-            {/* Sottotitolo - GIALLO ANIMATO */}
-            <p className="text-xl font-semibold mb-4 text-[#fbbf24] animate-pulse-glow">
-              Only the strongest survive
-            </p>
-
-            {/* Bottone arancione */}
-            <Link href="/create">
-              <button className="bg-bonk-orange-dark text-black px-7 py-2 rounded-xl font-bold text-lg hover:bg-bonk-orange-dark/90 transition-all hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl">
-                Launch a Coin
-              </button>
-            </Link>
-          </div>
-
-          {/* Titolo carousel - DESKTOP ONLY */}
-          <h3 className="hidden lg:block text-base lg:text-lg font-bold text-green-400 mb-1">
-            🔥 Tokens 24H
-          </h3>
-
-          {/* Carousel tokens - DESKTOP ONLY */}
-          <div className="hidden lg:block w-full overflow-x-hidden">
-            <div
-              ref={tokenScrollRef}
-              onMouseEnter={() => setIsHoveringTokens(true)}
-              onMouseLeave={() => setIsHoveringTokens(false)}
-              className="carousel-scroll flex gap-3 overflow-x-auto pb-2"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {tokens.length > 0 ? (
-                tokens.map((token) => (
-                  <Link
-                    key={token.mint}
-                    href={`/token/${token.mint}`}
-                    className="flex-shrink-0 w-[240px] bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 hover:border-green-400/30 transition-all"
-                  >
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0">
-                        {token.imageUrl ? (
-                          <img
-                            src={token.imageUrl}
-                            alt={token.name}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl">
-                            💎
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div className="font-bold text-base truncate text-white">
-                          {token.name}
-                        </div>
-
-                        <div className="text-green-400 font-bold text-sm">
-                          {token.progress.toFixed(1)}%
-                        </div>
-
-                        <div className="text-white/80 text-sm font-semibold">
-                          MC: {formatMarketCap(token.marketCap)}
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="text-white/60 text-sm">Loading tokens...</div>
-              )}
-            </div>
+            {/* BattleCard - Most Recent Battle - Con bordo elettrico viola */}
+            {latestBattle ? (
+              <div className="electric-border rounded-xl overflow-hidden transform scale-90 origin-top">
+                <BattleCard
+                  tokenA={toBattleToken(latestBattle.tokenA)}
+                  tokenB={toBattleToken(latestBattle.tokenB)}
+                  targetMC={VICTORY_MC_USD}
+                  targetVol={VICTORY_VOLUME_USD}
+                  isEpicBattle={true}
+                />
+              </div>
+            ) : (
+              <div className="electric-border rounded-xl p-6 text-center bg-bonk-card transform scale-90 origin-top">
+                <div className="text-3xl mb-2">⚔️</div>
+                <div className="text-base font-bold text-white mb-1">No Active Battles</div>
+                <div className="text-bonk-text text-xs">
+                  Battles start when two qualified tokens are matched.
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

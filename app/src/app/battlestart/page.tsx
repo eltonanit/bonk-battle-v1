@@ -16,7 +16,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { fetchTokensFromSupabase } from '@/lib/solana/fetch-all-bonk-tokens';
 import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import Image from 'next/image';
@@ -305,17 +305,9 @@ export default function BattleArenaPage() {
       setLoading(true);
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
-      // 1. Fetch all BONK tokens
-      const allBonkTokens = await fetchAllBonkTokens();
-
-      // ⭐ Filter only valid tokens (exist in Supabase with real data)
-      const MAX_REALISTIC_SOL_RESERVES = 1_000_000 * 1_000_000_000; // 1M SOL
-      const validBonkTokens = allBonkTokens.filter(token =>
-          token.virtualSolReserves > 0 &&
-          token.virtualSolReserves < MAX_REALISTIC_SOL_RESERVES
-      );
-
-      console.log(`📊 Found ${validBonkTokens.length} valid tokens (filtered from ${allBonkTokens.length})`);
+      // 1. Fetch tokens from Supabase (clean, validated data)
+      const allBonkTokens = await fetchTokensFromSupabase();
+      console.log(`📊 Found ${allBonkTokens.length} tokens from Supabase`);
 
       // 2. Get user's token balances
       const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
@@ -339,7 +331,7 @@ export default function BattleArenaPage() {
       const tokens: UserToken[] = [];
       const addedMints = new Set<string>();
 
-      for (const token of validBonkTokens) {
+      for (const token of allBonkTokens) {
         const mintStr = token.mint.toString();
         const userBalance = userBalances.get(mintStr) || 0n;
         const isCreator = token.creator?.toString() === publicKey.toString();

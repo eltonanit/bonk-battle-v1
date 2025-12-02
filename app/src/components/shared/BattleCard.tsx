@@ -21,6 +21,7 @@ interface BattleCardProps {
   targetMC?: number;
   targetVol?: number;
   winner?: 'A' | 'B' | null; // Se impostato, mostra la card in versione "winner"
+  isEpicBattle?: boolean; // Se true, usa colori viola elettrici
 }
 
 export function BattleCard({
@@ -28,7 +29,8 @@ export function BattleCard({
   tokenB,
   targetMC = 5500,
   targetVol = 100,
-  winner = null
+  winner = null,
+  isEpicBattle = false
 }: BattleCardProps) {
 
   // ⚔️ Stati per le animazioni di battaglia
@@ -45,7 +47,7 @@ export function BattleCard({
     const startBattleAnimations = () => {
       if (!isMounted) return;
 
-      const randomInterval = Math.random() * 1000 + 2000;
+      const randomInterval = Math.random() * 600 + 1000;
 
       timeoutId = setTimeout(() => {
         if (!isMounted) return;
@@ -193,24 +195,24 @@ export function BattleCard({
       <div className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer">
         {/* Battle Header */}
         <div className="battle-grid-bg px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden">
-          {/* Blue Background Attack Strip - Token A */}
+          {/* Background Attack Strip - Token A */}
           <div
             className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'
               }`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : '#4DB5FF',
-              boxShadow: attackA ? '0 0 30px rgba(38, 157, 255, 0.6)' : 'none'
+              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#4DB5FF',
+              boxShadow: attackA ? (isEpicBattle ? '0 0 30px rgba(147, 51, 234, 0.6)' : '0 0 30px rgba(38, 157, 255, 0.6)') : 'none'
             }}
           />
-          {/* Red/Pink Background Attack Strip - Token B */}
+          {/* Background Attack Strip - Token B */}
           <div
             className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackB || clash ? 'opacity-100' : 'opacity-0'
               }`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : '#FF5A8E',
-              boxShadow: attackB ? '0 0 30px rgba(254, 42, 98, 0.6)' : 'none'
+              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FF5A8E',
+              boxShadow: attackB ? (isEpicBattle ? '0 0 30px rgba(168, 85, 247, 0.6)' : '0 0 30px rgba(254, 42, 98, 0.6)') : 'none'
             }}
           />
 

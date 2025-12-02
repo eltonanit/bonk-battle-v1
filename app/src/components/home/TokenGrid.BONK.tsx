@@ -134,6 +134,14 @@ export function TokenGridBonk() {
       }
     }
 
+    // Skip the first InBattle pair (shown in EPIC BATTLE section in Tagline)
+    const firstInBattleIndex = pairs.findIndex(p =>
+      p.tokenA.battleStatus === BattleStatus.InBattle && !p.winner
+    );
+    if (firstInBattleIndex !== -1) {
+      pairs.splice(firstInBattleIndex, 1);
+    }
+
     return pairs;
   }, [allTokens]);
 

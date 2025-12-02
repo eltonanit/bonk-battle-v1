@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
+import { fetchTokensFromSupabase } from '@/lib/solana/fetch-all-bonk-tokens';
 import { BattleStatus } from '@/types/bonk';
 import { RPC_ENDPOINT } from '@/config/solana';
 import { supabase } from '@/lib/supabase';
@@ -171,16 +171,9 @@ export function BalancesTab() {
       setSolPrice(currentSolPrice);
       console.log('💰 SOL Price:', currentSolPrice);
 
-      // 2. Fetch ALL BONK tokens
-      const allBonkTokens = await fetchAllBonkTokens();
-
-      // ⭐ Filter only valid tokens (exist in Supabase with real data)
-      const validBonkTokens = allBonkTokens.filter(token =>
-        token.virtualSolReserves > 0 &&
-        token.virtualSolReserves < MAX_REALISTIC_SOL_RESERVES
-      );
-
-      console.log(`📊 Found ${validBonkTokens.length} valid tokens (filtered from ${allBonkTokens.length})`);
+      // 2. Fetch ALL BONK tokens from Supabase
+      const allBonkTokens = await fetchTokensFromSupabase();
+      console.log(`📊 Found ${allBonkTokens.length} tokens from Supabase`);
 
       // 3. Get user's token accounts
       const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
@@ -213,7 +206,7 @@ export function BalancesTab() {
       // 5. Match BONK tokens with user balances and calculate P/L
       const bonkPositions: BonkPosition[] = [];
 
-      for (const token of validBonkTokens) {
+      for (const token of allBonkTokens) {
         const mintStr = token.mint.toString();
         const userBalance = userBalances.get(mintStr);
 

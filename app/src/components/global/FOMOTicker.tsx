@@ -111,6 +111,17 @@ export function FOMOTicker() {
         const tradeEvents: RealTradeEvent[] = (trades || []).map(trade => {
           const tokenInfo = tokenMap.get(trade.token_mint);
           const userInfo = userMap.get(trade.wallet_address);
+
+          // Debug: log raw sol_amount to check format
+          console.log(`📊 Trade ${trade.signature?.slice(0,8)}: raw sol_amount=${trade.sol_amount}, type=${typeof trade.sol_amount}`);
+
+          // Handle sol_amount - check if already in SOL or in lamports
+          let solAmount = Number(trade.sol_amount) || 0;
+          // If the value looks like lamports (> 1000), convert to SOL
+          if (solAmount > 1000) {
+            solAmount = solAmount / 1e9;
+          }
+
           return {
             id: trade.id,
             signature: trade.signature,
@@ -123,7 +134,7 @@ export function FOMOTicker() {
             tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
             tokenSymbol: tokenInfo?.symbol || 'UNK',
             tokenImage: tokenInfo?.image,
-            solAmount: Number(trade.sol_amount) / 1e9, // Convert from lamports
+            solAmount,
             timestamp: new Date(trade.block_time).getTime(),
           };
         });
@@ -284,6 +295,12 @@ export function FOMOTicker() {
             .eq('wallet_address', trade.wallet_address)
             .single();
 
+          // Handle sol_amount - check if already in SOL or in lamports
+          let solAmount = Number(trade.sol_amount) || 0;
+          if (solAmount > 1000) {
+            solAmount = solAmount / 1e9;
+          }
+
           const newEvent: RealTradeEvent = {
             id: trade.id,
             signature: trade.signature,
@@ -296,7 +313,7 @@ export function FOMOTicker() {
             tokenName: tokenInfo?.name || trade.token_mint.slice(0, 8),
             tokenSymbol: tokenInfo?.symbol || 'UNK',
             tokenImage: tokenInfo?.image,
-            solAmount: Number(trade.sol_amount) / 1e9,
+            solAmount,
             timestamp: new Date(trade.block_time).getTime(),
           };
 
@@ -455,9 +472,11 @@ export function FOMOTicker() {
                   {currentEvent.type === 'buy' ? 'bought' : 'sold'}
                 </span>
 
-                {/* Amount - MAX 2 DECIMALS */}
+                {/* Amount - Show up to 4 decimals for small amounts */}
                 <span className="whitespace-nowrap font-normal text-base lg:text-sm">
-                  {currentEvent.solAmount.toFixed(2)} SOL
+                  {currentEvent.solAmount < 0.01
+                    ? currentEvent.solAmount.toFixed(4)
+                    : currentEvent.solAmount.toFixed(2)} SOL
                 </span>
 
                 {/* Symbol */}

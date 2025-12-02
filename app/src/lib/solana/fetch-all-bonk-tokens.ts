@@ -405,3 +405,65 @@ export async function fetchTokensInBattle(): Promise<ParsedTokenBattleState[]> {
 export async function fetchQualifiedTokens(): Promise<ParsedTokenBattleState[]> {
   return fetchBonkTokensByStatus(BattleStatus.Qualified);
 }
+
+/**
+ * ⭐ NEW: Fetches tokens ONLY from Supabase (no blockchain merge)
+ * Use this for UI components that need clean, validated data
+ */
+export async function fetchTokensFromSupabase(): Promise<ParsedTokenBattleState[]> {
+  try {
+    const { data: tokens, error } = await supabase
+      .from('tokens')
+      .select('*')
+      .order('creation_timestamp', { ascending: false });
+
+    if (error || !tokens) {
+      console.error('❌ Supabase fetch error:', error);
+      return [];
+    }
+
+    console.log(`📊 Fetched ${tokens.length} tokens from Supabase only`);
+
+    return tokens.map((token: any) => {
+      let nameFromUri = '', symbolFromUri = '', imageFromUri = '';
+
+      if (token.uri) {
+        nameFromUri = parseMetadataField(token.uri, 'name');
+        symbolFromUri = parseMetadataField(token.uri, 'symbol');
+        imageFromUri = parseMetadataField(token.uri, 'image');
+      }
+
+      const rawName = token.name || '';
+      const rawSymbol = token.symbol || '';
+
+      return {
+        mint: new PublicKey(token.mint),
+        tier: (token.tier ?? BattleTier.Test) as BattleTier,
+        virtualSolReserves: token.virtual_sol_reserves || 0,
+        virtualTokenReserves: token.virtual_token_reserves || 0,
+        realSolReserves: token.real_sol_reserves || 0,
+        realTokenReserves: token.real_token_reserves || 0,
+        tokensSold: token.tokens_sold || 0,
+        totalTradeVolume: token.total_trade_volume || 0,
+        isActive: token.is_active ?? true,
+        battleStatus: token.battle_status ?? BattleStatus.Created,
+        opponentMint: new PublicKey(token.opponent_mint || '11111111111111111111111111111111'),
+        creationTimestamp: token.creation_timestamp || 0,
+        lastTradeTimestamp: token.last_trade_timestamp || 0,
+        battleStartTimestamp: token.battle_start_timestamp || 0,
+        victoryTimestamp: token.victory_timestamp || 0,
+        listingTimestamp: token.listing_timestamp || 0,
+        bump: token.bump || 0,
+        name: nameFromUri || parseMetadataField(rawName, 'name') || rawName,
+        symbol: symbolFromUri || parseMetadataField(rawSymbol, 'symbol') || rawSymbol,
+        uri: token.uri || '',
+        image: token.image || imageFromUri || parseMetadataField(rawName, 'image') || '',
+        solCollected: token.real_sol_reserves || token.sol_collected || 0,
+        creator: token.creator ? new PublicKey(token.creator) : undefined,
+      };
+    });
+  } catch (error) {
+    console.error('❌ Error:', error);
+    return [];
+  }
+}
