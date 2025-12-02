@@ -308,6 +308,15 @@ export default function BattleArenaPage() {
       // 1. Fetch all BONK tokens
       const allBonkTokens = await fetchAllBonkTokens();
 
+      // ⭐ Filter only valid tokens (exist in Supabase with real data)
+      const MAX_REALISTIC_SOL_RESERVES = 1_000_000 * 1_000_000_000; // 1M SOL
+      const validBonkTokens = allBonkTokens.filter(token =>
+          token.virtualSolReserves > 0 &&
+          token.virtualSolReserves < MAX_REALISTIC_SOL_RESERVES
+      );
+
+      console.log(`📊 Found ${validBonkTokens.length} valid tokens (filtered from ${allBonkTokens.length})`);
+
       // 2. Get user's token balances
       const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
         programId: TOKEN_PROGRAM_ID,
@@ -330,7 +339,7 @@ export default function BattleArenaPage() {
       const tokens: UserToken[] = [];
       const addedMints = new Set<string>();
 
-      for (const token of allBonkTokens) {
+      for (const token of validBonkTokens) {
         const mintStr = token.mint.toString();
         const userBalance = userBalances.get(mintStr) || 0n;
         const isCreator = token.creator?.toString() === publicKey.toString();
@@ -342,8 +351,8 @@ export default function BattleArenaPage() {
 
         // Find opponent if in battle
         let opponentData: { mint: string; symbol: string; image: string } | null = null;
-        if (token.opponentMint && token.opponentMint !== PublicKey.default.toString()) {
-          const opponent = allBonkTokens.find(t => t.mint.toString() === token.opponentMint);
+        if (token.opponentMint && token.opponentMint.toString() !== PublicKey.default.toString()) {
+          const opponent = allBonkTokens.find(t => t.mint.toString() === token.opponentMint?.toString());
           if (opponent) {
             opponentData = {
               mint: opponent.mint.toString(),
@@ -362,7 +371,7 @@ export default function BattleArenaPage() {
           opponentMint: opponentData?.mint || null,
           opponentSymbol: opponentData?.symbol || null,
           opponentImage: opponentData?.image || null,
-          solCollected: token.solCollected,
+          solCollected: token.solCollected ?? 0,
           userBalance,
         });
       }
