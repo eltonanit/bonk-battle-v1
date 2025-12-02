@@ -9,7 +9,7 @@ interface RealTradeEvent {
   id: string;
   signature: string;
   mint: string;
-  type: 'buy' | 'sell' | 'created' | 'battle';
+  type: 'buy' | 'sell' | 'created' | 'battle' | 'won';
   walletShort: string;
   walletFull: string;
   tokenName: string;
@@ -29,6 +29,9 @@ const TICKER_COLORS = [
   '#EFFE16',  // Giallo
   '#93EAEB'   // Blu
 ];
+
+// Colore speciale per Winners
+const WINNER_COLOR = '#FFD700'; // Oro
 
 function isValidImageUrl(url: string | undefined): boolean {
   if (!url || typeof url !== 'string') return false;
@@ -175,8 +178,37 @@ export function FOMOTicker() {
           });
         });
 
-        // 6. Combine all events, prioritize by type: battles > trades > created
+        // 6. Fetch winners from winners table
+        const { data: winners, error: winnersError } = await supabase
+          .from('winners')
+          .select('*')
+          .order('victory_timestamp', { ascending: false })
+          .limit(10);
+
+        if (winnersError) {
+          console.error('Error fetching winners:', winnersError);
+        }
+
+        const winnerEvents: RealTradeEvent[] = (winners || []).map(winner => ({
+          id: `won-${winner.mint}`,
+          signature: winner.victory_signature || winner.mint,
+          mint: winner.mint,
+          type: 'won' as const,
+          walletShort: '🏆',
+          walletFull: winner.mint,
+          tokenName: winner.name || winner.mint.slice(0, 8),
+          tokenSymbol: winner.symbol || 'UNK',
+          tokenImage: winner.image,
+          solAmount: Number(winner.spoils_sol || 0),
+          timestamp: new Date(winner.victory_timestamp).getTime(),
+          opponentMint: winner.loser_mint,
+          opponentSymbol: winner.loser_symbol,
+          opponentImage: winner.loser_image,
+        }));
+
+        // 7. Combine all events, prioritize by type: winners > battles > trades > created
         const allEvents = [
+          ...winnerEvents,
           ...battleEvents,
           ...tradeEvents,
           ...createEvents.filter(c => !tradeEvents.some(t => t.mint === c.mint)), // Don't duplicate
@@ -291,7 +323,7 @@ export function FOMOTicker() {
   }
 
   const currentEvent = events[currentIndex];
-  const color = TICKER_COLORS[currentIndex % TICKER_COLORS.length];
+  const color = currentEvent.type === 'won' ? WINNER_COLOR : TICKER_COLORS[currentIndex % TICKER_COLORS.length];
 
   return (
     <div className="mb-2 lg:mb-0">
@@ -302,7 +334,40 @@ export function FOMOTicker() {
             className={`ticker-content flex items-center gap-1.5 lg:gap-1 px-2 py-0.5 lg:px-1.5 lg:py-0.5 text-base lg:text-sm text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ${shake ? 'ticker-shake' : ''}`}
             style={{ backgroundColor: color, borderRadius: 0 }}
           >
-            {currentEvent.type === 'battle' ? (
+            {currentEvent.type === 'won' ? (
+              <>
+                <span className="whitespace-nowrap text-base lg:text-sm uppercase font-bold">
+                  🏆 WINNER:
+                </span>
+                {isValidImageUrl(currentEvent.tokenImage) && (
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-yellow-600">
+                    <Image
+                      src={currentEvent.tokenImage!}
+                      alt={currentEvent.tokenSymbol}
+                      width={24}
+                      height={24}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                )}
+                <span className="font-bold">{currentEvent.tokenSymbol}</span>
+                <span className="font-bold">defeated</span>
+                {isValidImageUrl(currentEvent.opponentImage) && (
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 opacity-50">
+                    <Image
+                      src={currentEvent.opponentImage!}
+                      alt={currentEvent.opponentSymbol || 'Loser'}
+                      width={24}
+                      height={24}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                )}
+                <span className="font-bold opacity-70">{currentEvent.opponentSymbol}</span>
+              </>
+            ) : currentEvent.type === 'battle' ? (
               <>
                 <span className="whitespace-nowrap text-base lg:text-sm uppercase font-bold">
                   ⚔️ BATTLE:

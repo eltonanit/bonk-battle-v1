@@ -52,17 +52,51 @@ export function Header() {
     }
   }, [connected, publicKey]);
 
-  // ⭐ FIX: Funzione per gestire il login su mobile
+  // ⭐ FIX: Funzione per gestire il login su mobile con deep link Phantom
   const handleLogin = async () => {
     try {
-      // Se su mobile, proviamo a connetterci direttamente a Phantom
+      // Detect se siamo su mobile
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
+      // Check se Phantom è disponibile (browser Phantom o estensione desktop)
+      const isPhantomInstalled = (window as any).phantom?.solana?.isPhantom || (window as any).solana?.isPhantom;
+
+      if (isMobile && !isPhantomInstalled) {
+        // Su mobile senza Phantom browser → usa deep link
+        const currentUrl = window.location.href;
+        const encodedUrl = encodeURIComponent(currentUrl);
+
+        // Prova prima il deep link nativo phantom://
+        const phantomDeepLink = `phantom://browse/${encodedUrl}`;
+
+        // Fallback al universal link se phantom:// non funziona
+        const phantomUniversalLink = `https://phantom.app/ul/browse/${encodedUrl}`;
+
+        console.log('📱 Mobile detected, opening Phantom deep link...');
+
+        // Prova ad aprire con phantom://
+        window.location.href = phantomDeepLink;
+
+        // Se dopo 2 secondi siamo ancora qui, prova il universal link
+        setTimeout(() => {
+          if (document.hasFocus()) {
+            console.log('🔄 Trying universal link fallback...');
+            window.location.href = phantomUniversalLink;
+          }
+        }, 2000);
+
+        return;
+      }
+
+      // Su desktop o mobile con Phantom già disponibile
       const phantomWallet = wallets.find(w => w.adapter.name === 'Phantom');
 
       if (phantomWallet) {
-        // Seleziona Phantom
         select(phantomWallet.adapter.name);
 
-        // Su mobile, questo aprirà l'app Phantom
+        // Piccolo delay per permettere la selezione
         setTimeout(() => {
           if (!connected) {
             setVisible(true);

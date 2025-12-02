@@ -8,12 +8,31 @@ import { BattleStatus } from '@/types/bonk';
 import { TokenCardBonk } from '@/components/shared/TokenCard.BONK';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { supabase } from '@/lib/supabase';
 
-type FilterTab = 'battle' | 'new' | 'aboutToWin';
+type FilterTab = 'battle' | 'new' | 'aboutToWin' | 'winners';
 
 // Victory targets (devnet) - from smart contract
 const VICTORY_MC_USD = 5500;    // $5,500 market cap
 const VICTORY_VOLUME_USD = 100; // $100 volume
+
+interface Winner {
+  mint: string;
+  name: string;
+  symbol: string;
+  image: string | null;
+  loser_mint: string | null;
+  loser_name: string | null;
+  loser_symbol: string | null;
+  loser_image: string | null;
+  final_mc_usd: number;
+  final_volume_usd: number;
+  spoils_sol: number;
+  pool_id: string | null;
+  raydium_url: string | null;
+  victory_timestamp: string;
+  status: string;
+}
 
 interface BattlePair {
   tokenA: ParsedTokenBattleState;
@@ -24,6 +43,7 @@ export function TokenGridBonk() {
   const [allTokens, setAllTokens] = useState<ParsedTokenBattleState[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('battle');
   const [loading, setLoading] = useState(true);
+  const [winners, setWinners] = useState<Winner[]>([]);
 
   // ⭐ REAL SOL PRICE from on-chain oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -36,6 +56,20 @@ export function TokenGridBonk() {
         const tokens = await fetchAllBonkTokens();
         console.log(`✅ TokenGridBonk: Found ${tokens.length} BONK tokens`);
         setAllTokens(tokens);
+
+        // Fetch winners from Supabase
+        const { data: winnersData, error: winnersError } = await supabase
+          .from('winners')
+          .select('*')
+          .order('victory_timestamp', { ascending: false })
+          .limit(50);
+
+        if (winnersError) {
+          console.error('❌ Error fetching winners:', winnersError);
+        } else {
+          console.log(`✅ Found ${winnersData?.length || 0} winners`);
+          setWinners(winnersData || []);
+        }
       } catch (error) {
         console.error('❌ Error loading BONK tokens:', error);
       } finally {
@@ -54,14 +88,16 @@ export function TokenGridBonk() {
     return sol * solPriceUsd;   // SOL → USD
   };
 
-  // Group tokens into battle pairs
-  const battlePairs = useMemo((): BattlePair[] => {
-    const pairs: BattlePair[] = [];
+  // Group tokens into battle pairs (including completed battles)
+  const battlePairs = useMemo((): (BattlePair & { winner?: 'A' | 'B' | null })[] => {
+    const pairs: (BattlePair & { winner?: 'A' | 'B' | null })[] = [];
     const processed = new Set<string>();
 
-    // Find tokens that are InBattle
+    // Find tokens that are InBattle, VictoryPending, or Listed (recent winners)
     const battlingTokens = allTokens.filter(t =>
-      t.battleStatus === BattleStatus.InBattle
+      t.battleStatus === BattleStatus.InBattle ||
+      t.battleStatus === BattleStatus.VictoryPending ||
+      t.battleStatus === BattleStatus.Listed
     );
 
     for (const token of battlingTokens) {
@@ -72,12 +108,27 @@ export function TokenGridBonk() {
       const opponentMint = token.opponentMint?.toString();
       if (!opponentMint || opponentMint === '11111111111111111111111111111111') continue;
 
-      const opponent = battlingTokens.find(t =>
+      // Opponent può essere in battlingTokens O in allTokens (se è Qualified dopo sconfitta)
+      const opponent = allTokens.find(t =>
         t.mint.toString() === opponentMint
       );
 
       if (opponent) {
-        pairs.push({ tokenA: token, tokenB: opponent });
+        // Determine winner
+        let winner: 'A' | 'B' | null = null;
+
+        // Token A won if VictoryPending or Listed
+        if (token.battleStatus === BattleStatus.VictoryPending ||
+            token.battleStatus === BattleStatus.Listed) {
+          winner = 'A';
+        }
+        // Token B won if VictoryPending or Listed
+        else if (opponent.battleStatus === BattleStatus.VictoryPending ||
+                 opponent.battleStatus === BattleStatus.Listed) {
+          winner = 'B';
+        }
+
+        pairs.push({ tokenA: token, tokenB: opponent, winner });
         processed.add(mintStr);
         processed.add(opponentMint);
       }
@@ -134,6 +185,7 @@ export function TokenGridBonk() {
   const getCount = () => {
     if (activeFilter === 'battle') return battlePairs.length;
     if (activeFilter === 'aboutToWin') return aboutToWinTokens.length;
+    if (activeFilter === 'winners') return winners.length;
     return filteredTokens.length;
   };
 
@@ -171,6 +223,16 @@ export function TokenGridBonk() {
             }`}
         >
           🏆 About to Win
+        </button>
+
+        <button
+          onClick={() => setActiveFilter('winners')}
+          className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'winners'
+              ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black'
+              : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+            }`}
+        >
+          👑 Winners
         </button>
       </div>
 
@@ -220,6 +282,7 @@ export function TokenGridBonk() {
                 tokenB={toBattleToken(pair.tokenB)}
                 targetMC={VICTORY_MC_USD}
                 targetVol={VICTORY_VOLUME_USD}
+                winner={pair.winner}
               />
             ))}
           </div>
@@ -243,6 +306,100 @@ export function TokenGridBonk() {
                 key={token.mint.toString()}
                 tokenState={token}
               />
+            ))}
+          </div>
+        )
+      ) : activeFilter === 'winners' ? (
+        // WINNERS TAB
+        winners.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">👑</div>
+            <div className="text-xl font-bold text-white mb-2">No Winners Yet</div>
+            <div className="text-bonk-text mb-6">
+              When a token wins a battle, it will appear here!
+              <br />
+              Winners get listed on Raydium DEX.
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {winners.map((winner) => (
+              <div
+                key={winner.mint}
+                className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-500/50 rounded-xl p-4 hover:border-yellow-400 transition-all"
+              >
+                {/* Winner Badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-2 py-1 rounded">
+                    👑 WINNER
+                  </span>
+                  {winner.pool_id && (
+                    <a
+                      href={winner.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${winner.mint}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-300"
+                    >
+                      Trade on Raydium →
+                    </a>
+                  )}
+                </div>
+
+                {/* Token Info */}
+                <div className="flex items-center gap-3 mb-3">
+                  {winner.image ? (
+                    <img
+                      src={winner.image}
+                      alt={winner.symbol}
+                      className="w-12 h-12 rounded-lg object-cover border-2 border-yellow-500"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-yellow-500/20 flex items-center justify-center text-2xl">
+                      👑
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-white font-bold text-lg">{winner.symbol}</h3>
+                    <p className="text-gray-400 text-sm">{winner.name}</p>
+                  </div>
+                </div>
+
+                {/* Defeated */}
+                {winner.loser_symbol && (
+                  <div className="flex items-center gap-2 mb-3 text-sm text-gray-400">
+                    <span>Defeated</span>
+                    {winner.loser_image && (
+                      <img
+                        src={winner.loser_image}
+                        alt={winner.loser_symbol}
+                        className="w-5 h-5 rounded-full opacity-50"
+                      />
+                    )}
+                    <span className="text-red-400 line-through">{winner.loser_symbol}</span>
+                  </div>
+                )}
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-black/30 rounded p-2">
+                    <div className="text-gray-500">Final MC</div>
+                    <div className="text-yellow-400 font-bold">
+                      ${Number(winner.final_mc_usd || 0).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="bg-black/30 rounded p-2">
+                    <div className="text-gray-500">Spoils</div>
+                    <div className="text-green-400 font-bold">
+                      +{Number(winner.spoils_sol || 0).toFixed(2)} SOL
+                    </div>
+                  </div>
+                </div>
+
+                {/* Victory Date */}
+                <div className="mt-3 text-xs text-gray-500 text-center">
+                  Won {new Date(winner.victory_timestamp).toLocaleDateString()}
+                </div>
+              </div>
             ))}
           </div>
         )

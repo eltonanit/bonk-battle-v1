@@ -20,13 +20,15 @@ interface BattleCardProps {
   tokenB: BattleToken;
   targetMC?: number;
   targetVol?: number;
+  winner?: 'A' | 'B' | null; // Se impostato, mostra la card in versione "winner"
 }
 
 export function BattleCard({
   tokenA,
   tokenB,
   targetMC = 5500,
-  targetVol = 100
+  targetVol = 100,
+  winner = null
 }: BattleCardProps) {
 
   // ⚔️ Stati per le animazioni di battaglia
@@ -104,6 +106,87 @@ export function BattleCard({
 
   // URL della pagina battle
   const battleUrl = `/battle/${tokenA.mint}-${tokenB.mint}`;
+
+  // Winner variant
+  const winnerToken = winner === 'A' ? tokenA : winner === 'B' ? tokenB : null;
+  const loserToken = winner === 'A' ? tokenB : winner === 'B' ? tokenA : null;
+
+  // Se c'è un winner, mostra la card dorata
+  if (winner && winnerToken && loserToken) {
+    return (
+      <Link href={`/token/${winnerToken.mint}`} className="block">
+        <div className="bg-gradient-to-br from-yellow-900/40 via-orange-900/30 to-yellow-900/40 rounded-xl overflow-hidden border-2 border-yellow-500 hover:border-yellow-400 transition-all cursor-pointer shadow-lg shadow-yellow-500/20">
+          {/* Winner Header */}
+          <div className="bg-gradient-to-r from-yellow-600 via-orange-500 to-yellow-600 px-4 py-2 flex items-center justify-center gap-2">
+            <span className="text-2xl">👑</span>
+            <span className="text-black font-black text-lg uppercase tracking-wide">WINNER</span>
+            <span className="text-2xl">👑</span>
+          </div>
+
+          {/* Winner Content */}
+          <div className="p-4">
+            <div className="flex items-center gap-4">
+              {/* Winner Image - Grande con corona */}
+              <div className="relative">
+                <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-xl overflow-hidden border-4 border-yellow-500 shadow-lg">
+                  <Image
+                    src={getTokenImage(winnerToken)}
+                    alt={winnerToken.symbol}
+                    width={112}
+                    height={112}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                </div>
+                {/* Crown overlay */}
+                <div className="absolute -top-3 -right-3 text-3xl">👑</div>
+              </div>
+
+              {/* Winner Info */}
+              <div className="flex-1">
+                <h3 className="text-2xl font-black text-yellow-400 uppercase mb-1">
+                  ${winnerToken.symbol}
+                </h3>
+                <p className="text-gray-300 text-sm mb-2">{winnerToken.name}</p>
+
+                {/* Final Stats */}
+                <div className="flex gap-3">
+                  <div className="bg-black/30 rounded px-2 py-1">
+                    <span className="text-gray-500 text-xs">MC </span>
+                    <span className="text-yellow-400 font-bold text-sm">{formatUsd(winnerToken.marketCapUsd)}</span>
+                  </div>
+                  <div className="bg-black/30 rounded px-2 py-1">
+                    <span className="text-gray-500 text-xs">VOL </span>
+                    <span className="text-green-400 font-bold text-sm">{formatUsd(winnerToken.volumeUsd)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Defeated Section */}
+            <div className="mt-4 pt-3 border-t border-yellow-500/30">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 text-sm">Defeated:</span>
+                <div className="flex items-center gap-2 opacity-60">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden grayscale">
+                    <Image
+                      src={getTokenImage(loserToken)}
+                      alt={loserToken.symbol}
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <span className="text-red-400 line-through font-semibold">${loserToken.symbol}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link href={battleUrl} className="block">

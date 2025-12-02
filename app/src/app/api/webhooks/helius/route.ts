@@ -425,6 +425,26 @@ export async function POST(request: NextRequest) {
 
         console.log(`⚡ Webhook completed in ${duration}ms | Synced: ${successCount}/${mintArray.length} | Activities: ${activitiesLogged} | Trades: ${tradesSaved}`);
 
+        // 🏆 Auto-detect winners after trades
+        if (tradesSaved > 0) {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
+                // Fire and forget - non blocca il webhook
+                fetch(`${baseUrl}/api/battles/auto-detect-winners`, { method: 'GET' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.potentialWinners?.length > 0) {
+                            console.log(`🏆 Found ${data.potentialWinners.length} winner(s)!`);
+                        }
+                    })
+                    .catch(err => console.error('⚠️ Auto-detect winners error:', err.message));
+            } catch {
+                // Silently fail - non deve bloccare il webhook
+            }
+        }
+
         return NextResponse.json({
             success: true,
             synced: successCount,

@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import dynamic from 'next/dynamic';
-import { useNotifications } from '@/hooks/useNotifications';
 
 const WalletMultiButtonDynamic = dynamic(
   async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
@@ -14,7 +13,6 @@ const WalletMultiButtonDynamic = dynamic(
 export function MobileBottomNav() {
   const pathname = usePathname();
   const { connected } = useWallet();
-  const { unreadCount } = useNotifications();
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -93,26 +91,25 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Profile</span>
           </Link>
 
-          {/* NOTIFICATIONS */}
+          {/* WINNERS */}
           <Link
-            href="/notifications"
-            className={`relative flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/notifications')
-                ? 'text-white bg-white/10'
-                : 'text-white/60'
+            href="/winners"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/winners')
+                ? 'text-yellow-400 bg-yellow-400/10'
+                : 'text-yellow-400/60'
               }`}
           >
-            <span className="w-6 h-6 relative">
+            <span className="w-6 h-6">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
               </svg>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
             </span>
-            <span className="text-[11px] font-semibold">Alerts</span>
+            <span className="text-[11px] font-semibold">Winners</span>
           </Link>
 
         </div>
