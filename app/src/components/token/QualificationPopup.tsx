@@ -1,12 +1,13 @@
 // app/src/components/token/QualificationPopup.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { buyToken } from '@/lib/solana/buy-token';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { Lightbulb, X } from 'lucide-react';
+import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 
 interface QualificationPopupProps {
     mint: PublicKey;
@@ -23,6 +24,8 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [solBalance, setSolBalance] = useState<number | null>(null);
+    const [showSuccess, setShowSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
 
     // ⚠️ FIX: Calculate minimum SOL needed for $10 USD
     const minUSD = 10;
@@ -100,17 +103,15 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
 
             console.log('✅ Qualification buy successful!', result);
 
-            // Success message
+            // Show success popup
             const usdValue = solPriceUsd ? (solAmount * solPriceUsd).toFixed(2) : '?';
-            alert(
-                `🎉 Token Qualified!\n\n` +
-                `Your first buy: ${solAmount} SOL (~$${usdValue})\n` +
-                `Your token is now eligible for battles!\n\n` +
-                `Signature: ${result.signature.substring(0, 20)}...`
-            );
+            setSuccessMessage(`Bought ${solAmount} SOL (~$${usdValue})`);
+            setShowSuccess(true);
 
-            // Trigger callback to refresh token state
-            onQualified();
+            // Trigger callback to refresh token state after popup shows
+            setTimeout(() => {
+                onQualified();
+            }, 2000);
 
         } catch (err) {
             console.error('❌ Qualification buy error:', err);
@@ -121,7 +122,21 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
         }
     };
 
+    const handleSuccessClose = useCallback(() => {
+        setShowSuccess(false);
+    }, []);
+
     return (
+        <>
+        {/* Success Popup */}
+        <TransactionSuccessPopup
+            show={showSuccess}
+            message="Transaction Successful!"
+            subMessage={successMessage}
+            onClose={handleSuccessClose}
+            autoCloseMs={2500}
+        />
+
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
             {/* ⭐ Responsive container: più piccolo su mobile, centrato su desktop */}
             <div className="w-full max-w-[420px] md:max-w-md">
@@ -240,5 +255,6 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
                 </div>
             </div>
         </div>
+        </>
     );
 }
