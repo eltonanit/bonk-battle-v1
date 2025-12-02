@@ -318,15 +318,50 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
       }
     }
 
-    // 3. Merge: blockchain tokens + Supabase tokens (remove duplicates)
-    const blockchainMints = new Set(parsedTokens.map(t => t.mint.toString()));
+    // 3. Merge: blockchain tokens + Supabase tokens
+    // Create a lookup map for Supabase tokens by mint
+    const supabaseTokenMap = new Map<string, ParsedTokenBattleState>();
+    for (const token of supabaseTokens) {
+      supabaseTokenMap.set(token.mint.toString(), token);
+    }
 
-    // Add Supabase tokens that are NOT on blockchain
+    // For each blockchain token, merge in Supabase metadata if blockchain metadata is empty
+    const mergedTokens = parsedTokens.map(blockchainToken => {
+      const mintStr = blockchainToken.mint.toString();
+      const supabaseToken = supabaseTokenMap.get(mintStr);
+
+      if (supabaseToken) {
+        // Merge: use blockchain data for reserves/status, but Supabase for metadata if empty
+        const hasValidName = blockchainToken.name &&
+          blockchainToken.name.trim() !== '' &&
+          !blockchainToken.name.includes('\u0000');
+        const hasValidSymbol = blockchainToken.symbol &&
+          blockchainToken.symbol.trim() !== '' &&
+          !blockchainToken.symbol.includes('\u0000');
+        const hasValidImage = blockchainToken.image &&
+          blockchainToken.image.trim() !== '';
+
+        return {
+          ...blockchainToken,
+          // Use Supabase metadata if blockchain metadata is empty/invalid
+          name: hasValidName ? blockchainToken.name : (supabaseToken.name || blockchainToken.name),
+          symbol: hasValidSymbol ? blockchainToken.symbol : (supabaseToken.symbol || blockchainToken.symbol),
+          image: hasValidImage ? blockchainToken.image : (supabaseToken.image || blockchainToken.image),
+          uri: blockchainToken.uri || supabaseToken.uri,
+          creator: blockchainToken.creator || supabaseToken.creator,
+        };
+      }
+
+      return blockchainToken;
+    });
+
+    // Add Supabase-only tokens (not on blockchain)
+    const blockchainMints = new Set(parsedTokens.map(t => t.mint.toString()));
     const supabaseOnlyTokens = supabaseTokens.filter(
       t => !blockchainMints.has(t.mint.toString())
     );
 
-    const allTokens = [...parsedTokens, ...supabaseOnlyTokens];
+    const allTokens = [...mergedTokens, ...supabaseOnlyTokens];
 
     // Sort by creation timestamp (newest first)
     allTokens.sort((a, b) => b.creationTimestamp - a.creationTimestamp);
