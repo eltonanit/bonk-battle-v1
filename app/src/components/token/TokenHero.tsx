@@ -2,9 +2,68 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { PublicKey } from '@solana/web3.js';
 import { useTokenMetadata } from '@/hooks/useTokenMetadata';
-import { BattleStatus, BattleTier, BATTLE_STATUS_LABELS, BATTLE_STATUS_COLORS, BATTLE_STATUS_BG_COLORS } from '@/types/bonk';
+
+// Share Modal Component
+function ShareModal({ isOpen, onClose, tokenMint, tokenSymbol }: { isOpen: boolean; onClose: () => void; tokenMint: string; tokenSymbol: string }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
+
+  const shareUrl = `https://bonk-battle.vercel.app/token/${tokenMint}`;
+  const tweetText = `Check out $${tokenSymbol} on BONK BATTLE! `;
+
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const shareOnX = () => {
+    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
+    window.open(url, '_blank');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+      <div className="bg-[#1a1f2e] rounded-xl p-6 w-[90%] max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold text-white">Share coin</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-gray-400 text-sm mb-6">Copy link or share directly to X</p>
+
+        <div className="space-y-3">
+          <button
+            onClick={copyLink}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            {copied ? 'Copied!' : 'Copy link'}
+          </button>
+
+          <button
+            onClick={shareOnX}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors border border-white/20"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            Share on X
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Metadata {
   name: string;
@@ -21,19 +80,19 @@ interface TokenHeroProps {
     metadataUri: string;
     creator?: PublicKey | string | null;
     createdAt: number;
-    tier?: BattleTier;
     mint: string;
-    battleStatus?: BattleStatus;
     marketCapUsd?: number;
   };
   preloadedMetadata?: Metadata;
+  battleId?: string;
 }
 
 const EMOJI_FALLBACKS = ['🚀', '💎', '🐸', '🐕', '🦊', '😎', '🌙', '🎯', '🦍', '🐂'];
 
-export function TokenHero({ token, preloadedMetadata }: TokenHeroProps) {
+export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps) {
   const { metadata: fetchedMetadata } = useTokenMetadata(token.mint);
   const [imageError, setImageError] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Use preloaded metadata if available, otherwise use fetched metadata
   const metadata = preloadedMetadata || fetchedMetadata;
@@ -65,92 +124,95 @@ export function TokenHero({ token, preloadedMetadata }: TokenHeroProps) {
     else createdDisplay = `${Math.floor(diff / 86400)}d ago`;
   }
 
-  // Battle status
-  const battleStatus = token.battleStatus ?? BattleStatus.Created;
-  const statusLabel = BATTLE_STATUS_LABELS[battleStatus];
-  const statusColor = BATTLE_STATUS_COLORS[battleStatus];
-  const statusBgColor = BATTLE_STATUS_BG_COLORS[battleStatus];
-
-  // Tier
-  const tier = token.tier ?? BattleTier.Test;
 
   return (
-    <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-4">
-      <div className="flex items-start gap-4">
-        {/* Token Image + MC under it */}
-        <div className="flex flex-col items-center">
-          <div
-            className="w-16 h-16 rounded-lg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden"
-            style={{
-              background: imageUrl && !imageError
-                ? 'transparent'
-                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            }}
+    <>
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        tokenMint={token.mint}
+        tokenSymbol={displaySymbol}
+      />
+
+      <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-4">
+        <div className="flex items-start gap-3">
+          {/* Share Button - Top left, light green */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex-shrink-0"
+            title="Share"
           >
-            {imageUrl && !imageError ? (
-              <Image
-                src={imageUrl}
-                alt={displayName}
-                width={64}
-                height={64}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-                priority
-              />
-            ) : (
-              <span>{fallbackEmoji}</span>
+            <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+
+          {/* Token Image + MC under it */}
+          <div className="flex flex-col items-center">
+            <div
+              className="w-16 h-16 rounded-lg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden"
+              style={{
+                background: imageUrl && !imageError
+                  ? 'transparent'
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              }}
+            >
+              {imageUrl && !imageError ? (
+                <Image
+                  src={imageUrl}
+                  alt={displayName}
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                  onError={() => setImageError(true)}
+                  priority
+                />
+              ) : (
+                <span>{fallbackEmoji}</span>
+              )}
+            </div>
+            {/* MC under photo */}
+            {token.marketCapUsd !== undefined && (
+              <div className="mt-2 text-center">
+                <div className="text-xs text-gray-500">MC</div>
+                <div className="text-sm font-bold text-green-400">
+                  ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                </div>
+              </div>
             )}
           </div>
-          {/* MC under photo */}
-          {token.marketCapUsd !== undefined && (
-            <div className="mt-2 text-center">
-              <div className="text-xs text-gray-500">MC</div>
-              <div className="text-sm font-bold text-green-400">
-                ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+
+          {/* Token Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Symbol as main title */}
+                <h1 className="text-xl font-bold text-white">${displaySymbol}</h1>
+                {/* In Battle button */}
+                {battleId && (
+                  <Link
+                    href={`/battle/${battleId}`}
+                    className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors"
+                  >
+                    ⚔️ In battle: view match
+                  </Link>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Token Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between mb-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Symbol as main title */}
-              <h1 className="text-xl font-bold text-white">${displaySymbol}</h1>
-              {/* Status Badge */}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColor} ${statusBgColor}`}>
-                {statusLabel}
+              {/* Time ago in top right */}
+              <span className="text-sm text-gray-400 whitespace-nowrap ml-2">
+                {createdDisplay}
               </span>
             </div>
-            {/* Time ago in top right */}
-            <span className="text-sm text-gray-400 whitespace-nowrap ml-2">
-              {createdDisplay}
-            </span>
-          </div>
 
-          {/* Name and creator info */}
-          <div className="text-sm text-gray-400 mb-2">
-            <span className="text-gray-300">{displayName}</span>
-            <span className="mx-2">•</span>
-            <span>{creatorDisplay}</span>
-          </div>
-
-          {/* Status info row */}
-          <div className="flex items-center gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Status: </span>
-              <span className={`font-bold ${statusColor}`}>{statusLabel}</span>
-            </div>
-            <div>
-              <span className="text-gray-500">Tier: </span>
-              <span className={`font-bold ${tier === BattleTier.Test ? 'text-yellow-500' : 'text-green-500'}`}>
-                {tier === BattleTier.Test ? 'Test' : 'Prod'}
-              </span>
+            {/* Name and creator info */}
+            <div className="text-sm text-gray-400">
+              <span className="text-gray-300">{displayName}</span>
+              <span className="mx-2">•</span>
+              <span>{creatorDisplay}</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

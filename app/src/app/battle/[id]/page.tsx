@@ -19,9 +19,20 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 
-// Victory targets (devnet)
-const VICTORY_MC_USD = 5500;
-const VICTORY_VOLUME_USD = 100;
+// =================================================================
+// TIER TARGETS FROM SMART CONTRACT (SOL-based!)
+// =================================================================
+const TIER_CONFIG = {
+  TEST: {
+    TARGET_SOL: 6,           // 6 SOL = graduation
+    VICTORY_VOLUME_SOL: 0.87, // ~$200 at $230/SOL
+  },
+  PRODUCTION: {
+    TARGET_SOL: 127.5,       // 127.5 SOL = graduation
+    VICTORY_VOLUME_SOL: 87,  // ~$20,000 at $230/SOL
+  }
+};
+const CURRENT_TIER = TIER_CONFIG.TEST;
 
 export default function BattleDetailPage() {
   const params = useParams();
@@ -124,18 +135,20 @@ export default function BattleDetailPage() {
     return (lamports / 1e9) * solPriceUsd;
   };
 
-  // Calculate progress percentages
+  // Calculate progress percentages (SOL-based!)
   const getProgress = (state: typeof stateA) => {
-    if (!state || !solPriceUsd) return { mc: 0, vol: 0, mcUsd: 0, volUsd: 0 };
-    
-    const mcUsd = lamportsToUsd(state.realSolReserves);
-    const volUsd = lamportsToUsd(state.totalTradeVolume);
-    
+    if (!state) return { sol: 0, vol: 0, solCollected: 0, volumeSol: 0 };
+
+    // Convert lamports to SOL
+    const solCollected = state.realSolReserves / 1e9;
+    const volumeSol = state.totalTradeVolume / 1e9;
+
     return {
-      mc: Math.min((mcUsd / VICTORY_MC_USD) * 100, 100),
-      vol: Math.min((volUsd / VICTORY_VOLUME_USD) * 100, 100),
-      mcUsd,
-      volUsd
+      // SOL-based progress!
+      sol: Math.min((solCollected / CURRENT_TIER.TARGET_SOL) * 100, 100),
+      vol: Math.min((volumeSol / CURRENT_TIER.VICTORY_VOLUME_SOL) * 100, 100),
+      solCollected,
+      volumeSol
     };
   };
 
@@ -143,19 +156,18 @@ export default function BattleDetailPage() {
   const progressB = getProgress(stateB);
 
   // Calculate scores (objectives reached)
-  const scoreA = (progressA.mc >= 100 ? 1 : 0) + (progressA.vol >= 100 ? 1 : 0);
-  const scoreB = (progressB.mc >= 100 ? 1 : 0) + (progressB.vol >= 100 ? 1 : 0);
+  const scoreA = (progressA.sol >= 100 ? 1 : 0) + (progressA.vol >= 100 ? 1 : 0);
+  const scoreB = (progressB.sol >= 100 ? 1 : 0) + (progressB.vol >= 100 ? 1 : 0);
 
   // Currently displayed token state
   const currentState = selectedToken === 'A' ? stateA : stateB;
   const currentMint = selectedToken === 'A' ? tokenAMint : effectiveTokenBMint;
   const currentProgress = selectedToken === 'A' ? progressA : progressB;
 
-  // Format USD
-  const formatUsd = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
+  // Format SOL
+  const formatSol = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K SOL`;
+    return `${value.toFixed(2)} SOL`;
   };
 
   // Get token image
@@ -274,9 +286,9 @@ export default function BattleDetailPage() {
                 <div className="text-sm font-bold text-yellow-400 mb-1">
                   {scoreA} - {scoreB}
                 </div>
-                <div className="text-xs text-gray-400 uppercase">Mcap</div>
+                <div className="text-xs text-gray-400 uppercase">SOL Collected</div>
                 <div className="text-lg font-black text-white">
-                  {formatUsd(progressA.mcUsd)} - {formatUsd(progressB.mcUsd)}
+                  {progressA.solCollected.toFixed(2)} - {progressB.solCollected.toFixed(2)} SOL
                 </div>
               </div>
 
@@ -372,33 +384,33 @@ export default function BattleDetailPage() {
                   </div>
                 </div>
 
-                {/* Progress Bars */}
+                {/* Progress Bars - SOL BASED */}
                 <div className="bg-white/5 rounded-xl p-4 space-y-5">
-                  {/* Market Cap Progress */}
+                  {/* SOL Collected Progress */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-bold text-yellow-400">
-                          {currentProgress.mc >= 100 ? '1' : '0'}
+                          {currentProgress.sol >= 100 ? '1' : '0'}
                         </span>
-                        <span className="font-semibold">Market Cap Progress</span>
+                        <span className="font-semibold">SOL Progress</span>
                       </div>
-                      <span className={`font-bold ${currentProgress.mc >= 100 ? 'text-yellow-400' : 'text-green-400'}`}>
-                        {currentProgress.mc.toFixed(1)}%
+                      <span className={`font-bold ${currentProgress.sol >= 100 ? 'text-yellow-400' : 'text-green-400'}`}>
+                        {currentProgress.sol.toFixed(1)}%
                       </span>
                     </div>
                     <div className="flex justify-between text-xs text-gray-400 mb-2">
-                      <span>Current: {formatUsd(currentProgress.mcUsd)}</span>
-                      <span>Target: {formatUsd(VICTORY_MC_USD)}</span>
+                      <span>Current: {currentProgress.solCollected.toFixed(2)} SOL</span>
+                      <span>Target: {CURRENT_TIER.TARGET_SOL} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
-                          currentProgress.mc >= 100
+                          currentProgress.sol >= 100
                             ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
                             : 'bg-gradient-to-r from-green-400 to-green-600'
                         }`}
-                        style={{ width: `${currentProgress.mc}%` }}
+                        style={{ width: `${currentProgress.sol}%` }}
                       />
                     </div>
                   </div>
@@ -417,8 +429,8 @@ export default function BattleDetailPage() {
                       </span>
                     </div>
                     <div className="flex justify-between text-xs text-gray-400 mb-2">
-                      <span>Current: {formatUsd(currentProgress.volUsd)}</span>
-                      <span>Target: {formatUsd(VICTORY_VOLUME_USD)}</span>
+                      <span>Current: {currentProgress.volumeSol.toFixed(2)} SOL</span>
+                      <span>Target: {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
@@ -427,7 +439,7 @@ export default function BattleDetailPage() {
                             ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
                             : 'bg-gradient-to-r from-orange-400 to-orange-600'
                         }`}
-                        style={{ width: `${currentProgress.vol}%` }}
+                        style={{ width: `${Math.min(currentProgress.vol, 100)}%` }}
                       />
                     </div>
                   </div>
@@ -461,20 +473,20 @@ export default function BattleDetailPage() {
                   <div>
                     <div className="text-gray-400 mb-1">Victory Condition</div>
                     <div className="font-semibold">
-                      MC ≥ {formatUsd(VICTORY_MC_USD)} + Vol ≥ {formatUsd(VICTORY_VOLUME_USD)}
+                      SOL ≥ {CURRENT_TIER.TARGET_SOL} + Vol ≥ {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL
                     </div>
                   </div>
                   <div>
                     <div className="text-gray-400 mb-1">{stateA.symbol} Progress</div>
                     <div className="font-semibold">
-                      {((progressA.mc + progressA.vol) / 2).toFixed(1)}% avg
+                      {((progressA.sol + progressA.vol) / 2).toFixed(1)}% avg
                     </div>
                   </div>
                   {stateB && (
                     <div>
                       <div className="text-gray-400 mb-1">{stateB.symbol} Progress</div>
                       <div className="font-semibold">
-                        {((progressB.mc + progressB.vol) / 2).toFixed(1)}% avg
+                        {((progressB.sol + progressB.vol) / 2).toFixed(1)}% avg
                       </div>
                     </div>
                   )}
@@ -509,25 +521,25 @@ export default function BattleDetailPage() {
                 <h3 className="font-bold mb-4">⚡ Quick Stats</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{stateA.symbol} MC</span>
-                    <span className="font-semibold">{formatUsd(progressA.mcUsd)}</span>
+                    <span className="text-gray-400">{stateA.symbol} SOL</span>
+                    <span className="font-semibold">{progressA.solCollected.toFixed(2)} SOL</span>
                   </div>
                   {stateB && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">{stateB.symbol} MC</span>
-                      <span className="font-semibold">{formatUsd(progressB.mcUsd)}</span>
+                      <span className="text-gray-400">{stateB.symbol} SOL</span>
+                      <span className="font-semibold">{progressB.solCollected.toFixed(2)} SOL</span>
                     </div>
                   )}
                   <div className="border-t border-gray-800 pt-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">{stateA.symbol} Vol</span>
-                      <span className="font-semibold">{formatUsd(progressA.volUsd)}</span>
+                      <span className="font-semibold">{progressA.volumeSol.toFixed(2)} SOL</span>
                     </div>
                   </div>
                   {stateB && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">{stateB.symbol} Vol</span>
-                      <span className="font-semibold">{formatUsd(progressB.volUsd)}</span>
+                      <span className="font-semibold">{progressB.volumeSol.toFixed(2)} SOL</span>
                     </div>
                   )}
                 </div>
@@ -553,7 +565,7 @@ export default function BattleDetailPage() {
                       <div className="text-xs text-gray-400">Waiting for opponent</div>
                     </div>
                   </div>
-                ) : progressA.mc + progressA.vol > progressB.mc + progressB.vol ? (
+                ) : progressA.sol + progressA.vol > progressB.sol + progressB.vol ? (
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg overflow-hidden">
                       <Image
@@ -568,11 +580,11 @@ export default function BattleDetailPage() {
                     <div>
                       <div className="font-bold text-orange-400">{stateA.symbol}</div>
                       <div className="text-xs text-gray-400">
-                        {((progressA.mc + progressA.vol) / 2).toFixed(1)}% progress
+                        {((progressA.sol + progressA.vol) / 2).toFixed(1)}% progress
                       </div>
                     </div>
                   </div>
-                ) : progressB.mc + progressB.vol > progressA.mc + progressA.vol ? (
+                ) : progressB.sol + progressB.vol > progressA.sol + progressA.vol ? (
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg overflow-hidden">
                       <Image
@@ -587,7 +599,7 @@ export default function BattleDetailPage() {
                     <div>
                       <div className="font-bold text-orange-400">{stateB.symbol}</div>
                       <div className="text-xs text-gray-400">
-                        {((progressB.mc + progressB.vol) / 2).toFixed(1)}% progress
+                        {((progressB.sol + progressB.vol) / 2).toFixed(1)}% progress
                       </div>
                     </div>
                   </div>

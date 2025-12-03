@@ -1,4 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
+// SOL-BASED PROGRESS - Uses actual smart contract targets
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,15 +10,24 @@ import { buyToken } from '@/lib/solana/buy-token';
 import { sellToken } from '@/lib/solana/sell-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 
-// Victory targets (devnet TEST tier)
-const VICTORY_MC_USD = 5500;
-const VICTORY_VOLUME_USD = 100;
+// =================================================================
+// TIER TARGETS FROM SMART CONTRACT (SOL-based!)
+// =================================================================
+const TIER_CONFIG = {
+  TEST: {
+    TARGET_SOL: 6,           // 6 SOL = graduation
+    VICTORY_VOLUME_SOL: 0.87, // ~$200 at $230/SOL (dynamic in reality)
+    VIRTUAL_SOL_INIT: 2.05,   // Starting virtual SOL
+  },
+  PRODUCTION: {
+    TARGET_SOL: 127.5,       // 127.5 SOL = graduation  
+    VICTORY_VOLUME_SOL: 87,  // ~$20,000 at $230/SOL
+    VIRTUAL_SOL_INIT: 9.3,
+  }
+};
 
-// Graduation threshold in SOL (TEST tier completes at ~5.67 SOL)
-const GRADUATION_SOL_THRESHOLD = 5.67;
-
-// Auto-disable threshold (97%)
-const AUTO_DISABLE_THRESHOLD = 97;
+// Use TEST tier for devnet
+const CURRENT_TIER = TIER_CONFIG.TEST;
 
 interface TokenState {
   symbol: string;
@@ -57,66 +67,57 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, [publicKey, connection]);
 
   // ============================================================
-  // VICTORY PROGRESS CALCULATIONS
+  // 🎯 SOL-BASED PROGRESS CALCULATIONS
   // ============================================================
   const progressData = useMemo(() => {
-    if (!tokenState || !solPriceUsd) {
+    if (!tokenState) {
       return {
-        mcProgress: 0,
+        solProgress: 0,
         volProgress: 0,
         overallProgress: 0,
-        currentMcUsd: 0,
-        currentVolUsd: 0,
         solCollectedSol: 0,
-        maxBuyableSol: GRADUATION_SOL_THRESHOLD,
+        volumeSol: 0,
+        solRemaining: CURRENT_TIER.TARGET_SOL,
+        maxBuyableSol: CURRENT_TIER.TARGET_SOL,
         isNearGraduation: false,
         isGraduationLocked: false,
       };
     }
 
+    // Convert lamports to SOL
     const solCollectedSol = tokenState.solCollected / 1e9;
-    const totalVolumeSol = tokenState.totalTradeVolume / 1e9;
+    const volumeSol = tokenState.totalTradeVolume / 1e9;
 
-    // Calculate USD values
-    const currentMcUsd = solCollectedSol * solPriceUsd;
-    const currentVolUsd = totalVolumeSol * solPriceUsd;
+    // ⭐ SOL-based progress (not USD!)
+    const solProgress = Math.min((solCollectedSol / CURRENT_TIER.TARGET_SOL) * 100, 100);
+    const volProgress = Math.min((volumeSol / CURRENT_TIER.VICTORY_VOLUME_SOL) * 100, 100);
 
-    // Calculate progress percentages
-    const mcProgress = Math.min((currentMcUsd / VICTORY_MC_USD) * 100, 100);
-    const volProgress = Math.min((currentVolUsd / VICTORY_VOLUME_USD) * 100, 100);
+    // Overall = average of both
+    const overallProgress = (solProgress + volProgress) / 2;
 
-    // Overall progress (use the higher of the two)
-    const overallProgress = Math.max(mcProgress, volProgress);
+    // How much SOL remaining before graduation
+    const solRemaining = Math.max(0, CURRENT_TIER.TARGET_SOL - solCollectedSol);
+    const maxBuyableSol = solRemaining * 0.95; // 5% buffer
 
-    // Calculate max buyable before graduation
-    const solRemaining = Math.max(0, GRADUATION_SOL_THRESHOLD - solCollectedSol);
-    const maxBuyableSol = solRemaining * 0.95; // 5% buffer to avoid hitting exact limit
-
-    // Check graduation states
-    const isNearGraduation = overallProgress >= AUTO_DISABLE_THRESHOLD;
-    const isGraduationLocked = overallProgress >= 100;
+    // Graduation states
+    const isNearGraduation = solProgress >= 90; // Near 90%
+    const isGraduationLocked = solProgress >= 100 && volProgress >= 100;
 
     return {
-      mcProgress,
+      solProgress,
       volProgress,
       overallProgress,
-      currentMcUsd,
-      currentVolUsd,
       solCollectedSol,
+      volumeSol,
+      solRemaining,
       maxBuyableSol,
       isNearGraduation,
       isGraduationLocked,
     };
-  }, [tokenState, solPriceUsd]);
-
-  // Format USD helper
-  const formatUsd = (value: number) => {
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
-  };
+  }, [tokenState]);
 
   // ============================================================
-  // BUY HANDLER
+  // 🛒 BUY HANDLER
   // ============================================================
   const handleBuy = async () => {
     if (!publicKey || !signTransaction) {
@@ -124,9 +125,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    // Check if graduation locked
     if (progressData.isGraduationLocked) {
-      setSuccessMessage('This token has reached victory! Finalizing battle...');
+      setSuccessMessage('🏆 This token has WON! Ready for DEX listing!');
       setIsVictoryPopup(true);
       setShowSuccess(true);
       triggerVictoryCheck();
@@ -144,11 +144,11 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    // Warn if amount exceeds max buyable
-    if (solAmount > progressData.maxBuyableSol && progressData.maxBuyableSol > 0) {
+    // Warn if exceeds remaining SOL before graduation
+    if (solAmount > progressData.maxBuyableSol && progressData.maxBuyableSol > 0.01) {
       const proceed = confirm(
-        `Warning: This buy may trigger graduation!\n\n` +
-        `Max safe buy: ${progressData.maxBuyableSol.toFixed(4)} SOL\n` +
+        `⚠️ Warning: This buy may trigger graduation!\n\n` +
+        `SOL remaining: ${progressData.solRemaining.toFixed(4)} SOL\n` +
         `Your amount: ${solAmount} SOL\n\n` +
         `Continue anyway?`
       );
@@ -164,21 +164,21 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         signTransaction
       );
 
-      console.log('Buy successful:', result);
+      console.log('✅ Buy successful:', result);
       setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
       setIsVictoryPopup(false);
       setShowSuccess(true);
       setAmount('');
       if (onSuccess) onSuccess();
     } catch (err) {
-      console.error('Buy error:', err);
+      console.error('❌ Buy error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
-      // Handle graduation/victory case - show success, not error!
+      // Handle graduation error
       if (errorMessage.includes('GRADUATION_READY') ||
-          errorMessage.includes('WouldExceedGraduation') ||
-          errorMessage.includes('6024')) {
-        setSuccessMessage('Victory threshold reached! Checking battle result...');
+        errorMessage.includes('WouldExceedGraduation') ||
+        errorMessage.includes('6024')) {
+        setSuccessMessage('🏆 Graduation reached! Checking victory...');
         setIsVictoryPopup(true);
         setShowSuccess(true);
         triggerVictoryCheck();
@@ -186,7 +186,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         return;
       }
 
-      // Regular error - show alert
       alert(`Failed to buy tokens: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -194,34 +193,31 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   };
 
   // ============================================================
-  // VICTORY CHECK TRIGGER
+  // 🏆 VICTORY CHECK
   // ============================================================
   const triggerVictoryCheck = async () => {
     try {
-      console.log('Triggering victory check for:', mint.toString());
+      console.log('🏆 Triggering victory check for:', mint.toString());
       const response = await fetch('/api/battles/check-victory', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tokenMint: mint.toString() })
       });
       const data = await response.json();
-      console.log('Victory check result:', data);
+      console.log('🏆 Victory check result:', data);
 
       if (data.victory) {
-        setSuccessMessage(`VICTORY! ${tokenState?.symbol || 'Token'} won the battle! Preparing for DEX listing...`);
+        setSuccessMessage(`🏆 VICTORY! ${tokenState?.symbol || 'Token'} won!`);
       } else if (data.success) {
-        setSuccessMessage(`Battle continues - checking victory conditions...`);
-      } else {
-        setSuccessMessage('Token at graduation threshold!');
+        setSuccessMessage(`⚔️ Checking victory conditions...`);
       }
-    } catch (victoryErr) {
-      console.error('Victory check error:', victoryErr);
-      setSuccessMessage('Token reached limit! Victory check in progress...');
+    } catch (err) {
+      console.error('Victory check error:', err);
     }
   };
 
   // ============================================================
-  // SELL HANDLER
+  // 💰 SELL HANDLER
   // ============================================================
   const handleSell = async () => {
     if (!publicKey || !signTransaction) {
@@ -235,7 +231,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    const tokenAmountRaw = Math.floor(tokenAmount * 1e9); // 9 decimals
+    const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
     if (balance === null || tokenAmountRaw > balance) {
       alert('Insufficient token balance');
@@ -251,14 +247,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         signTransaction
       );
 
-      console.log('Sell successful:', result);
+      console.log('✅ Sell successful:', result);
       setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${tokenState?.symbol || 'tokens'}`);
       setIsVictoryPopup(false);
       setShowSuccess(true);
       setAmount('');
       if (onSuccess) onSuccess();
     } catch (err) {
-      console.error('Sell error:', err);
+      console.error('❌ Sell error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       alert(`Failed to sell tokens: ${errorMessage}`);
     } finally {
@@ -272,12 +268,12 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, []);
 
   // ============================================================
-  // PERCENTAGE BUTTONS
+  // 🎮 PERCENTAGE BUTTONS
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
       if (!solBalance) return;
-      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol); // Keep 0.01 SOL for fees
+      const maxUsable = solBalance - 0.01;
       const value = Math.max(0, maxUsable * (percent / 100));
       setAmount(value.toFixed(4));
     } else {
@@ -287,76 +283,100 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     }
   };
 
-  // Token symbol for display
   const tokenSymbol = tokenState?.symbol || 'TOKEN';
+  const solDone = progressData.solProgress >= 100;
+  const volDone = progressData.volProgress >= 100;
 
   return (
     <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
       {/* Success Popup */}
       <TransactionSuccessPopup
         show={showSuccess}
-        message={isVictoryPopup ? "Victory!" : "Transaction Successful"}
+        message={isVictoryPopup ? "🏆 Victory!" : "Transaction Successful"}
         subMessage={successMessage}
         onClose={handleSuccessClose}
         autoCloseMs={isVictoryPopup ? 5000 : 2500}
       />
 
       {/* ============================================================ */}
-      {/* VICTORY PROGRESS SECTION */}
+      {/* 🏆 SOL-BASED PROGRESS SECTION */}
       {/* ============================================================ */}
-      {tokenState && solPriceUsd > 0 && (
+      {tokenState && (
         <div className="mb-4 p-3 bg-white/5 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-gray-300">Victory Progress</span>
-            <span className={`text-sm font-bold ${
-              progressData.isGraduationLocked ? 'text-yellow-400' :
-              progressData.isNearGraduation ? 'text-orange-400' : 'text-green-400'
-            }`}>
+            <span className="text-sm font-semibold text-gray-300">🏆 Graduation Progress</span>
+            <span className={`text-sm font-bold ${progressData.isGraduationLocked ? 'text-yellow-400' :
+                progressData.isNearGraduation ? 'text-orange-400' : 'text-green-400'
+              }`}>
               {progressData.overallProgress.toFixed(1)}%
             </span>
           </div>
 
-          {/* Progress Bar */}
-          <div className="h-2 bg-[#2a3544] rounded-full overflow-hidden mb-3">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                progressData.isGraduationLocked
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-500 animate-pulse'
-                  : progressData.isNearGraduation
-                    ? 'bg-gradient-to-r from-orange-400 to-red-500'
-                    : 'bg-gradient-to-r from-green-400 to-green-600'
-              }`}
-              style={{ width: `${progressData.overallProgress}%` }}
-            />
+          {/* Dual Progress Bars */}
+          <div className="space-y-2 mb-3">
+            {/* SOL Collected Progress */}
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">SOL {solDone ? '✅' : ''}</span>
+                <span className={solDone ? 'text-green-400' : 'text-gray-400'}>
+                  {progressData.solProgress.toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-1.5 bg-[#2a3544] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${solDone ? 'bg-green-500' : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                    }`}
+                  style={{ width: `${progressData.solProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Volume Progress */}
+            <div>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-gray-500">Volume {volDone ? '✅' : ''}</span>
+                <span className={volDone ? 'text-green-400' : 'text-gray-400'}>
+                  {progressData.volProgress.toFixed(1)}%
+                </span>
+              </div>
+              <div className="h-1.5 bg-[#2a3544] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${volDone ? 'bg-green-500' : 'bg-gradient-to-r from-orange-500 to-yellow-500'
+                    }`}
+                  style={{ width: `${Math.min(progressData.volProgress, 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Stats Row */}
+          {/* SOL Stats Row */}
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <span className="text-gray-500">MC:</span>
-              <span className="ml-1 text-white">{formatUsd(progressData.currentMcUsd)}</span>
-              <span className="text-gray-500">/{formatUsd(VICTORY_MC_USD)}</span>
+            <div className="bg-black/20 rounded px-2 py-1">
+              <span className="text-gray-500">Collected:</span>
+              <span className={`ml-1 font-bold ${solDone ? 'text-green-400' : 'text-white'}`}>
+                {progressData.solCollectedSol.toFixed(2)}
+              </span>
+              <span className="text-gray-500">/{CURRENT_TIER.TARGET_SOL} SOL</span>
             </div>
-            <div>
-              <span className="text-gray-500">Vol:</span>
-              <span className="ml-1 text-white">{formatUsd(progressData.currentVolUsd)}</span>
-              <span className="text-gray-500">/{formatUsd(VICTORY_VOLUME_USD)}</span>
+            <div className="bg-black/20 rounded px-2 py-1">
+              <span className="text-gray-500">Volume:</span>
+              <span className={`ml-1 font-bold ${volDone ? 'text-green-400' : 'text-white'}`}>
+                {progressData.volumeSol.toFixed(2)}
+              </span>
+              <span className="text-gray-500"> SOL</span>
             </div>
           </div>
 
-          {/* Max Buy Warning */}
-          {mode === 'buy' && progressData.isNearGraduation && !progressData.isGraduationLocked && (
+          {/* Status Messages */}
+          {progressData.isGraduationLocked ? (
+            <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded text-xs text-yellow-300 text-center animate-pulse">
+              🏆 VICTORY! Ready for DEX listing!
+            </div>
+          ) : progressData.isNearGraduation ? (
             <div className="mt-2 p-2 bg-orange-500/20 border border-orange-500/30 rounded text-xs text-orange-300">
-              Max buy: ~{progressData.maxBuyableSol.toFixed(4)} SOL before graduation
+              ⚡ Almost there! Only {progressData.solRemaining.toFixed(3)} SOL to graduation
             </div>
-          )}
-
-          {/* Graduation Locked Warning */}
-          {progressData.isGraduationLocked && (
-            <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded text-xs text-yellow-300 text-center">
-              GRADUATION COMPLETE - Token ready for DEX listing!
-            </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -453,9 +473,9 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       </div>
 
       {/* USD Estimate */}
-      {solPriceUsd > 0 && amount && (
+      {solPriceUsd > 0 && amount && mode === 'buy' && (
         <div className="text-center text-xs text-gray-500 mb-3">
-          ~ ${(parseFloat(amount || '0') * (mode === 'buy' ? solPriceUsd : (solPriceUsd * 0.00001))).toFixed(2)} USD
+          ≈ ${(parseFloat(amount || '0') * solPriceUsd).toFixed(2)} USD
         </div>
       )}
 
@@ -471,36 +491,27 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
           parseFloat(amount) <= 0 ||
           (mode === 'buy' && progressData.isGraduationLocked)
         }
-        className={`w-full py-3 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-          mode === 'buy' && progressData.isGraduationLocked
+        className={`w-full py-3 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy' && progressData.isGraduationLocked
             ? 'bg-yellow-500/50 text-yellow-200 cursor-not-allowed'
             : mode === 'buy'
               ? 'bg-green-500 hover:bg-green-600 text-black'
               : 'bg-red-500 hover:bg-red-600 text-white'
-        }`}
+          }`}
       >
         {loading
           ? 'Processing...'
           : mode === 'buy' && progressData.isGraduationLocked
-            ? 'Graduation Complete'
+            ? '🏆 Victory Achieved!'
             : mode === 'buy'
               ? `Buy ${tokenSymbol}`
               : `Sell ${tokenSymbol}`
         }
       </button>
 
-      {/* ============================================================ */}
-      {/* WARNINGS */}
-      {/* ============================================================ */}
+      {/* Wallet Warning */}
       {!publicKey && (
         <div className="mt-4 text-center text-sm text-yellow-500">
           Please connect your wallet to trade
-        </div>
-      )}
-
-      {mode === 'buy' && progressData.isNearGraduation && !progressData.isGraduationLocked && (
-        <div className="mt-3 text-center text-xs text-orange-400">
-          Token near victory! Large buys may trigger graduation.
         </div>
       )}
     </div>

@@ -212,9 +212,7 @@ export default function TokenDetailPage() {
                   symbol: state.symbol || 'UNK',
                   metadataUri: state.uri || '',
                   createdAt: state.creationTimestamp,
-                  tier: state.tier ?? BattleTier.Test,
                   mint: mintAddress,
-                  battleStatus: state.battleStatus,
                   marketCapUsd: marketCapUsd ?? undefined
                 }}
                 preloadedMetadata={{
@@ -223,6 +221,11 @@ export default function TokenDetailPage() {
                   uri: state.uri || '',
                   image: state.image
                 }}
+                battleId={
+                  state.battleStatus === BattleStatus.InBattle && state.opponentMint
+                    ? `${mintAddress}-${state.opponentMint.toString()}`
+                    : undefined
+                }
               />
 
               {/* Chart Section - V2: use realSolReserves instead of solCollected */}
