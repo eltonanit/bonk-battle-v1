@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { PublicKey } from '@solana/web3.js';
-import { Star } from 'lucide-react';
 import { useTokenMetadata } from '@/hooks/useTokenMetadata';
 import { BattleStatus, BattleTier, BATTLE_STATUS_LABELS, BATTLE_STATUS_COLORS, BATTLE_STATUS_BG_COLORS } from '@/types/bonk';
 
@@ -77,9 +76,9 @@ export function TokenHero({ token, preloadedMetadata }: TokenHeroProps) {
 
   return (
     <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {/* Token Image */}
+      <div className="flex items-start gap-4">
+        {/* Token Image + MC under it */}
+        <div className="flex flex-col items-center">
           <div
             className="w-16 h-16 rounded-lg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden"
             style={{
@@ -102,88 +101,56 @@ export function TokenHero({ token, preloadedMetadata }: TokenHeroProps) {
               <span>{fallbackEmoji}</span>
             )}
           </div>
+          {/* MC under photo */}
+          {token.marketCapUsd !== undefined && (
+            <div className="mt-2 text-center">
+              <div className="text-xs text-gray-500">MC</div>
+              <div className="text-sm font-bold text-green-400">
+                ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </div>
+            </div>
+          )}
+        </div>
 
-          {/* Token Info */}
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-xl font-bold text-white">{displayName}</h1>
+        {/* Token Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between mb-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Symbol as main title */}
+              <h1 className="text-xl font-bold text-white">${displaySymbol}</h1>
               {/* Status Badge */}
               <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColor} ${statusBgColor}`}>
                 {statusLabel}
               </span>
-              {/* Tier Badge */}
-              <span className={`px-2 py-0.5 rounded text-xs ${tier === BattleTier.Test
-                  ? 'bg-yellow-500/20 text-yellow-500'
-                  : 'bg-green-500/20 text-green-500'
-                }`}>
-                {tier === BattleTier.Test ? '🧪' : '🚀'}
+            </div>
+            {/* Time ago in top right */}
+            <span className="text-sm text-gray-400 whitespace-nowrap ml-2">
+              {createdDisplay}
+            </span>
+          </div>
+
+          {/* Name and creator info */}
+          <div className="text-sm text-gray-400 mb-2">
+            <span className="text-gray-300">{displayName}</span>
+            <span className="mx-2">•</span>
+            <span>{creatorDisplay}</span>
+          </div>
+
+          {/* Status info row */}
+          <div className="flex items-center gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Status: </span>
+              <span className={`font-bold ${statusColor}`}>{statusLabel}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Tier: </span>
+              <span className={`font-bold ${tier === BattleTier.Test ? 'text-yellow-500' : 'text-green-500'}`}>
+                {tier === BattleTier.Test ? 'Test' : 'Prod'}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span className="font-bold text-gray-300">{displaySymbol}</span>
-              <span>•</span>
-              <span>{creatorDisplay}</span>
-              <span>•</span>
-              <span>{createdDisplay}</span>
-              {token.marketCapUsd && (
-                <>
-                  <span>•</span>
-                  <span className="text-green-400 font-semibold">
-                    ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} MC
-                  </span>
-                </>
-              )}
-            </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex gap-2">
-          <button
-            className="p-2 bg-bonk-green rounded-lg text-black hover:bg-bonk-green/90 transition-colors flex items-center gap-2 font-bold px-4"
-            onClick={() => {
-              // Copy link to clipboard
-              navigator.clipboard.writeText(window.location.href);
-              alert('Link copied to clipboard!');
-            }}
-          >
-            Share
-          </button>
-          <button className="p-2 bg-bonk-dark border border-bonk-border rounded-lg text-gray-400 hover:text-yellow-500 transition-colors">
-            <Star size={20} />
-          </button>
         </div>
       </div>
-
-      {/* Market Cap & Stats Row */}
-      {token.marketCapUsd !== undefined && (
-        <div className="mt-4 pt-4 border-t border-bonk-border grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Market Cap</div>
-            <div className="text-lg font-bold text-white">
-              ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Status</div>
-            <div className={`text-lg font-bold ${statusColor}`}>
-              {statusLabel}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Tier</div>
-            <div className={`text-lg font-bold ${tier === BattleTier.Test ? 'text-yellow-500' : 'text-green-500'}`}>
-              {tier === BattleTier.Test ? 'Test' : 'Production'}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 mb-1">Created</div>
-            <div className="text-lg font-bold text-white">
-              {createdDisplay}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

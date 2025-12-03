@@ -155,7 +155,7 @@ export function Tagline() {
     <div
       className="py-5 px-5 lg:px-6 lg:py-6"
       style={{
-        background: 'rgba(10, 10, 10, 0.9)',
+        background: '#1C032B',
         borderBottom: '0.5px solid rgba(255, 255, 255, 0.05)'
       }}
     >
@@ -279,43 +279,55 @@ export function Tagline() {
 
             {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
             {latestBattle ? (
-              <div className="clash-royale-border transform scale-90 origin-top">
-                {/* Electric Sparks */}
-                <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
-                <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.2s' }} />
-                <div className="spark" style={{ bottom: '20%', left: '30%', animationDelay: '0.4s' }} />
-                <div className="spark" style={{ top: '-2px', left: '60%', animationDelay: '0.6s' }} />
-                <div className="spark" style={{ bottom: '-2px', right: '40%', animationDelay: '0.3s' }} />
-                <div className="spark" style={{ top: '30%', left: '-2px', animationDelay: '0.5s' }} />
-                <div className="spark" style={{ bottom: '10%', right: '-2px', animationDelay: '0.1s' }} />
-                <div className="spark" style={{ top: '-2px', left: '20%', animationDelay: '0.7s' }} />
+              <>
+                <div className="clash-royale-border transform scale-90 origin-top">
+                  {/* Electric Sparks */}
+                  <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
+                  <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.2s' }} />
+                  <div className="spark" style={{ bottom: '20%', left: '30%', animationDelay: '0.4s' }} />
+                  <div className="spark" style={{ top: '-2px', left: '60%', animationDelay: '0.6s' }} />
+                  <div className="spark" style={{ bottom: '-2px', right: '40%', animationDelay: '0.3s' }} />
+                  <div className="spark" style={{ top: '30%', left: '-2px', animationDelay: '0.5s' }} />
+                  <div className="spark" style={{ bottom: '10%', right: '-2px', animationDelay: '0.1s' }} />
+                  <div className="spark" style={{ top: '-2px', left: '20%', animationDelay: '0.7s' }} />
 
-                <div className="clash-royale-inner !p-0">
-                  <BattleCard
-                    tokenA={toBattleToken(latestBattle.tokenA)}
-                    tokenB={toBattleToken(latestBattle.tokenB)}
-                    targetMC={VICTORY_MC_USD}
-                    targetVol={VICTORY_VOLUME_USD}
-                    isEpicBattle={true}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="clash-royale-border transform scale-90 origin-top">
-                {/* Electric Sparks */}
-                <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
-                <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.3s' }} />
-                <div className="spark" style={{ bottom: '-2px', left: '50%', animationDelay: '0.5s' }} />
-                <div className="spark" style={{ top: '-2px', right: '30%', animationDelay: '0.2s' }} />
-
-                <div className="clash-royale-inner text-center">
-                  <div className="text-3xl mb-2">⚔️</div>
-                  <div className="text-base font-bold text-white mb-1">No Active Battles</div>
-                  <div className="text-gray-400 text-xs">
-                    Battles start when two qualified tokens are matched.
+                  <div className="clash-royale-inner !p-0">
+                    <BattleCard
+                      tokenA={toBattleToken(latestBattle.tokenA)}
+                      tokenB={toBattleToken(latestBattle.tokenB)}
+                      targetMC={VICTORY_MC_USD}
+                      targetVol={VICTORY_VOLUME_USD}
+                      isEpicBattle={true}
+                    />
                   </div>
                 </div>
-              </div>
+                {/* Prize description */}
+                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#c084fc', textShadow: '0 0 15px rgba(192, 132, 252, 0.6)' }}>
+                  Winner gets listed on DEX + 50% liquidity of loser
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="clash-royale-border transform scale-90 origin-top">
+                  {/* Electric Sparks */}
+                  <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
+                  <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.3s' }} />
+                  <div className="spark" style={{ bottom: '-2px', left: '50%', animationDelay: '0.5s' }} />
+                  <div className="spark" style={{ top: '-2px', right: '30%', animationDelay: '0.2s' }} />
+
+                  <div className="clash-royale-inner text-center">
+                    <div className="text-3xl mb-2">⚔️</div>
+                    <div className="text-base font-bold text-white mb-1">No Active Battles</div>
+                    <div className="text-gray-400 text-xs">
+                      Battles start when two qualified tokens are matched.
+                    </div>
+                  </div>
+                </div>
+                {/* Prize description */}
+                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#c084fc', textShadow: '0 0 15px rgba(192, 132, 252, 0.6)' }}>
+                  Winner gets listed on DEX + 50% liquidity of loser
+                </p>
+              </>
             )}
           </div>
         </div>

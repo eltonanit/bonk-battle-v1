@@ -211,6 +211,36 @@ export default function PointsPage() {
               <div className="text-xs text-gray-500">Team BONK BATTLE</div>
             </div>
           </div>
+
+          {/* 2 Ways to Use Points */}
+          <div className="mt-8 bg-gradient-to-br from-emerald-900/30 to-cyan-900/30 border border-emerald-500/30 rounded-xl p-6">
+            <h3 className="text-xl font-bold text-emerald-400 mb-4">
+              2 Ways Points Reward You
+            </h3>
+            <div className="space-y-4">
+              {/* Future Airdrop */}
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg">🎁</span>
+                </div>
+                <div>
+                  <div className="text-white font-semibold">Future Airdrop</div>
+                  <div className="text-gray-400 text-sm">Points will convert to tokens in our upcoming airdrop. More points = bigger share.</div>
+                </div>
+              </div>
+
+              {/* 24h Cash */}
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg">💰</span>
+                </div>
+                <div>
+                  <div className="text-white font-semibold">24h Cash Prize</div>
+                  <div className="text-gray-400 text-sm">Top of the 24h leaderboard wins <span className="text-yellow-400 font-bold">10 SOL</span> every day!</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

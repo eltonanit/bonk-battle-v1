@@ -112,6 +112,41 @@ const radiateStyles = `
     z-index: -1;
     filter: blur(12px);
   }
+
+  /* Glowing border animation for epic battle images */
+  @keyframes epic-glow-pulse {
+    0%, 100% {
+      box-shadow:
+        0 0 10px rgba(192, 132, 252, 0.6),
+        0 0 20px rgba(168, 85, 247, 0.4),
+        0 0 30px rgba(147, 51, 234, 0.3),
+        inset 0 0 10px rgba(216, 180, 254, 0.2);
+    }
+    50% {
+      box-shadow:
+        0 0 20px rgba(216, 180, 254, 0.8),
+        0 0 40px rgba(192, 132, 252, 0.6),
+        0 0 60px rgba(168, 85, 247, 0.4),
+        inset 0 0 15px rgba(216, 180, 254, 0.3);
+    }
+  }
+
+  .epic-image-container {
+    animation: epic-glow-pulse 2s ease-in-out infinite;
+    border: 2px solid rgba(192, 132, 252, 0.6);
+    transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
+  }
+
+  /* Use transition instead of animation so movement animation can work */
+  .epic-image-attacking {
+    box-shadow:
+      0 0 30px rgba(255, 255, 255, 1),
+      0 0 60px rgba(216, 180, 254, 1),
+      0 0 90px rgba(192, 132, 252, 0.9),
+      0 0 120px rgba(168, 85, 247, 0.7),
+      0 0 150px rgba(147, 51, 234, 0.5) !important;
+    border: 3px solid rgba(255, 255, 255, 1) !important;
+  }
 `;
 
 interface BattleToken {
@@ -339,13 +374,10 @@ export function BattleCard({
             {/* Token A Image */}
             <div
               className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''
-                } ${isEpicBattle && attackA ? 'epic-radiate' : ''}`}
+                } ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
-                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)',
-                boxShadow: attackA
-                  ? '0 0 30px rgba(192, 132, 252, 0.9), 0 0 60px rgba(168, 85, 247, 0.7), 0 0 90px rgba(147, 51, 234, 0.5)'
-                  : '0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(147, 51, 234, 0.3)'
+                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
               } : { backgroundColor: '#2a3544' }}
             >
               <div className={`w-full h-full rounded-lg overflow-hidden ${isEpicBattle ? 'bg-[#1a1035]' : ''}`}>
@@ -371,13 +403,10 @@ export function BattleCard({
             {/* Token B Image */}
             <div
               className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''
-                } ${isEpicBattle && attackB ? 'epic-radiate' : ''}`}
+                } ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
-                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)',
-                boxShadow: attackB
-                  ? '0 0 30px rgba(192, 132, 252, 0.9), 0 0 60px rgba(168, 85, 247, 0.7), 0 0 90px rgba(147, 51, 234, 0.5)'
-                  : '0 0 15px rgba(168, 85, 247, 0.6), 0 0 30px rgba(147, 51, 234, 0.3)'
+                background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
               } : { backgroundColor: '#2a3544' }}
             >
               <div className={`w-full h-full rounded-lg overflow-hidden ${isEpicBattle ? 'bg-[#1a1035]' : ''}`}>
@@ -406,9 +435,6 @@ export function BattleCard({
 
               {/* MC Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-yellow-400">
-                  {mcProgressA >= 100 ? '1' : '0'}
-                </span>
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
@@ -426,9 +452,6 @@ export function BattleCard({
 
               {/* VOL Row */}
               <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-yellow-400">
-                  {volProgressA >= 100 ? '1' : '0'}
-                </span>
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
@@ -447,7 +470,7 @@ export function BattleCard({
 
             {/* Center Target */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
-              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET</span>
+              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
                 <span className="text-xs lg:text-sm text-gray-400">MC</span>
                 <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
@@ -480,9 +503,6 @@ export function BattleCard({
                   />
                 </div>
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
-                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-right text-yellow-400">
-                  {mcProgressB >= 100 ? '1' : '0'}
-                </span>
               </div>
 
               {/* VOL Row */}
@@ -500,9 +520,6 @@ export function BattleCard({
                   />
                 </div>
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">VOL</span>
-                <span className="text-[11px] lg:text-[13px] font-bold w-4 lg:w-5 text-right text-yellow-400">
-                  {volProgressB >= 100 ? '1' : '0'}
-                </span>
               </div>
             </div>
           </div>
