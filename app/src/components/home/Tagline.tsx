@@ -266,15 +266,15 @@ export function Tagline() {
           <div className="hidden lg:block">
             {/* Titolo EPIC BATTLE - CENTRATO */}
             <h2
-              className="text-3xl font-extrabold mb-4 flex items-center justify-center gap-3"
+              className="text-4xl lg:text-5xl font-extrabold mb-6 flex items-center justify-center gap-4"
               style={{
                 color: '#a855f7',
                 textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
               }}
             >
-              <span className="text-3xl">⚔️</span>
+              <span className="text-4xl lg:text-5xl">⚔️</span>
               THE COLOSSEUM
-              <span className="text-3xl">⚔️</span>
+              <span className="text-4xl lg:text-5xl">⚔️</span>
             </h2>
 
             {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
