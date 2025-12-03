@@ -21,6 +21,8 @@ export interface Army {
   created_at: string;
   last_join_at: string;
   is_active: boolean;
+  battles_won?: number;
+  battles_lost?: number;
 }
 
 export interface ArmyOrder {
@@ -32,7 +34,7 @@ export interface ArmyOrder {
   created_at: string;
 }
 
-type ArmySortType = 'top' | 'onfire';
+type ArmySortType = 'top' | 'onfire' | 'leaderboard';
 
 // =============================================
 // HOOK: useArmies

@@ -103,30 +103,32 @@ export function ArmyCard({ army, isOnFire = false }: ArmyCardProps) {
           {(army.twitter_url || army.telegram_url) && (
             <div className="flex items-center gap-3 mb-3">
               {army.twitter_url && (
-                <a
-                  href={army.twitter_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(army.twitter_url!, '_blank', 'noopener,noreferrer');
+                  }}
                   className="text-gray-400 hover:text-blue-400 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
-                </a>
+                </button>
               )}
               {army.telegram_url && (
-                <a
-                  href={army.telegram_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    window.open(army.telegram_url!, '_blank', 'noopener,noreferrer');
+                  }}
                   className="text-gray-400 hover:text-blue-400 transition-colors"
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121L7.782 13.73l-2.896-.924c-.63-.196-.64-.63.135-.931l11.316-4.365c.528-.196.99.12.82.931z" />
                   </svg>
-                </a>
+                </button>
               )}
             </div>
           )}

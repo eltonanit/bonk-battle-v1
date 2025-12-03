@@ -306,39 +306,42 @@ export default function BattleDetailPage() {
             </div>
           </div>
 
+          {/* Token Toggle - Above Grid, Narrower */}
+          <div className="mb-4">
+            <div className="flex bg-white/5 rounded-lg p-1 max-w-xs">
+              <button
+                onClick={() => setSelectedToken('A')}
+                className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                  selectedToken === 'A'
+                    ? 'bg-orange-500 text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {stateA.symbol}
+              </button>
+              {stateB && (
+                <button
+                  onClick={() => setSelectedToken('B')}
+                  className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${
+                    selectedToken === 'B'
+                      ? 'bg-orange-500 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {stateB.symbol}
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Main Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            
+
             {/* LEFT COLUMN - Token Details */}
             <div className="lg:col-span-8 space-y-6">
-              
-              {/* Token Toggle */}
-              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
-                <div className="flex bg-white/5 rounded-lg p-1 mb-6">
-                  <button
-                    onClick={() => setSelectedToken('A')}
-                    className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                      selectedToken === 'A'
-                        ? 'bg-orange-500 text-white'
-                        : 'text-gray-400 hover:text-white'
-                    }`}
-                  >
-                    {stateA.symbol}
-                  </button>
-                  {stateB && (
-                    <button
-                      onClick={() => setSelectedToken('B')}
-                      className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
-                        selectedToken === 'B'
-                          ? 'bg-orange-500 text-white'
-                          : 'text-gray-400 hover:text-white'
-                      }`}
-                    >
-                      {stateB.symbol}
-                    </button>
-                  )}
-                </div>
 
+              {/* Token Info Card */}
+              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
                 {/* Token Display */}
                 <div className="flex items-start gap-5 mb-6">
                   <div className="w-24 h-24 rounded-xl overflow-hidden bg-[#2a3544] flex-shrink-0">

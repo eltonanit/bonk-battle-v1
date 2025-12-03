@@ -3,7 +3,6 @@
 
 import { useState } from 'react';
 import { useArmies } from '@/hooks/useArmies';
-import { ArmyCard } from '@/components/armies/ArmyCard';
 import { CreateArmyModal } from '@/components/armies/CreateArmyModal';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -11,18 +10,28 @@ import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
+import Image from 'next/image';
+import Link from 'next/link';
 
-type TabType = 'top' | 'onfire';
+type TabType = 'top' | 'onfire' | 'leaderboard';
 
 export default function ArmiesPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('top');
+  // Default tab è 'onfire' (pagina principale dinamica)
+  const [activeTab, setActiveTab] = useState<TabType>('onfire');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: armies, isLoading, error } = useArmies(activeTab);
 
+  // Formatta il conteggio membri (es: 16.29K)
+  const formatMemberCount = (count: number) => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(2)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(2)}K`;
+    return count.toString();
+  };
+
   return (
     <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
-      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      {/* Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
         <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
           <FOMOTicker />
@@ -37,180 +46,203 @@ export default function ArmiesPage() {
       <Header />
 
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
-        {/* Container */}
-        <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Container - più stretto per lista */}
+        <div className="max-w-2xl mx-auto px-4 py-8">
 
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-4xl font-bold text-white flex items-center gap-3">
-              <span>🏛️</span>
-              <span>Join Army</span>
-            </h1>
-
-            {/* Create Army Button */}
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-all border border-orange-300/50 shadow-[0_0_10px_rgba(249,115,22,0.4)] hover:shadow-[0_0_15px_rgba(249,115,22,0.6)]"
-            >
-              + Create Army
-            </button>
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-2xl font-bold text-white">🏛️ Armies</h1>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-all text-sm"
+              >
+                + Create
+              </button>
+            </div>
+            <p className="text-gray-400 text-sm">
+              Create your community. Build your army. Join the battle.
+            </p>
           </div>
 
-          <p className="text-gray-400 text-lg">
-            Unite con altre leggende e dominate l'arena insieme!
-          </p>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-8">
-          <div className="inline-flex rounded-lg bg-gray-800 p-1">
-            {/* Tab TOP */}
-            <button
-              onClick={() => setActiveTab('top')}
-              className={`
-                px-6 py-3 rounded-md font-bold transition-all duration-200
-                ${activeTab === 'top'
-                  ? 'bg-orange-500 text-white shadow-lg'
-                  : 'text-gray-400 hover:text-white'
-                }
-              `}
-            >
-              <div className="flex items-center gap-2">
-                <span>👑</span>
-                <span>TOP</span>
-              </div>
-            </button>
-
-            {/* Tab ON FIRE */}
+          {/* Tabs - ON FIRE | TOP | LEADERBOARD */}
+          <div className="flex gap-0 mb-6 border-b border-white/10">
             <button
               onClick={() => setActiveTab('onfire')}
-              className={`
-                px-6 py-3 rounded-md font-bold transition-all duration-200
-                ${activeTab === 'onfire'
-                  ? 'bg-yellow-500 text-black shadow-lg shadow-yellow-500/50'
-                  : 'text-gray-400 hover:text-white'
-                }
-              `}
+              className={`flex-1 py-3 px-2 font-semibold text-center transition-colors border-b-2 text-sm ${activeTab === 'onfire'
+                  ? 'text-orange-500 border-orange-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
             >
-              <div className="flex items-center gap-2">
-                <span>🔥</span>
-                <span>ON FIRE</span>
-              </div>
+              🔥 On Fire
             </button>
-          </div>
-
-          {/* Tab Description */}
-          <div className="mt-4 text-sm text-gray-400">
-            {activeTab === 'top' && (
-              <p>📊 Le army più grandi e potenti, ordinate per numero di membri</p>
-            )}
-            {activeTab === 'onfire' && (
-              <p>🔥 Le army in forte crescita con almeno 10 nuovi membri!</p>
-            )}
-          </div>
-        </div>
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mb-4"></div>
-              <p className="text-gray-400">Loading armies...</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
-            <span className="text-4xl mb-2 block">⚠️</span>
-            <h3 className="text-red-400 font-bold text-lg mb-2">Error Loading Armies</h3>
-            <p className="text-gray-400">{error.message}</p>
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!isLoading && !error && armies && armies.length === 0 && (
-          <div className="text-center py-20">
-            <span className="text-6xl mb-4 block">
-              {activeTab === 'top' ? '🏛️' : '🔥'}
-            </span>
-            <h3 className="text-2xl font-bold text-gray-400 mb-2">
-              {activeTab === 'top' ? 'No Armies Yet' : 'No Armies ON FIRE'}
-            </h3>
-            <p className="text-gray-500 mb-6">
-              {activeTab === 'top'
-                ? 'Be the first to create an army!'
-                : 'No armies have gained 10+ members recently'}
-            </p>
             <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+              onClick={() => setActiveTab('top')}
+              className={`flex-1 py-3 px-2 font-semibold text-center transition-colors border-b-2 text-sm ${activeTab === 'top'
+                  ? 'text-orange-500 border-orange-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
             >
-              Create First Army
+              👑 Top
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`flex-1 py-3 px-2 font-semibold text-center transition-colors border-b-2 text-sm ${activeTab === 'leaderboard'
+                  ? 'text-orange-500 border-orange-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
+            >
+              🏆 Leaderboard
             </button>
           </div>
-        )}
 
-        {/* Armies Grid */}
-        {!isLoading && !error && armies && armies.length > 0 && (
-          <>
-            {/* Stats */}
-            <div className="mb-6 flex items-center gap-4 text-sm">
-              <div className="text-gray-400">
-                Found <span className="text-white font-bold">{armies.length}</span> {armies.length === 1 ? 'army' : 'armies'}
-              </div>
-
-              {activeTab === 'onfire' && (
-                <div className="flex items-center gap-2 text-yellow-400">
-                  <span>⚡</span>
-                  <span className="font-bold">
-                    {armies.reduce((sum, army) => sum + (army.member_count - army.member_count_checkpoint), 0)} new members total!
-                  </span>
+          {/* Loading State */}
+          {isLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-xl animate-pulse">
+                  <div className="w-12 h-12 rounded-full bg-white/10" />
+                  <div className="flex-1">
+                    <div className="h-4 w-32 bg-white/10 rounded mb-2" />
+                    <div className="h-3 w-24 bg-white/5 rounded" />
+                  </div>
+                  <div className="h-9 w-20 bg-white/10 rounded-lg" />
                 </div>
-              )}
+              ))}
             </div>
+          )}
 
-            {/* Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {armies.map((army) => {
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-900/20 border border-red-500 rounded-lg p-6 text-center">
+              <span className="text-2xl mb-2 block">⚠️</span>
+              <p className="text-red-400">{error.message}</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && !error && armies && armies.length === 0 && (
+            <div className="text-center py-16">
+              <span className="text-5xl mb-4 block">
+                {activeTab === 'onfire' ? '🔥' : activeTab === 'leaderboard' ? '🏆' : '🏛️'}
+              </span>
+              <h3 className="text-xl font-bold text-gray-400 mb-2">
+                {activeTab === 'onfire'
+                  ? 'No Armies On Fire'
+                  : activeTab === 'leaderboard'
+                  ? 'No Battle Records Yet'
+                  : 'No Armies Yet'}
+              </h3>
+              <p className="text-gray-500 mb-6 text-sm">
+                {activeTab === 'onfire'
+                  ? 'No armies have gained 10+ members recently'
+                  : activeTab === 'leaderboard'
+                  ? 'Win battles to climb the leaderboard!'
+                  : 'Be the first to create an army!'}
+              </p>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+              >
+                Create First Army
+              </button>
+            </div>
+          )}
+
+          {/* ⭐ LISTA ARMIES (stile BAGS) */}
+          {!isLoading && !error && armies && armies.length > 0 && (
+            <div className="space-y-2">
+              {armies.map((army, index) => {
                 const isOnFire = activeTab === 'onfire';
+                const isLeaderboard = activeTab === 'leaderboard';
+                const newMembers = army.member_count - army.member_count_checkpoint;
+                const wins = army.battles_won ?? 0;
+                const losses = army.battles_lost ?? 0;
+
                 return (
-                  <ArmyCard
+                  <div
                     key={army.id}
-                    army={army}
-                    isOnFire={isOnFire}
-                  />
+                    className={`flex items-center gap-4 p-4 rounded-xl transition-colors border ${
+                      isOnFire
+                        ? 'bg-yellow-500/5 border-yellow-500/30 hover:bg-yellow-500/10'
+                        : isLeaderboard && index < 3
+                        ? 'bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/15'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                      }`}
+                  >
+                    {/* Rank Badge for Leaderboard */}
+                    {isLeaderboard && (
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                        index === 0 ? 'bg-yellow-500 text-black' :
+                        index === 1 ? 'bg-gray-300 text-black' :
+                        index === 2 ? 'bg-orange-600 text-white' :
+                        'bg-white/10 text-gray-400'
+                      }`}>
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                      </div>
+                    )}
+
+                    {/* Avatar */}
+                    <Link href={`/armies/${army.id}`} className="flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center text-2xl">
+                        {army.image_url ? (
+                          <Image
+                            src={army.image_url}
+                            alt={army.name}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span>{army.icon}</span>
+                        )}
+                      </div>
+                    </Link>
+
+                    {/* Info */}
+                    <Link href={`/armies/${army.id}`} className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-white truncate">{army.name}</h3>
+                        {isOnFire && (
+                          <span className="text-yellow-400 text-xs">🔥</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        {isLeaderboard ? (
+                          <>
+                            <span className="text-green-400 font-bold">{wins}W</span>
+                            <span className="text-gray-500">-</span>
+                            <span className="text-red-400 font-bold">{losses}L</span>
+                            <span className="text-gray-500 text-xs">• {formatMemberCount(army.member_count)} members</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>👥 {formatMemberCount(army.member_count)} members</span>
+                            {isOnFire && newMembers > 0 && (
+                              <span className="text-yellow-400 text-xs font-bold">
+                                +{newMembers} new
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </Link>
+
+                    {/* Join Button */}
+                    <Link href={`/armies/${army.id}`}>
+                      <button className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-lg transition-all whitespace-nowrap">
+                        {isLeaderboard ? 'VIEW' : 'JOIN'}
+                      </button>
+                    </Link>
+                  </div>
                 );
               })}
             </div>
-          </>
-        )}
-
-        {/* Info Box (sotto la grid) */}
-        {!isLoading && armies && armies.length > 0 && (
-          <div className="mt-12 bg-gray-800/50 border border-gray-700 rounded-lg p-6">
-            <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-              <span>💡</span>
-              <span>Come funziona?</span>
-            </h3>
-            <div className="text-gray-400 text-sm space-y-2">
-              <p>
-                <strong className="text-white">1. Join Army:</strong> Entra in un'army per ricevere ordini dal Re-Capitano
-              </p>
-              <p>
-                <strong className="text-white">2. Follow Orders:</strong> Il capitano ti dice su quale token investire
-              </p>
-              <p>
-                <strong className="text-white">3. Attack Together:</strong> Coordinate con l'army per dominare le battaglie
-              </p>
-              <p>
-                <strong className="text-orange-500">🔥 ON FIRE:</strong> Le army che crescono velocemente (+10 membri) ottengono il badge ON FIRE!
-              </p>
-            </div>
-          </div>
-        )}
+          )}
 
         </div>
       </div>
