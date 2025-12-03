@@ -260,21 +260,21 @@ export function Tagline() {
       {/* ⭐ LAYOUT: Mobile stack (images first), Desktop grid */}
       <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6">
 
-        {/* ===== LEFT SIDE (Order 2 mobile, 1 desktop) ===== */}
-        <div className="order-2 lg:order-1">
-          {/* ⭐ DESKTOP ONLY - EPIC BATTLE with BattleCard */}
-          <div className="hidden lg:block">
-            {/* Titolo EPIC BATTLE - CENTRATO */}
+        {/* ===== LEFT SIDE - COLOSSEUM (visible on all screens) ===== */}
+        <div className="order-1 lg:order-1">
+          {/* ⭐ THE COLOSSEUM - Visible on ALL screens */}
+          <div>
+            {/* Titolo THE COLOSSEUM - CENTRATO */}
             <h2
-              className="text-4xl lg:text-5xl font-extrabold mb-6 flex items-center justify-center gap-4"
+              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold mb-4 lg:mb-6 flex items-center justify-center gap-2 lg:gap-4"
               style={{
                 color: '#a855f7',
                 textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
               }}
             >
-              <span className="text-4xl lg:text-5xl">⚔️</span>
+              <span className="text-2xl sm:text-3xl lg:text-5xl">⚔️</span>
               THE COLOSSEUM
-              <span className="text-4xl lg:text-5xl">⚔️</span>
+              <span className="text-2xl sm:text-3xl lg:text-5xl">⚔️</span>
             </h2>
 
             {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
@@ -320,8 +320,8 @@ export function Tagline() {
           </div>
         </div>
 
-        {/* ===== RIGHT SIDE - SLIDER IMMAGINI (Order 1 mobile, 2 desktop) ===== */}
-        <div className="order-1 lg:order-2">
+        {/* ===== RIGHT SIDE - SLIDER IMMAGINI (DESKTOP ONLY) ===== */}
+        <div className="hidden lg:block order-2">
           <h3 className="text-base lg:text-lg font-bold mb-3" style={{ color: '#FF8A5B' }}>
             ✨CLASH OF MEMES: ENTER THE ARENA
           </h3>
