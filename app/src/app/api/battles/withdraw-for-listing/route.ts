@@ -100,7 +100,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    const battleStatus = battleStateAccount.data[90];
+    // Offset 65 = 8 (discriminator) + 32 (mint) + 8 (sol_collected) + 8 (tokens_sold) + 8 (total_trade_volume) + 1 (is_active)
+    const battleStatus = battleStateAccount.data[65];
     if (battleStatus !== BattleStatus.Listed) {
       return NextResponse.json({
         error: 'Token is not in Listed status',
@@ -217,7 +218,7 @@ export async function POST(request: NextRequest) {
 
       // Re-read state
       const updatedAccount = await connection.getAccountInfo(battleStatePDA);
-      const newStatus = updatedAccount ? updatedAccount.data[90] : -1;
+      const newStatus = updatedAccount ? updatedAccount.data[65] : -1;
 
       return NextResponse.json({
         success: true,

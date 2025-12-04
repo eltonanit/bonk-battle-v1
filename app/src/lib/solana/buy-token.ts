@@ -1,6 +1,6 @@
 // src/lib/solana/buy-token.ts
 // BONK BATTLE V2 - Con min_tokens_out per slippage protection
-// ✅ FIX: Aggiunto isGraduationBuy per bypassare check $10 USD
+// ✅ FIX: Skip $10 check for qualified/battling tokens (battleStatus >= 1)
 import {
   Connection,
   PublicKey,
@@ -62,12 +62,13 @@ export interface BuyTokenResult {
 }
 
 /**
- * 🚀 NEW: Buy Token Options
+ * BattleStatus enum values (from contract)
+ * 0 = Created (needs qualification - $10 check applies)
+ * 1 = Qualified (passed threshold - no $10 check)
+ * 2 = InBattle (in active battle - no $10 check)
+ * 3 = VictoryPending (won but not finalized - no $10 check)
+ * 4 = Listed (on DEX - trading inactive)
  */
-export interface BuyTokenOptions {
-  /** Skip the $10 USD minimum check - used for graduation buys */
-  isGraduationBuy?: boolean;
-}
 
 /**
  * Buys tokens from the BONK BATTLE bonding curve
@@ -86,18 +87,19 @@ export interface BuyTokenOptions {
  * @param solAmount - Amount of SOL to spend (in SOL, e.g., 0.1 for 0.1 SOL)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
  * @param minTokensOut - Minimum tokens to receive (slippage protection), default 0 = no slippage check
- * @param options - Optional configuration (e.g., isGraduationBuy to skip $10 check)
+ * @param battleStatus - Optional: Token's battle status (0=Created, 1=Qualified, 2=InBattle, etc.)
+ *                       If >= 1, skips the $10 USD minimum check
  * @returns Promise resolving to transaction signature and amounts
  *
  * @throws Error if validation fails, insufficient balance, or transaction fails
  *
  * @example
  * ```typescript
- * // Normal buy
+ * // Normal buy (token still Created - $10 check applies)
  * const result = await buyToken(wallet.publicKey, mint, 0.1, signTransaction);
- * 
- * // Graduation buy (skips $10 minimum)
- * const result = await buyToken(wallet.publicKey, mint, 0.008, signTransaction, 0, { isGraduationBuy: true });
+ *
+ * // Buy for qualified token (no $10 check)
+ * const result = await buyToken(wallet.publicKey, mint, 0.008, signTransaction, 0, 1);
  * ```
  */
 export async function buyToken(
@@ -106,9 +108,10 @@ export async function buyToken(
   solAmount: number,
   signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
   minTokensOut: number = 0,  // V2: Slippage protection (0 = disabled)
-  options: BuyTokenOptions = {}  // 🚀 NEW: Options parameter
+  battleStatus?: number      // ⭐ NEW: 0=Created, 1=Qualified, 2=InBattle, etc.
 ): Promise<BuyTokenResult> {
-  const { isGraduationBuy = false } = options;  // 🚀 NEW: Extract flag
+  // Skip $10 check if token is already qualified or in battle (status >= 1)
+  const isQualifiedOrBattling = battleStatus !== undefined && battleStatus >= 1;
 
   console.log('💰 Starting buy token transaction (V2)...');
   console.log('📋 Buy Details:');
@@ -116,8 +119,9 @@ export async function buyToken(
   console.log('  Token Mint:', mint.toString());
   console.log('  SOL Amount:', solAmount, 'SOL');
   console.log('  Min Tokens Out:', minTokensOut, '(slippage protection)');
-  if (isGraduationBuy) {
-    console.log('  🚀 GRADUATION BUY: Skipping $10 minimum check');
+  console.log('  Battle Status:', battleStatus ?? 'unknown');
+  if (isQualifiedOrBattling) {
+    console.log('  ✅ Token qualified/battling - $10 check skipped');
   }
 
   // Validate input
@@ -132,8 +136,8 @@ export async function buyToken(
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
   const lamports = Math.floor(solAmount * 1e9);
 
-  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION (skipped if isGraduationBuy)
-  if (!isGraduationBuy) {  // 🚀 NEW: Skip check if graduation buy
+  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION (skipped if already qualified/battling)
+  if (!isQualifiedOrBattling) {
     try {
       // Fetch price oracle to get SOL price in USD
       const [priceOraclePDA] = getPriceOraclePDA();
@@ -176,7 +180,7 @@ export async function buyToken(
       }
     }
   } else {
-    console.log('🚀 Graduation buy - skipping $10 USD qualification check');
+    console.log(`✅ Token already qualified/battling (status=${battleStatus}) - $10 check skipped`);
   }
 
   try {

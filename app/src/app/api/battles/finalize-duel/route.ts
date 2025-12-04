@@ -96,7 +96,8 @@ export async function POST(request: NextRequest) {
             }, { status: 404 });
         }
 
-        const winnerStatus = winnerAccount.data[90];
+        // Offset 65 = 8 (discriminator) + 32 (mint) + 8 (sol_collected) + 8 (tokens_sold) + 8 (total_trade_volume) + 1 (is_active)
+        const winnerStatus = winnerAccount.data[65];
         if (winnerStatus !== BattleStatus.VictoryPending) {
             return NextResponse.json({
                 error: 'Winner does not have VictoryPending status',
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
             }, { status: 404 });
         }
 
-        const loserStatus = loserAccount.data[90];
+        const loserStatus = loserAccount.data[65];
         if (loserStatus !== BattleStatus.InBattle) {
             return NextResponse.json({
                 error: 'Loser does not have InBattle status',
@@ -123,8 +124,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Read current liquidity for logging
-        const winnerSolBefore = Number(loserAccount.data.readBigUInt64LE(57)) / 1e9;
-        const loserSolBefore = Number(loserAccount.data.readBigUInt64LE(57)) / 1e9;
+        // Offset 40 = 8 (discriminator) + 32 (mint) → sol_collected
+        const winnerSolBefore = Number(winnerAccount.data.readBigUInt64LE(40)) / 1e9;
+        const loserSolBefore = Number(loserAccount.data.readBigUInt64LE(40)) / 1e9;
 
         console.log('Winner SOL before:', winnerSolBefore.toFixed(3));
         console.log('Loser SOL before:', loserSolBefore.toFixed(3));
@@ -173,6 +175,25 @@ export async function POST(request: NextRequest) {
             console.log('✅ Transaction confirmed:', signature);
             console.log('🔗 https://solscan.io/tx/' + signature + '?cluster=devnet');
 
+            // ⭐ AUTO-CALL WITHDRAW FOR LISTING
+            console.log('🚀 Auto-triggering withdraw_for_listing...');
+            let withdrawResult = null;
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+                const withdrawResponse = await fetch(
+                    `${baseUrl}/api/battles/withdraw-for-listing`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tokenMint: winnerMint }),
+                    }
+                );
+                withdrawResult = await withdrawResponse.json();
+                console.log('✅ Withdraw result:', withdrawResult);
+            } catch (withdrawError) {
+                console.warn('⚠️ Auto-withdraw failed (non-critical):', withdrawError);
+            }
+
             // Re-read states to get final values
             const updatedWinner = await connection.getAccountInfo(winnerStatePDA);
             const updatedLoser = await connection.getAccountInfo(loserStatePDA);
@@ -186,10 +207,10 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            const winnerFinalStatus = updatedWinner.data[90];
-            const loserFinalStatus = updatedLoser.data[90];
-            const winnerSolAfter = Number(updatedWinner.data.readBigUInt64LE(57)) / 1e9;
-            const loserSolAfter = Number(updatedLoser.data.readBigUInt64LE(57)) / 1e9;
+            const winnerFinalStatus = updatedWinner.data[65];
+            const loserFinalStatus = updatedLoser.data[65];
+            const winnerSolAfter = Number(updatedWinner.data.readBigUInt64LE(40)) / 1e9;
+            const loserSolAfter = Number(updatedLoser.data.readBigUInt64LE(40)) / 1e9;
 
             return NextResponse.json({
                 success: true,
@@ -209,7 +230,10 @@ export async function POST(request: NextRequest) {
                     solAfter: loserSolAfter,
                 },
                 spoilsTransferred: loserSolBefore / 2,
-                nextStep: 'Winner is now Listed - call withdraw_for_listing to proceed to Raydium'
+                withdrawForListing: withdrawResult,
+                nextStep: withdrawResult?.success
+                    ? 'Winner withdrew - ready for Raydium pool creation'
+                    : 'Winner is now Listed - call withdraw_for_listing to proceed to Raydium'
             });
 
         } catch (txError: any) {

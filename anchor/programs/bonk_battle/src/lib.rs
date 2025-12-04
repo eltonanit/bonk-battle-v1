@@ -676,7 +676,7 @@ pub mod bonk_battle {
     
     pub fn finalize_duel(ctx: Context<FinalizeDuel>) -> Result<()> {
         msg!("👑 FINALIZING DUEL - WINNER TAKES ALL!");
-        
+
         let winner_state = &mut ctx.accounts.winner_state;
         let loser_state = &mut ctx.accounts.loser_state;
 
@@ -691,33 +691,74 @@ pub mod bonk_battle {
         // Calculate spoils (50% of loser's liquidity)
         let loser_liquidity = loser_state.sol_collected;
         let spoils_of_war = loser_liquidity.checked_div(2).unwrap();
-        
+
         // Calculate platform fee (5% of winner's total after plunder)
         let winner_current = winner_state.sol_collected;
         let total_after_plunder = winner_current.checked_add(spoils_of_war).unwrap();
         let platform_fee = total_after_plunder
             .checked_mul(PLATFORM_FEE_BPS).unwrap()
             .checked_div(10000).unwrap();
-        
+
         // Split platform fee: 80% keeper, 20% treasury
-        let keeper_share = platform_fee * 80 / 100;
-        let treasury_share = platform_fee * 20 / 100;
-        
-        let net_to_winner = spoils_of_war.checked_sub(platform_fee).unwrap();
+        let keeper_share = platform_fee.checked_mul(80).unwrap().checked_div(100).unwrap();
+        let treasury_share = platform_fee.checked_sub(keeper_share).unwrap(); // Remainder to treasury
 
-        // Transfer SOL
-        if spoils_of_war > 0 {
-            **loser_state.to_account_info().try_borrow_mut_lamports()? -= spoils_of_war;
-            **winner_state.to_account_info().try_borrow_mut_lamports()? += net_to_winner;
-            **ctx.accounts.keeper_authority.to_account_info().try_borrow_mut_lamports()? += keeper_share;
-            **ctx.accounts.treasury_wallet.to_account_info().try_borrow_mut_lamports()? += treasury_share;
+        // ⭐ FIX: Calculate winner's final SOL
+        let winner_final_sol = total_after_plunder.checked_sub(platform_fee).unwrap();
 
-            winner_state.sol_collected = winner_state.sol_collected.checked_add(net_to_winner).unwrap();
+        msg!("📊 DUEL MATH:");
+        msg!("   Winner current: {} SOL", winner_current / 1_000_000_000);
+        msg!("   Loser liquidity: {} SOL", loser_liquidity / 1_000_000_000);
+        msg!("   Spoils (50%): {} SOL", spoils_of_war / 1_000_000_000);
+        msg!("   Total after plunder: {} SOL", total_after_plunder / 1_000_000_000);
+        msg!("   Platform fee (5%): {} SOL", platform_fee / 1_000_000_000);
+        msg!("   Winner final: {} SOL", winner_final_sol / 1_000_000_000);
+
+        // ⭐ FIX: Handle lamport transfers correctly for both cases
+        if spoils_of_war > 0 || platform_fee > 0 {
+            // Get mutable references to lamports
+            let loser_account = loser_state.to_account_info();
+            let winner_account = winner_state.to_account_info();
+            let keeper_account = ctx.accounts.keeper_authority.to_account_info();
+            let treasury_account = ctx.accounts.treasury_wallet.to_account_info();
+
+            if spoils_of_war >= platform_fee {
+                // ✅ CASE 1: Spoils cover the fee (normal case)
+                // Winner receives: spoils - fee
+                let net_to_winner = spoils_of_war.checked_sub(platform_fee).unwrap();
+
+                msg!("   Case: Spoils >= Fee (winner gains {} SOL)", net_to_winner / 1_000_000_000);
+
+                // Transfers
+                **loser_account.try_borrow_mut_lamports()? -= spoils_of_war;
+                **winner_account.try_borrow_mut_lamports()? += net_to_winner;
+                **keeper_account.try_borrow_mut_lamports()? += keeper_share;
+                **treasury_account.try_borrow_mut_lamports()? += treasury_share;
+
+            } else {
+                // ⭐ CASE 2: Fee > Spoils (winner must contribute from existing liquidity)
+                // Winner must pay: fee - spoils from their own funds
+                let winner_contribution = platform_fee.checked_sub(spoils_of_war).unwrap();
+
+                msg!("   Case: Fee > Spoils (winner contributes {} SOL)", winner_contribution / 1_000_000_000);
+
+                // Transfers:
+                // - Loser gives all spoils
+                // - Winner pays the difference (fee - spoils)
+                // - Keeper and treasury get full fee
+                **loser_account.try_borrow_mut_lamports()? -= spoils_of_war;
+                **winner_account.try_borrow_mut_lamports()? -= winner_contribution;
+                **keeper_account.try_borrow_mut_lamports()? += keeper_share;
+                **treasury_account.try_borrow_mut_lamports()? += treasury_share;
+            }
+
+            // Update sol_collected for both states
+            winner_state.sol_collected = winner_final_sol;
             loser_state.sol_collected = loser_state.sol_collected.checked_sub(spoils_of_war).unwrap();
         }
 
         let finalization_timestamp = Clock::get()?.unix_timestamp;
-        
+
         // Winner goes to listing
         winner_state.battle_status = BattleStatus::Listed;
         winner_state.listing_timestamp = finalization_timestamp;
@@ -731,7 +772,7 @@ pub mod bonk_battle {
         emit!(DuelFinalized {
             winner_mint: winner_state.mint,
             loser_mint: loser_state.mint,
-            spoils_transferred: net_to_winner,
+            spoils_transferred: spoils_of_war,
             platform_fee_collected: platform_fee,
             total_winner_liquidity: winner_state.sol_collected,
             loser_remaining_liquidity: loser_state.sol_collected,
@@ -740,11 +781,10 @@ pub mod bonk_battle {
         });
 
         msg!("🎉 DUEL FINALIZED!");
-        msg!("   Winner liquidity: {} SOL", winner_state.sol_collected / 1_000_000_000);
-        msg!("   Spoils transferred: {} SOL", net_to_winner / 1_000_000_000);
-        msg!("   Platform fee: {} SOL", platform_fee / 1_000_000_000);
+        msg!("   Winner final liquidity: {} SOL", winner_state.sol_collected / 1_000_000_000);
         msg!("   Loser remaining: {} SOL (can retry!)", loser_state.sol_collected / 1_000_000_000);
-        
+        msg!("   Platform fee collected: {} SOL", platform_fee / 1_000_000_000);
+
         Ok(())
     }
 

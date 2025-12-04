@@ -31,6 +31,7 @@ interface TokenState {
   totalTradeVolume: number;  // in lamports
   virtualSolReserves: number; // in lamports
   realSolReserves: number;   // in lamports
+  battleStatus?: number;     // ⭐ 0=Created, 1=Qualified, 2=InBattle, 3=VictoryPending, 4=Listed
 }
 
 interface TradingPanelProps {
@@ -351,7 +352,9 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         publicKey,
         mint,
         solAmount,
-        signTransaction
+        signTransaction,
+        0,                          // minTokensOut (no slippage protection)
+        tokenState?.battleStatus    // ⭐ Pass battleStatus to skip $10 check if qualified
       );
 
       console.log('✅ Buy successful:', result);
@@ -394,14 +397,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     try {
       console.log(`🚀 Graduation buy: ${exactAmount} SOL`);
 
-      // 🚀 Use isGraduationBuy flag to skip $10 minimum check
+      // 🚀 Pass battleStatus to skip $10 minimum check for qualified tokens
       const result = await buyToken(
         publicKey,
         mint,
         exactAmount,
         signTransaction,
-        0,  // minTokensOut (no slippage protection)
-        { isGraduationBuy: true }  // ← BYPASS $10 MINIMUM!
+        0,                          // minTokensOut (no slippage protection)
+        tokenState?.battleStatus    // ⭐ Pass battleStatus (>= 1 skips $10 check)
       );
 
       console.log('✅ Graduation buy successful:', result);
