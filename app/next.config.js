@@ -24,6 +24,11 @@ const nextConfig = {
         hostname: 'bonk-battle.vercel.app',
         pathname: '/r2/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+        pathname: '/**',
+      },
     ],
   },
   // ⭐ PROXY: Serve immagini R2 attraverso Vercel
