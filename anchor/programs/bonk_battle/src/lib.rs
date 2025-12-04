@@ -815,6 +815,9 @@ pub mod bonk_battle {
         let seeds = &[b"battle_state", mint_key.as_ref(), &[battle_state.bump]];
         let signer_seeds = &[&seeds[..]];
         
+        // ⭐ FIX: Use actual token balance, not fixed RAYDIUM_RESERVED_SUPPLY
+        let tokens_amount = ctx.accounts.contract_token_account.amount;
+
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
@@ -826,24 +829,24 @@ pub mod bonk_battle {
                 },
                 signer_seeds,
             ),
-            RAYDIUM_RESERVED_SUPPLY,
+            tokens_amount,
             9,
         )?;
-        
+
         let battle_state = &mut ctx.accounts.token_battle_state;
         battle_state.sol_collected = 0;
-        
+
         emit!(ListingWithdrawal {
             mint: ctx.accounts.mint.key(),
             sol_withdrawn: available_lamports,
-            tokens_withdrawn: RAYDIUM_RESERVED_SUPPLY,
+            tokens_withdrawn: tokens_amount,
             keeper: ctx.accounts.keeper_authority.key(),
             timestamp: Clock::get()?.unix_timestamp,
         });
-        
+
         msg!("📤 WITHDRAWAL FOR LISTING:");
         msg!("   SOL: {} sent to Keeper", available_lamports / 1_000_000_000);
-        msg!("   Tokens: {} sent to Keeper", RAYDIUM_RESERVED_SUPPLY / 1_000_000_000);
+        msg!("   Tokens: {} sent to Keeper", tokens_amount / 1_000_000_000);
         
         Ok(())
     }
