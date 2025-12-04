@@ -798,25 +798,26 @@ pub mod bonk_battle {
             ctx.accounts.token_battle_state.battle_status == BattleStatus::Listed,
             BonkError::NotReadyForListing
         );
-        
-        let account_info = ctx.accounts.token_battle_state.to_account_info();
-        let rent = Rent::get()?.minimum_balance(account_info.data_len());
-        let available_lamports = account_info.lamports().checked_sub(rent).unwrap_or(0);
-        
-        require!(available_lamports > 0, BonkError::NoLiquidityToWithdraw);
-        
-        // Transfer SOL to keeper
-        **account_info.try_borrow_mut_lamports()? -= available_lamports;
-        **ctx.accounts.keeper_authority.to_account_info().try_borrow_mut_lamports()? += available_lamports;
-        
-        // Transfer reserved tokens to keeper
+
+        // ⭐ FIX: Get all values FIRST, before any mutations
         let mint_key = ctx.accounts.mint.key();
-        let battle_state = &ctx.accounts.token_battle_state;
-        let seeds = &[b"battle_state", mint_key.as_ref(), &[battle_state.bump]];
-        let signer_seeds = &[&seeds[..]];
-        
-        // ⭐ FIX: Use actual token balance, not fixed RAYDIUM_RESERVED_SUPPLY
+        let bump = ctx.accounts.token_battle_state.bump;
         let tokens_amount = ctx.accounts.contract_token_account.amount;
+
+        let battle_state_info = ctx.accounts.token_battle_state.to_account_info();
+        let rent = Rent::get()?.minimum_balance(battle_state_info.data_len());
+        let current_lamports = battle_state_info.lamports();
+        let available_lamports = current_lamports.checked_sub(rent).unwrap_or(0);
+
+        require!(available_lamports > 0, BonkError::NoLiquidityToWithdraw);
+
+        // ⭐ FIX: Update account DATA first (before lamport manipulation)
+        let battle_state = &mut ctx.accounts.token_battle_state;
+        battle_state.sol_collected = 0;
+
+        // ⭐ FIX: Now do token transfer (CPI)
+        let seeds = &[b"battle_state", mint_key.as_ref(), &[bump]];
+        let signer_seeds = &[&seeds[..]];
 
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
@@ -833,11 +834,18 @@ pub mod bonk_battle {
             9,
         )?;
 
-        let battle_state = &mut ctx.accounts.token_battle_state;
-        battle_state.sol_collected = 0;
+        // ⭐ FIX: SOL transfer LAST using raw account_info (after Anchor is done with the account)
+        let battle_state_info = ctx.accounts.token_battle_state.to_account_info();
+        let keeper_info = ctx.accounts.keeper_authority.to_account_info();
+
+        **battle_state_info.try_borrow_mut_lamports()? = rent; // Leave only rent
+        **keeper_info.try_borrow_mut_lamports()? = keeper_info
+            .lamports()
+            .checked_add(available_lamports)
+            .unwrap();
 
         emit!(ListingWithdrawal {
-            mint: ctx.accounts.mint.key(),
+            mint: mint_key,
             sol_withdrawn: available_lamports,
             tokens_withdrawn: tokens_amount,
             keeper: ctx.accounts.keeper_authority.key(),
@@ -847,7 +855,7 @@ pub mod bonk_battle {
         msg!("📤 WITHDRAWAL FOR LISTING:");
         msg!("   SOL: {} sent to Keeper", available_lamports / 1_000_000_000);
         msg!("   Tokens: {} sent to Keeper", tokens_amount / 1_000_000_000);
-        
+
         Ok(())
     }
 }
