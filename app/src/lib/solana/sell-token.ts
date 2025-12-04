@@ -163,6 +163,14 @@ export async function sellToken(
       throw new Error('Token not found. Battle state does not exist for this mint.');
     }
 
+    // ⭐ Contract Token Account (PDA's ATA - tokens return here when sold)
+    const contractTokenAccount = getAssociatedTokenAddressSync(
+      mint,
+      battleStatePDA,
+      true // allowOwnerOffCurve = true for PDA
+    );
+    console.log('📍 Contract Token Account:', contractTokenAccount.toString());
+
     // User Token Account (already fetched above)
     console.log('📍 User Token Account:', userTokenAccount.toString());
 
@@ -171,27 +179,25 @@ export async function sellToken(
     console.log('📍 Price Oracle PDA:', priceOraclePDA.toString());
 
     // ========================================================================
-    // Step 3: Build instruction data (V2 - includes min_sol_out!)
+    // Step 3: Build instruction data
     // ========================================================================
     const tokenAmountData = serializeU64(tokenAmount);
-    const minSolOutData = serializeU64(minSolOut); // V2: NEW!
 
     const instructionData = Buffer.concat([
       SELL_TOKEN_DISCRIMINATOR,
       tokenAmountData,
-      minSolOutData,  // V2: Slippage protection
     ]);
 
     console.log('📦 Instruction data size:', instructionData.length, 'bytes');
     console.log('📦 Token amount:', tokenAmount);
-    console.log('📦 Min SOL out:', minSolOut, 'lamports');
 
     // ========================================================================
-    // Step 4: Build accounts array (order must match IDL)
+    // Step 4: Build accounts array (order must match contract SellToken struct)
     // ========================================================================
     const keys = [
       { pubkey: battleStatePDA, isSigner: false, isWritable: true },          // token_battle_state
       { pubkey: mint, isSigner: false, isWritable: true },                    // mint
+      { pubkey: contractTokenAccount, isSigner: false, isWritable: true },    // ⭐ contract_token_account (tokens return here)
       { pubkey: userTokenAccount, isSigner: false, isWritable: true },        // user_token_account
       { pubkey: priceOraclePDA, isSigner: false, isWritable: false },         // price_oracle
       { pubkey: TREASURY_WALLET, isSigner: false, isWritable: true },         // treasury_wallet

@@ -9,7 +9,7 @@ use anchor_lang::system_program;
 use anchor_lang::solana_program::rent::Rent;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface, Burn, MintTo},
+    token_interface::{Mint, TokenAccount, TokenInterface, MintTo},
 };
 
 declare_id!("6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq");
@@ -490,17 +490,22 @@ pub mod bonk_battle {
             BonkError::InsufficientLiquidity
         );
 
-        // Burn tokens
-        anchor_spl::token_interface::burn(
+        // ⭐ FIX: Transfer tokens BACK to contract pool (instead of burning)
+        // This preserves the tokens for:
+        // 1. Future buys by other users
+        // 2. Final Raydium liquidity (206.9M reserved)
+        anchor_spl::token_interface::transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
-                Burn {
-                    mint: ctx.accounts.mint.to_account_info(),
+                anchor_spl::token_interface::TransferChecked {
                     from: ctx.accounts.user_token_account.to_account_info(),
+                    to: ctx.accounts.contract_token_account.to_account_info(),
                     authority: ctx.accounts.user.to_account_info(),
+                    mint: ctx.accounts.mint.to_account_info(),
                 },
             ),
             token_amount,
+            9, // decimals
         )?;
 
         // Calculate fees
@@ -1159,6 +1164,15 @@ pub struct SellToken<'info> {
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
 
+    // ⭐ AGGIUNTO: Contract token account per ricevere i token venduti
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = token_battle_state,
+        associated_token::token_program = token_program,
+    )]
+    pub contract_token_account: InterfaceAccount<'info, TokenAccount>,
+
     #[account(
         mut,
         associated_token::mint = mint,
@@ -1179,7 +1193,7 @@ pub struct SellToken<'info> {
 
     #[account(mut)]
     pub user: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
 }

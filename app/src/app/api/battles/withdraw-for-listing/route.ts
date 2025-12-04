@@ -4,12 +4,6 @@
  * 
  * Withdraws SOL and reserved tokens from a Listed token
  * for creating Raydium liquidity pool.
- * 
- * This transfers:
- * - All SOL from the battle state to keeper
- * - 206.9M reserved tokens to keeper
- * 
- * Keeper then uses these to create Raydium pool manually.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,6 +17,7 @@ import {
   sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import {
+  TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
@@ -43,7 +38,6 @@ function getKeeperKeypair(): Keypair {
 }
 
 // Anchor discriminator for withdraw_for_listing
-// sha256("global:withdraw_for_listing")[0..8]
 const WITHDRAW_FOR_LISTING_DISCRIMINATOR = Buffer.from([127, 237, 151, 214, 106, 20, 93, 33]);
 
 function getBattleStatePDA(mint: PublicKey): [PublicKey, number] {
@@ -62,6 +56,25 @@ const BattleStatus = {
   Listed: 4,
   PoolCreated: 5,
 };
+
+// ⭐ Auto-detect which token program the mint uses
+async function getTokenProgramForMint(connection: Connection, mint: PublicKey): Promise<PublicKey> {
+  const mintAccount = await connection.getAccountInfo(mint);
+  if (!mintAccount) {
+    throw new Error('Mint account not found');
+  }
+
+  // Check the owner of the mint account
+  if (mintAccount.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+    console.log('🔷 Mint uses Token-2022 program');
+    return TOKEN_2022_PROGRAM_ID;
+  } else if (mintAccount.owner.equals(TOKEN_PROGRAM_ID)) {
+    console.log('🔶 Mint uses legacy Token program');
+    return TOKEN_PROGRAM_ID;
+  } else {
+    throw new Error(`Unknown token program: ${mintAccount.owner.toString()}`);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,6 +99,10 @@ export async function POST(request: NextRequest) {
 
     const connection = new Connection(RPC_ENDPOINT, 'confirmed');
     const keeperKeypair = getKeeperKeypair();
+
+    // ⭐ Auto-detect token program
+    const tokenProgramId = await getTokenProgramForMint(connection, mint);
+    console.log('Token Program:', tokenProgramId.toString());
 
     const [battleStatePDA] = getBattleStatePDA(mint);
 
@@ -115,21 +132,21 @@ export async function POST(request: NextRequest) {
     const solInAccount = battleStateAccount.lamports / 1e9;
     console.log('SOL in battle state:', solInAccount.toFixed(4), 'SOL');
 
-    // Get contract token account (holds the reserved tokens) - using Token-2022
+    // Get contract token account (holds the reserved tokens)
     const contractTokenAccount = getAssociatedTokenAddressSync(
       mint,
       battleStatePDA,
       true, // allowOwnerOffCurve
-      TOKEN_2022_PROGRAM_ID
+      tokenProgramId
     );
     console.log('Contract Token Account:', contractTokenAccount.toString());
 
-    // Get or create keeper token account - using Token-2022
+    // Get or create keeper token account
     const keeperTokenAccount = getAssociatedTokenAddressSync(
       mint,
       keeperKeypair.publicKey,
       false,
-      TOKEN_2022_PROGRAM_ID
+      tokenProgramId
     );
     console.log('Keeper Token Account:', keeperTokenAccount.toString());
 
@@ -144,7 +161,7 @@ export async function POST(request: NextRequest) {
         keeperTokenAccount,
         keeperKeypair.publicKey,
         mint,
-        TOKEN_2022_PROGRAM_ID,
+        tokenProgramId,
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
 
@@ -168,15 +185,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Build withdraw_for_listing instruction
-    // Accounts from contract:
-    // 1. token_battle_state (mut)
-    // 2. mint (mut)
-    // 3. contract_token_account (mut)
-    // 4. keeper_token_account (mut)
-    // 5. keeper_authority (signer, mut)
-    // 6. system_program
-    // 7. token_program
-    // 8. associated_token_program
     const withdrawIx = new TransactionInstruction({
       keys: [
         { pubkey: battleStatePDA, isSigner: false, isWritable: true },
@@ -185,7 +193,7 @@ export async function POST(request: NextRequest) {
         { pubkey: keeperTokenAccount, isSigner: false, isWritable: true },
         { pubkey: keeperKeypair.publicKey, isSigner: true, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: tokenProgramId, isSigner: false, isWritable: false },
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       programId: PROGRAM_ID,
