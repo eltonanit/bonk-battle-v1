@@ -278,28 +278,65 @@ pub mod bonk_battle {
             BonkError::TradingInactive
         );
 
-        // ⭐ FIX: SOL-BASED GRADUATION CHECK (uses NET amount after fee)
+        // ⭐ FIX: Calculate fee first to use NET amount for graduation check
         let fee_for_check = sol_amount
             .checked_mul(TRADING_FEE_BPS)
             .ok_or(BonkError::MathOverflow)?
             .checked_div(10000)
             .ok_or(BonkError::MathOverflow)?;
-        let net_amount_for_check = sol_amount.checked_sub(fee_for_check).ok_or(BonkError::MathOverflow)?;
-        
+        let net_amount_for_check = sol_amount
+            .checked_sub(fee_for_check)
+            .ok_or(BonkError::MathOverflow)?;
+
+        // Check with NET amount
         let total_sol_after = ctx.accounts.token_battle_state.sol_collected
             .checked_add(net_amount_for_check)
             .ok_or(BonkError::MathOverflow)?;
-        
-        require!(
-            total_sol_after <= TARGET_SOL,
-            BonkError::WouldExceedGraduation
-        );
+
+        // ⭐ AUTO-CAP LOGIC - Instead of rejecting, cap the amount
+        let mut actual_sol_amount = sol_amount;
+        let mut was_capped = false;
+
+        if total_sol_after > TARGET_SOL {
+            let remaining_capacity = TARGET_SOL
+                .saturating_sub(ctx.accounts.token_battle_state.sol_collected);
+
+            if remaining_capacity == 0 {
+                msg!("🎓 Graduation threshold reached! Call check_victory_conditions.");
+                return Err(BonkError::WouldExceedGraduation.into());
+            }
+
+            // Convert net remaining to gross amount needed
+            // net = gross * (1 - fee), so gross = net * 10000 / (10000 - fee_bps)
+            actual_sol_amount = remaining_capacity
+                .checked_mul(10000)
+                .ok_or(BonkError::MathOverflow)?
+                .checked_div(10000 - TRADING_FEE_BPS)
+                .ok_or(BonkError::MathOverflow)?;
+
+            // Clamp to requested amount
+            if actual_sol_amount > sol_amount {
+                actual_sol_amount = sol_amount;
+            }
+
+            if actual_sol_amount < MIN_SOL_PER_TX {
+                msg!("⚠️ Cannot buy: auto-capped amount {} below minimum {}",
+                     actual_sol_amount, MIN_SOL_PER_TX);
+                return Err(BonkError::WouldExceedGraduation.into());
+            }
+
+            was_capped = true;
+            msg!("📊 AUTO-CAP: {} → {} lamports", sol_amount, actual_sol_amount);
+        }
+
+        // Use the (possibly capped) amount for rest of transaction
+        let sol_amount = actual_sol_amount;
 
         let tokens_to_give = calculate_buy_amount_optimized(
-            sol_amount, 
+            sol_amount,
             ctx.accounts.token_battle_state.sol_collected
         )?;
-        
+
         require!(tokens_to_give > 0, BonkError::InsufficientOutput);
 
         let fee = sol_amount
@@ -357,7 +394,7 @@ pub mod bonk_battle {
         // Update state
         let battle_state = &mut ctx.accounts.token_battle_state;
         let old_status = battle_state.battle_status.clone();
-        
+
         battle_state.sol_collected = battle_state
             .sol_collected
             .checked_add(amount_to_collect)
@@ -372,15 +409,15 @@ pub mod bonk_battle {
         // ⭐ SOL-BASED QUALIFICATION CHECK
         if battle_state.sol_collected >= QUALIFICATION_SOL && old_status == BattleStatus::Created {
             battle_state.battle_status = BattleStatus::Qualified;
-            
+
             emit!(GladiatorQualified {
                 mint: battle_state.mint,
                 sol_collected: battle_state.sol_collected,
                 qualification_threshold: QUALIFICATION_SOL,
                 timestamp: battle_state.last_trade_timestamp,
             });
-            
-            msg!("🎯 GLADIATOR QUALIFIED! SOL: {}/{}", 
+
+            msg!("🎯 GLADIATOR QUALIFIED! SOL: {}/{}",
                  battle_state.sol_collected / 1_000_000_000,
                  QUALIFICATION_SOL / 1_000_000_000);
         }
@@ -413,15 +450,26 @@ pub mod bonk_battle {
             .checked_mul(100).unwrap()
             .checked_div(TARGET_SOL as u128).unwrap() as u64;
 
-        msg!(
-            "💰 BUY: {} tokens for {} SOL | Progress: {}% ({}/{} SOL) | Status: {:?}",
-            tokens_to_give / 1_000_000_000,
-            sol_amount / 1_000_000_000,
-            progress_percent,
-            battle_state.sol_collected / 1_000_000_000,
-            TARGET_SOL / 1_000_000_000,
-            battle_state.battle_status
-        );
+        if was_capped {
+            msg!(
+                "💰 BUY (AUTO-CAPPED): {} tokens for {} SOL | Progress: {}% ({}/{} SOL)",
+                tokens_to_give / 1_000_000_000,
+                sol_amount / 1_000_000_000,
+                progress_percent,
+                battle_state.sol_collected / 1_000_000_000,
+                TARGET_SOL / 1_000_000_000
+            );
+        } else {
+            msg!(
+                "💰 BUY: {} tokens for {} SOL | Progress: {}% ({}/{} SOL) | Status: {:?}",
+                tokens_to_give / 1_000_000_000,
+                sol_amount / 1_000_000_000,
+                progress_percent,
+                battle_state.sol_collected / 1_000_000_000,
+                TARGET_SOL / 1_000_000_000,
+                battle_state.battle_status
+            );
+        }
         Ok(())
     }
     
