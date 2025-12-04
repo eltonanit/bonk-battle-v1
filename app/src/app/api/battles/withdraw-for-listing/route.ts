@@ -23,7 +23,7 @@ import {
   sendAndConfirmTransaction,
 } from '@solana/web3.js';
 import {
-  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -66,11 +66,11 @@ const BattleStatus = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tokenMint } = body;
+    const tokenMint = body.tokenMint || body.mint;
 
     if (!tokenMint) {
       return NextResponse.json({
-        error: 'Missing tokenMint'
+        error: 'Missing tokenMint or mint'
       }, { status: 400 });
     }
 
@@ -115,21 +115,21 @@ export async function POST(request: NextRequest) {
     const solInAccount = battleStateAccount.lamports / 1e9;
     console.log('SOL in battle state:', solInAccount.toFixed(4), 'SOL');
 
-    // Get contract token account (holds the reserved tokens)
+    // Get contract token account (holds the reserved tokens) - using Token-2022
     const contractTokenAccount = getAssociatedTokenAddressSync(
       mint,
       battleStatePDA,
       true, // allowOwnerOffCurve
-      TOKEN_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID
     );
     console.log('Contract Token Account:', contractTokenAccount.toString());
 
-    // Get or create keeper token account
+    // Get or create keeper token account - using Token-2022
     const keeperTokenAccount = getAssociatedTokenAddressSync(
       mint,
       keeperKeypair.publicKey,
       false,
-      TOKEN_PROGRAM_ID
+      TOKEN_2022_PROGRAM_ID
     );
     console.log('Keeper Token Account:', keeperTokenAccount.toString());
 
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
         keeperTokenAccount,
         keeperKeypair.publicKey,
         mint,
-        TOKEN_PROGRAM_ID,
+        TOKEN_2022_PROGRAM_ID,
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
 
@@ -167,8 +167,6 @@ export async function POST(request: NextRequest) {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
-    // Now build withdraw_for_listing instruction ONLY
-
     // Build withdraw_for_listing instruction
     // Accounts from contract:
     // 1. token_battle_state (mut)
@@ -187,7 +185,7 @@ export async function POST(request: NextRequest) {
         { pubkey: keeperTokenAccount, isSigner: false, isWritable: true },
         { pubkey: keeperKeypair.publicKey, isSigner: true, isWritable: true },
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: ASSOCIATED_TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       ],
       programId: PROGRAM_ID,
