@@ -13,7 +13,8 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { useTokenBattleState, calculateMarketCapFromReserves, calculatePricePerToken } from '@/hooks/useTokenBattleState';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
-import { BattleStatus, TIER_CONFIG, BattleTier } from '@/types/bonk';
+import { BattleStatus, BattleTier } from '@/types/bonk';
+import { TIER_CONFIG } from '@/lib/solana/constants';
 import { TradingPanel } from '@/components/token/TradingPanel';
 import { TokenHero } from '@/components/token/TokenHero';
 import { PriceChart } from '@/components/token/PriceChart';
@@ -71,8 +72,9 @@ export default function TokenDetailPage() {
     )
     : null;
 
-  // ⭐ V2: Get tier config
-  const tierConfig = state ? TIER_CONFIG[state.tier ?? BattleTier.Test] : TIER_CONFIG[BattleTier.Test];
+  // ⭐ V3: Get tier config (using string keys)
+  const tierKey = (state?.tier ?? BattleTier.Test) === BattleTier.Test ? 'TEST' : 'PRODUCTION';
+  const tierConfig = TIER_CONFIG[tierKey];
 
   // ⭐ INCREMENT VIEW quando user entra nella pagina
   useEffect(() => {
@@ -277,12 +279,12 @@ export default function TokenDetailPage() {
                 <div className="text-xs text-gray-500 mt-2">Profit indicator</div>
               </div>
 
-              {/* Bonding Curve Progress - V2: pass tier and volume */}
+              {/* Bonding Curve Progress - V3: SOL-based (price independent) */}
               <BondingCurveCard
-                marketCapUsd={marketCapUsd}
+                solCollected={state.realSolReserves / 1e9}
+                totalVolumeSol={state.totalTradeVolume / 1e9}
                 battleStatus={state.battleStatus}
                 tier={state.tier ?? BattleTier.Test}
-                totalVolumeUsd={solPriceUsd ? (state.totalTradeVolume / 1e9) * solPriceUsd : 0}
               />
 
               {/* Holder Distribution (Placeholder) */}

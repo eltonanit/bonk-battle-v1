@@ -1,5 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
-// SOL-BASED PROGRESS - Uses actual smart contract targets
+// SOL-BASED PROGRESS - Uses centralized constants from lib/solana/constants.ts
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,25 +9,18 @@ import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
 import { buyToken } from '@/lib/solana/buy-token';
 import { sellToken } from '@/lib/solana/sell-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+import {
+  TIER_CONFIG,
+  USE_TEST_TIER,
+  TARGET_SOL,
+  VICTORY_VOLUME_SOL,
+  lamportsToSol,
+  calculateSolProgress,
+  calculateVolumeProgress,
+} from '@/lib/solana/constants';
 
-// =================================================================
-// TIER TARGETS FROM SMART CONTRACT (SOL-based!)
-// =================================================================
-const TIER_CONFIG = {
-  TEST: {
-    TARGET_SOL: 6,           // 6 SOL = graduation
-    VICTORY_VOLUME_SOL: 0.87, // ~$200 at $230/SOL (dynamic in reality)
-    VIRTUAL_SOL_INIT: 2.05,   // Starting virtual SOL
-  },
-  PRODUCTION: {
-    TARGET_SOL: 127.5,       // 127.5 SOL = graduation  
-    VICTORY_VOLUME_SOL: 87,  // ~$20,000 at $230/SOL
-    VIRTUAL_SOL_INIT: 9.3,
-  }
-};
-
-// Use TEST tier for devnet
-const CURRENT_TIER = TIER_CONFIG.TEST;
+// Get current tier config from centralized constants
+const CURRENT_TIER = TIER_CONFIG[USE_TEST_TIER ? 'TEST' : 'PRODUCTION'];
 
 interface TokenState {
   symbol: string;
@@ -67,7 +60,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, [publicKey, connection]);
 
   // ============================================================
-  // 🎯 SOL-BASED PROGRESS CALCULATIONS
+  // 🎯 SOL-BASED PROGRESS CALCULATIONS (using centralized helpers)
   // ============================================================
   const progressData = useMemo(() => {
     if (!tokenState) {
@@ -77,26 +70,26 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         overallProgress: 0,
         solCollectedSol: 0,
         volumeSol: 0,
-        solRemaining: CURRENT_TIER.TARGET_SOL,
-        maxBuyableSol: CURRENT_TIER.TARGET_SOL,
+        solRemaining: TARGET_SOL,
+        maxBuyableSol: TARGET_SOL,
         isNearGraduation: false,
         isGraduationLocked: false,
       };
     }
 
-    // Convert lamports to SOL
-    const solCollectedSol = tokenState.solCollected / 1e9;
-    const volumeSol = tokenState.totalTradeVolume / 1e9;
+    // Convert lamports to SOL using helper
+    const solCollectedSol = lamportsToSol(tokenState.solCollected);
+    const volumeSol = lamportsToSol(tokenState.totalTradeVolume);
 
-    // ⭐ SOL-based progress (not USD!)
-    const solProgress = Math.min((solCollectedSol / CURRENT_TIER.TARGET_SOL) * 100, 100);
-    const volProgress = Math.min((volumeSol / CURRENT_TIER.VICTORY_VOLUME_SOL) * 100, 100);
+    // ⭐ SOL-based progress using centralized helpers
+    const solProgress = calculateSolProgress(solCollectedSol);
+    const volProgress = calculateVolumeProgress(volumeSol);
 
     // Overall = average of both
     const overallProgress = (solProgress + volProgress) / 2;
 
     // How much SOL remaining before graduation
-    const solRemaining = Math.max(0, CURRENT_TIER.TARGET_SOL - solCollectedSol);
+    const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
     const maxBuyableSol = solRemaining * 0.95; // 5% buffer
 
     // Graduation states

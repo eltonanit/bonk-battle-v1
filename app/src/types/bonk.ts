@@ -33,27 +33,7 @@ export enum BattleTier {
   Production = 1,
 }
 
-/**
- * Tier Configuration
- */
-export const TIER_CONFIG = {
-  [BattleTier.Test]: {
-    name: 'Test',
-    description: 'For testing on devnet',
-    initialMcUsd: 280,
-    victoryMcUsd: 5500,
-    victoryVolumeUsd: 200,
-    targetSol: 28,
-  },
-  [BattleTier.Production]: {
-    name: 'Production',
-    description: 'For mainnet battles',
-    initialMcUsd: 1270,
-    victoryMcUsd: 25000,
-    victoryVolumeUsd: 20000,
-    targetSol: 127,
-  },
-};
+// ⭐ TIER_CONFIG is now in constants.ts - import from there!
 
 /**
  * Token Battle State V2
@@ -401,6 +381,11 @@ export interface ParsedTokenBattleState {
   // Computed fields
   marketCapUsd?: number;
   pricePerToken?: number;
+  // ⭐ SOL-based computed fields (V3 - price independent)
+  solCollectedSol?: number;   // realSolReserves in SOL
+  totalVolumeSol?: number;    // totalTradeVolume in SOL
+  solProgress?: number;       // % progress toward TARGET_SOL (0-100)
+  volumeProgress?: number;    // % progress toward VICTORY_VOLUME_SOL (0-100)
   // ⭐ Backwards compatibility (V1 fields)
   creator?: PublicKey;  // V1 compat: not stored in V2, derived from first tx
   solCollected?: number;  // V1 compat: now use realSolReserves

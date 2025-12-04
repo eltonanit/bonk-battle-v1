@@ -97,23 +97,22 @@ export default function CreatePage() {
             console.log('📝 Name:', name);
             console.log('📝 Symbol:', symbol);
             console.log('📝 URI:', uri);
-            console.log('🎯 Tier:', selectedTier === BattleTier.Test ? 'Test' : 'Production');
+            // ⚠️ Tier is now compile-time in contract (USE_TEST_TIER flag)
 
-            // Call createBattleToken function with tier
+            // Call createBattleToken function (tier is compile-time now)
             const result = await createBattleToken(
                 publicKey,
                 name,
                 symbol,
                 uri,
-                signTransaction,
-                selectedTier  // NEW: Pass selected tier
+                signTransaction
             );
 
             console.log('✅ Battle Token created successfully!');
             console.log('🎯 Signature:', result.signature);
             console.log('🪙 Mint:', result.mint.toString());
             console.log('⚔️ Battle State:', result.battleState.toString());
-            console.log('🏆 Tier:', result.tier === BattleTier.Test ? 'Test' : 'Production');
+            console.log('🏆 Tier:', result.tier === BattleTier.Test ? 'Test (compile-time)' : 'Production (compile-time)');
 
             // Show success popup and redirect
             setCreatedMint(result.mint.toString());
@@ -139,8 +138,8 @@ export default function CreatePage() {
         }
     }, [createdMint, router]);
 
-    // Get current tier config for display
-    const currentTierConfig = TIER_CONFIG[selectedTier];
+    // Get current tier config for display (using new string keys)
+    const currentTierConfig = TIER_CONFIG[selectedTier === BattleTier.Test ? 'TEST' : 'PRODUCTION'];
 
     return (
         <div className="min-h-screen bg-bonk-dark">

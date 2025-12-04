@@ -1,4 +1,5 @@
 ﻿'use client';
+// SOL-BASED - Uses centralized constants from lib/solana/constants.ts
 
 import { useEffect, useState, useRef } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
@@ -7,6 +8,7 @@ import Image from 'next/image';
 import { ParsedTokenBattleState, BattleStatus } from '@/types/bonk';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { TARGET_SOL, VICTORY_VOLUME_SOL, lamportsToSol } from '@/lib/solana/constants';
 
 interface TaglineToken {
   mint: string;
@@ -17,10 +19,6 @@ interface TaglineToken {
   marketCap: number;
   tier: number;
 }
-
-// Victory targets (devnet)
-const VICTORY_MC_USD = 5500;
-const VICTORY_VOLUME_USD = 100;
 
 const FEATURED_IMAGES = [
   '/tagline/1.png',
@@ -140,15 +138,15 @@ export function Tagline() {
     return (lamports / 1e9) * solPriceUsd;
   };
 
-  // Convert token to BattleCard format
+  // Convert token to BattleCard format (SOL-based!)
   const toBattleToken = (token: ParsedTokenBattleState) => ({
     mint: token.mint.toString(),
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
     image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token),
-    volumeUsd: lamportsToUsd(token.totalTradeVolume ?? 0),
-    solCollected: (token.realSolReserves ?? 0) / 1e9
+    marketCapUsd: calculateMarketCapUsd(token), // Still useful for display
+    solCollected: lamportsToSol(token.realSolReserves ?? 0),
+    totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
   });
 
   return (
@@ -295,8 +293,8 @@ export function Tagline() {
                     <BattleCard
                       tokenA={toBattleToken(latestBattle.tokenA)}
                       tokenB={toBattleToken(latestBattle.tokenB)}
-                      targetMC={VICTORY_MC_USD}
-                      targetVol={VICTORY_VOLUME_USD}
+                      targetSol={TARGET_SOL}
+                      targetVolumeSol={VICTORY_VOLUME_SOL}
                       isEpicBattle={true}
                     />
                   </div>

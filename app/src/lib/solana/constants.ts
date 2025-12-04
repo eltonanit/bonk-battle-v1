@@ -50,49 +50,67 @@ export enum BattleStatus {
  * Bonding Curve Constants
  */
 export const BONDING_CURVE = {
-  TOKEN_DECIMALS: 6,
-  VIRTUAL_RESERVE: 30_000_000_000, // 30 SOL in lamports
-  VIRTUAL_SUPPLY: 1_073_000_191_000_000,
-  CURVE_TOKENS: 793_100_000_000_000, // Tokens available on curve
-  REAL_SUPPLY: 1_000_000_000_000_000, // Total supply
+  TOKEN_DECIMALS: 9, // 9 decimals like SOL
+  TOTAL_SUPPLY: 1_000_000_000, // 1B tokens
+  BONDING_CURVE_SUPPLY: 793_100_000, // 793.1M (79.31%)
+  RAYDIUM_RESERVED_SUPPLY: 206_900_000, // 206.9M (20.69%)
 } as const;
 
-/**
- * Tier Targets (in SOL and USD)
- */
-export const TIER_TARGETS = {
-  1: { sol: 1, usd: 100, duration: 3 * 60 }, // 3 minutes, 1 SOL
-  2: { sol: 2_551, usd: 500_000, duration: 7 * 24 * 60 * 60 }, // 7 days
-  3: { sol: 25_510, usd: 5_000_000, duration: 15 * 24 * 60 * 60 }, // 15 days
-  4: { sol: 255_102, usd: 50_000_000, duration: 30 * 24 * 60 * 60 }, // 30 days
+// =================================================================
+// TIER CONFIGURATION - ALL VALUES IN SOL (price-independent!)
+// =================================================================
+
+export const USE_TEST_TIER = true; // Set to false for mainnet PRODUCTION
+
+export const TIER_CONFIG = {
+  TEST: {
+    TARGET_SOL: 6,              // 6 SOL to fill curve
+    VICTORY_VOLUME_SOL: 6.6,    // 6.6 SOL volume (110%)
+    QUALIFICATION_SOL: 0.12,    // 0.12 SOL to qualify
+    MATCHMAKING_TOLERANCE_SOL: 3,
+    ESTIMATED_MC_FINAL_USD: 820, // @ $137/SOL
+  },
+  PRODUCTION: {
+    TARGET_SOL: 37.7,           // 37.7 SOL to fill curve
+    VICTORY_VOLUME_SOL: 41.5,   // 41.5 SOL volume (110%)
+    QUALIFICATION_SOL: 0.75,    // 0.75 SOL to qualify
+    MATCHMAKING_TOLERANCE_SOL: 18.85,
+    ESTIMATED_MC_FINAL_USD: 25000, // @ $137/SOL
+  }
 } as const;
+
+// Current tier (switches based on USE_TEST_TIER)
+export const CURRENT_TIER = USE_TEST_TIER ? TIER_CONFIG.TEST : TIER_CONFIG.PRODUCTION;
+
+// Convenience exports
+export const TARGET_SOL = CURRENT_TIER.TARGET_SOL;
+export const VICTORY_VOLUME_SOL = CURRENT_TIER.VICTORY_VOLUME_SOL;
+export const QUALIFICATION_SOL = CURRENT_TIER.QUALIFICATION_SOL;
 
 /**
  * Platform Fees (in basis points)
  */
 export const FEES = {
-  PLATFORM_FEE_BPS: 200, // 2%
-  REFUND_FEE_BPS: 200, // 2%
-  CREATION_FEE: 0.01, // SOL
+  TRADING_FEE_BPS: 200,  // 2% on trades
+  PLATFORM_FEE_BPS: 500, // 5% on winner (from contract)
 } as const;
 
 /**
  * Wallet Addresses
  */
 export const TREASURY_WALLET = new PublicKey(
-  'A84TUvSQLpMoTGqoqNbEuTHJSheVC5cTSjsv3EMwYLmn'
+  '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf'
 );
 
-export const ADMIN_WALLET = new PublicKey(
-  'BNSr8S88xncQGmWjVLW82MnKJcasEXDvaQqYmgKSuAXB'
+export const KEEPER_AUTHORITY = new PublicKey(
+  '753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3'
 );
 
 /**
  * Network Configuration
  */
 export const NETWORK = 'devnet' as const;
-// ⚠️ TEMPORANEO: Usa RPC pubblico Solana (Helius ha rate limits anche con chiave dedicata)
-// TODO: Creare nuova chiave Helius BONK BATTLE o upgrade piano
+// RPC pubblico Solana
 export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://api.devnet.solana.com';
 
 /**
@@ -100,5 +118,57 @@ export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://api
  */
 export const TRANSACTION_LIMITS = {
   MIN_SOL_AMOUNT: 0.001, // Minimum SOL per transaction
-  MAX_SOL_AMOUNT: 1000, // Maximum SOL per transaction
+  MAX_SOL_AMOUNT: 100, // Maximum SOL per transaction (100 SOL)
 } as const;
+
+// =================================================================
+// HELPER FUNCTIONS
+// =================================================================
+
+/** Convert lamports to SOL */
+export function lamportsToSol(lamports: number | bigint): number {
+  return Number(lamports) / 1_000_000_000;
+}
+
+/** Convert SOL to lamports */
+export function solToLamports(sol: number): number {
+  return Math.floor(sol * 1_000_000_000);
+}
+
+/** Calculate SOL progress percentage */
+export function calculateSolProgress(solCollected: number): number {
+  return Math.min((solCollected / TARGET_SOL) * 100, 100);
+}
+
+/** Calculate volume progress percentage */
+export function calculateVolumeProgress(volumeSol: number): number {
+  return Math.min((volumeSol / VICTORY_VOLUME_SOL) * 100, 100);
+}
+
+/** Check if victory conditions are met */
+export function hasVictoryConditions(solCollected: number, volumeSol: number): boolean {
+  return solCollected >= TARGET_SOL && volumeSol >= VICTORY_VOLUME_SOL;
+}
+
+/** Check if qualified for battle */
+export function isQualifiedForBattle(solCollected: number): boolean {
+  return solCollected >= QUALIFICATION_SOL;
+}
+
+/** Format SOL for display */
+export function formatSol(sol: number, decimals: number = 2): string {
+  return sol.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
+
+/** Format USD for display */
+export function formatUsd(usd: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(usd);
+}

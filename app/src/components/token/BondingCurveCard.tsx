@@ -1,34 +1,31 @@
 'use client';
 
-import { BattleStatus, BattleTier, TIER_CONFIG, BATTLE_STATUS_LABELS, BATTLE_STATUS_COLORS, BATTLE_STATUS_BG_COLORS } from '@/types/bonk';
+import { BattleStatus, BattleTier, BATTLE_STATUS_LABELS, BATTLE_STATUS_COLORS, BATTLE_STATUS_BG_COLORS } from '@/types/bonk';
+import { TIER_CONFIG, formatSol, calculateSolProgress, calculateVolumeProgress } from '@/lib/solana/constants';
 
 interface BondingCurveCardProps {
-  marketCapUsd: number | null;
+  solCollected: number;  // SOL collected (in SOL, not lamports)
+  totalVolumeSol: number;  // Total volume in SOL
   battleStatus: BattleStatus;
   tier?: BattleTier;
-  totalVolumeUsd?: number;  // already converted to USD
 }
 
 export function BondingCurveCard({
-  marketCapUsd,
+  solCollected,
+  totalVolumeSol,
   battleStatus,
   tier = BattleTier.Test,
-  totalVolumeUsd = 0,
 }: BondingCurveCardProps) {
   // Get tier config for victory thresholds
-  const tierConfig = TIER_CONFIG[tier];
-  const victoryMcUsd = tierConfig.victoryMcUsd;
-  const victoryVolumeUsd = tierConfig.victoryVolumeUsd;
+  const tierConfig = TIER_CONFIG[tier === BattleTier.Test ? 'TEST' : 'PRODUCTION'];
+  const targetSol = tierConfig.TARGET_SOL;
+  const victoryVolumeSol = tierConfig.VICTORY_VOLUME_SOL;
 
-  // Calculate progress percentages
-  const mcProgress = marketCapUsd ? Math.min((marketCapUsd / victoryMcUsd) * 100, 100) : 0;
-
-  // Volume is already in USD
-  const volumeUsd = totalVolumeUsd;
-  const volumeProgress = Math.min((volumeUsd / victoryVolumeUsd) * 100, 100);
+  // Calculate progress percentages using helpers
+  const solProgress = calculateSolProgress(solCollected);
+  const volumeProgress = calculateVolumeProgress(totalVolumeSol);
 
   // Check if graduated (past Created status)
-  const isGraduated = battleStatus !== BattleStatus.Created;
   const isVictoryPending = battleStatus === BattleStatus.VictoryPending;
   const isListed = battleStatus === BattleStatus.Listed || battleStatus === BattleStatus.PoolCreated;
 
@@ -41,7 +38,7 @@ export function BondingCurveCard({
     <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
       {/* Header with Status Badge */}
       <div className="flex justify-between items-center mb-4">
-        <span className="font-bold">Bonding Curve Progress</span>
+        <span className="font-bold">Battle Progress</span>
         <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusColor} ${statusBgColor}`}>
           {statusLabel}
         </span>
@@ -53,27 +50,27 @@ export function BondingCurveCard({
           {tier === BattleTier.Test ? '🧪 Test Tier' : '🚀 Production'}
         </span>
         <span className="text-xs text-gray-500">
-          Victory: ${victoryMcUsd.toLocaleString()} MC + ${victoryVolumeUsd.toLocaleString()} Vol
+          Victory: {formatSol(targetSol)} SOL + {formatSol(victoryVolumeSol)} SOL Vol
         </span>
       </div>
 
-      {/* Market Cap Progress */}
+      {/* SOL Collected Progress */}
       <div className="mb-4">
         <div className="flex justify-between items-center mb-1">
-          <span className="text-sm text-gray-400">Market Cap</span>
+          <span className="text-sm text-gray-400">SOL Collected</span>
           <span className="text-sm font-bold">
-            ${marketCapUsd?.toLocaleString(undefined, { maximumFractionDigits: 0 }) || '0'} / ${victoryMcUsd.toLocaleString()}
+            {formatSol(solCollected, 3)} / {formatSol(targetSol)} SOL
           </span>
         </div>
         <div className="w-full bg-bonk-dark rounded-full h-2.5 mb-1">
           <div
             className={`h-2.5 rounded-full transition-all duration-500 ${isVictoryPending || isListed ? 'bg-green-500' : 'bg-bonk-yellow'
               }`}
-            style={{ width: `${isVictoryPending || isListed ? 100 : mcProgress}%` }}
+            style={{ width: `${isVictoryPending || isListed ? 100 : solProgress}%` }}
           />
         </div>
         <div className="text-right text-xs text-gray-500">
-          {mcProgress.toFixed(1)}%
+          {solProgress.toFixed(1)}%
         </div>
       </div>
 
@@ -82,7 +79,7 @@ export function BondingCurveCard({
         <div className="flex justify-between items-center mb-1">
           <span className="text-sm text-gray-400">Trade Volume</span>
           <span className="text-sm font-bold">
-            ${volumeUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })} / ${victoryVolumeUsd.toLocaleString()}
+            {formatSol(totalVolumeSol, 3)} / {formatSol(victoryVolumeSol)} SOL
           </span>
         </div>
         <div className="w-full bg-bonk-dark rounded-full h-2.5 mb-1">
@@ -101,7 +98,7 @@ export function BondingCurveCard({
       <div className={`text-xs p-2 rounded ${statusBgColor}`}>
         {battleStatus === BattleStatus.Created && (
           <span className="text-gray-300">
-            🎯 First $10+ buy will qualify this token for battles!
+            🎯 Reach {formatSol(tierConfig.QUALIFICATION_SOL)} SOL to qualify for battles!
           </span>
         )}
         {battleStatus === BattleStatus.Qualified && (
@@ -111,7 +108,7 @@ export function BondingCurveCard({
         )}
         {battleStatus === BattleStatus.InBattle && (
           <span className="text-red-300">
-            🔥 Token is in battle! Reach {mcProgress < 100 ? `$${victoryMcUsd.toLocaleString()} MC` : `$${victoryVolumeUsd.toLocaleString()} volume`} to win!
+            🔥 In battle! Reach {solProgress < 100 ? `${formatSol(targetSol)} SOL` : `${formatSol(victoryVolumeSol)} SOL volume`} to win!
           </span>
         )}
         {battleStatus === BattleStatus.VictoryPending && (

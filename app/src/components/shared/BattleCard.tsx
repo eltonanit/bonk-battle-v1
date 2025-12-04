@@ -1,9 +1,11 @@
 // app/src/components/shared/BattleCard.tsx
+// SOL-BASED PROGRESS - Uses centralized constants from lib/solana/constants.ts
 'use client';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { TARGET_SOL, VICTORY_VOLUME_SOL, formatSol } from '@/lib/solana/constants';
 
 // CSS for radiating glow effect and diamond pattern
 const radiateStyles = `
@@ -154,25 +156,25 @@ interface BattleToken {
   name: string;
   symbol: string;
   image: string | null;
-  marketCapUsd: number;
-  volumeUsd: number;
-  solCollected: number;
+  marketCapUsd: number;       // For display only (USD)
+  solCollected: number;       // SOL collected (in SOL, not lamports)
+  totalVolumeSol: number;     // Total volume in SOL
 }
 
 interface BattleCardProps {
   tokenA: BattleToken;
   tokenB: BattleToken;
-  targetMC?: number;
-  targetVol?: number;
+  targetSol?: number;        // SOL target for graduation
+  targetVolumeSol?: number;  // Volume target in SOL
   winner?: 'A' | 'B' | null; // Se impostato, mostra la card in versione "winner"
-  isEpicBattle?: boolean; // Se true, usa colori viola elettrici
+  isEpicBattle?: boolean;    // Se true, usa colori viola elettrici
 }
 
 export function BattleCard({
   tokenA,
   tokenB,
-  targetMC = 5500,
-  targetVol = 100,
+  targetSol = TARGET_SOL,
+  targetVolumeSol = VICTORY_VOLUME_SOL,
   winner = null,
   isEpicBattle = false
 }: BattleCardProps) {
@@ -228,22 +230,15 @@ export function BattleCard({
     };
   }, []);
 
-  // Calcola progress percentuali
-  const mcProgressA = Math.min((tokenA.marketCapUsd / targetMC) * 100, 100);
-  const mcProgressB = Math.min((tokenB.marketCapUsd / targetMC) * 100, 100);
-  const volProgressA = Math.min((tokenA.volumeUsd / targetVol) * 100, 100);
-  const volProgressB = Math.min((tokenB.volumeUsd / targetVol) * 100, 100);
+  // ⭐ SOL-BASED progress calculations
+  const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
+  const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
+  const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
+  const volProgressB = Math.min((tokenB.totalVolumeSol / targetVolumeSol) * 100, 100);
 
-  // Calcola score
-  const scoreA = (mcProgressA >= 100 ? 1 : 0) + (volProgressA >= 100 ? 1 : 0);
-  const scoreB = (mcProgressB >= 100 ? 1 : 0) + (volProgressB >= 100 ? 1 : 0);
-
-  // Format currency
-  const formatUsd = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
-  };
+  // Calcola score (based on SOL progress)
+  const scoreA = (solProgressA >= 100 ? 1 : 0) + (volProgressA >= 100 ? 1 : 0);
+  const scoreB = (solProgressB >= 100 ? 1 : 0) + (volProgressB >= 100 ? 1 : 0);
 
   // Default image
   const getTokenImage = (token: BattleToken) => {
@@ -295,15 +290,15 @@ export function BattleCard({
                 </h3>
                 <p className="text-gray-300 text-sm mb-2">{winnerToken.name}</p>
 
-                {/* Final Stats */}
+                {/* Final Stats (SOL-based) */}
                 <div className="flex gap-3">
                   <div className="bg-black/30 rounded px-2 py-1">
-                    <span className="text-gray-500 text-xs">MC </span>
-                    <span className="text-yellow-400 font-bold text-sm">{formatUsd(winnerToken.marketCapUsd)}</span>
+                    <span className="text-gray-500 text-xs">SOL </span>
+                    <span className="text-yellow-400 font-bold text-sm">{formatSol(winnerToken.solCollected, 2)} SOL</span>
                   </div>
                   <div className="bg-black/30 rounded px-2 py-1">
                     <span className="text-gray-500 text-xs">VOL </span>
-                    <span className="text-green-400 font-bold text-sm">{formatUsd(winnerToken.volumeUsd)}</span>
+                    <span className="text-green-400 font-bold text-sm">{formatSol(winnerToken.totalVolumeSol, 2)} SOL</span>
                   </div>
                 </div>
               </div>
@@ -392,11 +387,11 @@ export function BattleCard({
               </div>
             </div>
 
-            {/* Score Center */}
+            {/* Score Center (SOL-based) */}
             <div className="flex flex-col items-center">
-              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SCORE</span>
+              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SOL</span>
               <span className="text-xl lg:text-2xl font-black text-yellow-400">
-                {formatUsd(tokenA.marketCapUsd)} - {formatUsd(tokenB.marketCapUsd)}
+                {formatSol(tokenA.solCollected, 2)} - {formatSol(tokenB.solCollected, 2)}
               </span>
             </div>
 
@@ -433,20 +428,20 @@ export function BattleCard({
                 ${tokenA.symbol}
               </p>
 
-              {/* MC Row */}
+              {/* SOL Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">SOL</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${mcProgressA >= 100
+                    className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
                         ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
                         : 'bg-gradient-to-r from-green-400 to-green-600'
                       }`}
-                    style={{ width: `${mcProgressA}%` }}
+                    style={{ width: `${solProgressA}%` }}
                   />
                 </div>
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
-                  {formatUsd(tokenA.marketCapUsd)}
+                  {formatSol(tokenA.solCollected, 2)}
                 </span>
               </div>
 
@@ -463,21 +458,21 @@ export function BattleCard({
                   />
                 </div>
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
-                  {formatUsd(tokenA.volumeUsd)}
+                  {formatSol(tokenA.totalVolumeSol, 2)}
                 </span>
               </div>
             </div>
 
-            {/* Center Target */}
+            {/* Center Target (SOL-based) */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
               <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs lg:text-sm text-gray-400">MC</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMC)}</span>
+                <span className="text-xs lg:text-sm text-gray-400">SOL</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetSol)} SOL</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-xs lg:text-sm text-gray-400">VOL</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVol)}</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetVolumeSol)} SOL</span>
               </div>
             </div>
 
@@ -488,27 +483,27 @@ export function BattleCard({
                 ${tokenB.symbol}
               </p>
 
-              {/* MC Row */}
+              {/* SOL Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
-                  {formatUsd(tokenB.marketCapUsd)}
+                  {formatSol(tokenB.solCollected, 2)}
                 </span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all duration-500 ${mcProgressB >= 100
+                    className={`h-full rounded-full transition-all duration-500 ${solProgressB >= 100
                         ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
                         : 'bg-gradient-to-r from-green-600 to-green-400'
                       }`}
-                    style={{ width: `${mcProgressB}%` }}
+                    style={{ width: `${solProgressB}%` }}
                   />
                 </div>
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">SOL</span>
               </div>
 
               {/* VOL Row */}
               <div className="flex items-center gap-1 lg:gap-2">
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
-                  {formatUsd(tokenB.volumeUsd)}
+                  {formatSol(tokenB.totalVolumeSol, 2)}
                 </span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div

@@ -1,4 +1,5 @@
 // app/src/components/home/TokenGrid.BONK.tsx
+// SOL-BASED - Uses centralized constants from lib/solana/constants.ts
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -9,12 +10,9 @@ import { TokenCardBonk } from '@/components/shared/TokenCard.BONK';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { supabase } from '@/lib/supabase';
+import { TARGET_SOL, VICTORY_VOLUME_SOL, lamportsToSol } from '@/lib/solana/constants';
 
 type FilterTab = 'battle' | 'new' | 'aboutToWin' | 'winners';
-
-// Victory targets (devnet) - from smart contract
-const VICTORY_MC_USD = 5500;    // $5,500 market cap
-const VICTORY_VOLUME_USD = 100; // $100 volume
 
 interface Winner {
   mint: string;
@@ -81,13 +79,6 @@ export function TokenGridBonk() {
     // Rimosso auto-refresh per evitare che le BattleCard spariscano
   }, []);
 
-  // ⭐ Convert lamports to USD using real oracle price
-  const lamportsToUsd = (lamports: number): number => {
-    if (!solPriceUsd) return 0;
-    const sol = lamports / 1e9; // lamports → SOL
-    return sol * solPriceUsd;   // SOL → USD
-  };
-
   // Group tokens into battle pairs (including completed battles)
   const battlePairs = useMemo((): (BattlePair & { winner?: 'A' | 'B' | null })[] => {
     const pairs: (BattlePair & { winner?: 'A' | 'B' | null })[] = [];
@@ -145,32 +136,26 @@ export function TokenGridBonk() {
     return pairs;
   }, [allTokens]);
 
-  // Get tokens "About to Win" - InBattle with high progress
+  // Get tokens "About to Win" - InBattle with high progress (SOL-based!)
   const aboutToWinTokens = useMemo((): ParsedTokenBattleState[] => {
-    if (!solPriceUsd) return [];
-
     return allTokens
       .filter(t => t.battleStatus === BattleStatus.InBattle)
       .map(token => {
-        // ⭐ REAL MC using bonding curve formula
-        const virtualSol = token.virtualSolReserves ?? 0;
-        const virtualToken = token.virtualTokenReserves ?? 0;
-        const mcUsd = virtualToken > 0
-          ? ((virtualSol * 1_000_000_000) / (virtualToken / 1e9) / 1e9) * (solPriceUsd || 0)
-          : 0;
-        const volumeUsd = lamportsToUsd(token.totalTradeVolume ?? 0);
+        // ⭐ SOL-based progress (price independent!)
+        const solCollected = lamportsToSol(token.realSolReserves ?? 0);
+        const volumeSol = lamportsToSol(token.totalTradeVolume ?? 0);
 
         // Calculate progress toward victory
-        const mcProgress = Math.min((mcUsd / VICTORY_MC_USD) * 100, 100);
-        const volProgress = Math.min((volumeUsd / VICTORY_VOLUME_USD) * 100, 100);
-        const avgProgress = (mcProgress + volProgress) / 2;
+        const solProgress = Math.min((solCollected / TARGET_SOL) * 100, 100);
+        const volProgress = Math.min((volumeSol / VICTORY_VOLUME_SOL) * 100, 100);
+        const avgProgress = (solProgress + volProgress) / 2;
 
-        return { token, avgProgress, mcProgress, volProgress };
+        return { token, avgProgress, solProgress, volProgress };
       })
       .filter(({ avgProgress }) => avgProgress >= 50) // At least 50% progress
       .sort((a, b) => b.avgProgress - a.avgProgress)
       .map(({ token }) => token);
-  }, [allTokens, solPriceUsd]);
+  }, [allTokens]);
 
   const getFilteredTokens = (): ParsedTokenBattleState[] => {
     if (activeFilter === 'battle') return [];
@@ -200,15 +185,15 @@ export function TokenGridBonk() {
     return mcInUsd;
   };
 
-  // ⭐ Convert token state to BattleCard format with REAL USD values
+  // ⭐ Convert token state to BattleCard format (SOL-based!)
   const toBattleToken = (token: ParsedTokenBattleState) => ({
     mint: token.mint.toString(),
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
     image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token),
-    volumeUsd: lamportsToUsd(token.totalTradeVolume ?? 0),
-    solCollected: (token.realSolReserves ?? 0) / 1e9 // Use realSolReserves
+    marketCapUsd: calculateMarketCapUsd(token), // Still useful for display
+    solCollected: lamportsToSol(token.realSolReserves ?? 0),
+    totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
   });
 
   // Count for display
@@ -310,8 +295,8 @@ export function TokenGridBonk() {
                 key={`${pair.tokenA.mint}-${pair.tokenB.mint}-${idx}`}
                 tokenA={toBattleToken(pair.tokenA)}
                 tokenB={toBattleToken(pair.tokenB)}
-                targetMC={VICTORY_MC_USD}
-                targetVol={VICTORY_VOLUME_USD}
+                targetSol={TARGET_SOL}
+                targetVolumeSol={VICTORY_VOLUME_SOL}
                 winner={pair.winner}
               />
             ))}

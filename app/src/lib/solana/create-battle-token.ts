@@ -23,36 +23,20 @@ const CREATE_BATTLE_TOKEN_DISCRIMINATOR = Buffer.from([
   251, 0, 33, 123, 229, 128, 151, 242
 ]);
 
-/**
- * Battle Tier enum
- * Must match the on-chain Rust enum
- */
-export enum BattleTier {
-  Test = 0,        // Devnet testing - lower thresholds
-  Production = 1,  // Mainnet - full thresholds
-}
+// ⚠️ TIER is now compile-time in contract (USE_TEST_TIER flag)
+// Import from constants.ts for consistency
+import { TIER_CONFIG, USE_TEST_TIER } from './constants';
+
+// Re-export for backwards compatibility
+export { TIER_CONFIG, USE_TEST_TIER };
 
 /**
- * Tier configuration details
+ * Battle Tier enum (for reference only - contract uses compile-time flag)
  */
-export const TIER_CONFIG = {
-  [BattleTier.Test]: {
-    name: 'Test',
-    description: 'For testing on devnet',
-    initialMcUsd: 280,
-    victoryMcUsd: 5500,
-    victoryVolumeUsd: 200,
-    targetSol: 28,
-  },
-  [BattleTier.Production]: {
-    name: 'Production',
-    description: 'For mainnet battles',
-    initialMcUsd: 1270,
-    victoryMcUsd: 25000,
-    victoryVolumeUsd: 20000,
-    targetSol: 127,
-  },
-};
+export enum BattleTier {
+  Test = 0,
+  Production = 1,
+}
 
 /**
  * Serializes a string with 4-byte length prefix (Rust String format)
@@ -79,14 +63,7 @@ function validateTokenMetadata(name: string, symbol: string, uri: string): void 
   }
 }
 
-/**
- * Validates tier value
- */
-function validateTier(tier: number): void {
-  if (tier !== 0 && tier !== 1) {
-    throw new Error('InvalidTier: must be 0 (Test) or 1 (Production)');
-  }
-}
+// ⚠️ validateTier removed - tier is now compile-time in contract
 
 /**
  * Create Battle Token Response
@@ -118,8 +95,9 @@ export interface CreateBattleTokenResult {
  * @param symbol - Token symbol (1-10 characters)
  * @param uri - Token metadata URI (max 200 characters)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
- * @param tier - Battle tier: 0 = Test (devnet), 1 = Production (mainnet)
  * @returns Promise resolving to transaction signature, mint, and battle state
+ *
+ * NOTE: Tier is now compile-time in the contract (USE_TEST_TIER flag in constants.ts)
  *
  * @throws Error if validation fails or transaction fails
  *
@@ -130,8 +108,7 @@ export interface CreateBattleTokenResult {
  *   'My Battle Token',
  *   'BATTLE',
  *   'https://arweave.net/...',
- *   wallet.signTransaction,
- *   BattleTier.Test  // or 0
+ *   wallet.signTransaction
  * );
  * console.log('Mint:', result.mint.toString());
  * console.log('Signature:', result.signature);
@@ -142,27 +119,27 @@ export async function createBattleToken(
   name: string,
   symbol: string,
   uri: string,
-  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
-  tier: number = BattleTier.Test  // Default: Test tier
+  signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>
 ): Promise<CreateBattleTokenResult> {
+  // ⚠️ Tier is now compile-time in contract (USE_TEST_TIER flag)
+  const currentTier = USE_TEST_TIER ? BattleTier.Test : BattleTier.Production;
+  const tierConfig = TIER_CONFIG[USE_TEST_TIER ? 'TEST' : 'PRODUCTION'];
+
   console.log('🎮 Starting create battle token transaction...');
   console.log('📋 Token Details:');
   console.log('  Name:', name);
   console.log('  Symbol:', symbol);
   console.log('  URI:', uri);
   console.log('  Creator:', wallet.toString());
-  console.log('  Tier:', tier === 0 ? '🧪 Test' : '🚀 Production');
-
-  const tierConfig = TIER_CONFIG[tier as BattleTier];
-  console.log('📊 Tier Config:');
-  console.log('  Initial MC:', `$${tierConfig.initialMcUsd}`);
-  console.log('  Victory MC:', `$${tierConfig.victoryMcUsd}`);
-  console.log('  Victory Volume:', `$${tierConfig.victoryVolumeUsd}`);
+  console.log('  Tier:', USE_TEST_TIER ? '🧪 Test (compile-time)' : '🚀 Production (compile-time)');
+  console.log('📊 Tier Config (SOL-based):');
+  console.log('  Target SOL:', tierConfig.TARGET_SOL);
+  console.log('  Victory Volume SOL:', tierConfig.VICTORY_VOLUME_SOL);
+  console.log('  Qualification SOL:', tierConfig.QUALIFICATION_SOL);
 
   // Validate input
   try {
     validateTokenMetadata(name, symbol, uri);
-    validateTier(tier);
   } catch (error) {
     console.error('❌ Validation error:', error);
     throw error;
@@ -202,19 +179,19 @@ export async function createBattleToken(
     console.log('📍 Price Oracle PDA:', priceOraclePDA.toString(), `(bump: ${priceOracleBump})`);
 
     // ========================================================================
-    // Step 3: Build instruction data (V2 - includes tier!)
+    // Step 3: Build instruction data (V3 - tier is compile-time, not passed!)
     // ========================================================================
     const nameData = serializeString(name);
     const symbolData = serializeString(symbol);
     const uriData = serializeString(uri);
-    const tierData = Buffer.from([tier]); // u8: 0 = Test, 1 = Production
+    // ⚠️ tierData removed - tier is now compile-time in contract
 
     const instructionData = Buffer.concat([
       CREATE_BATTLE_TOKEN_DISCRIMINATOR,
       nameData,
       symbolData,
       uriData,
-      tierData,  // NEW in V2!
+      // ⚠️ No tier byte - contract uses USE_TEST_TIER compile-time flag
     ]);
 
     console.log('📦 Instruction data size:', instructionData.length, 'bytes');
@@ -315,14 +292,14 @@ export async function createBattleToken(
 
     console.log('✅ Transaction confirmed!');
     console.log('🎮 Battle token created successfully!');
-    console.log(`⚔️ Tier: ${tier === 0 ? 'Test' : 'Production'}`);
+    console.log(`⚔️ Tier: ${USE_TEST_TIER ? 'Test' : 'Production'} (compile-time)`);
 
     return {
       signature,
       mint: mintKeypair.publicKey,
       battleState: battleStatePDA,
       mintKeypair,
-      tier: tier as BattleTier,
+      tier: currentTier,
     };
 
   } catch (error: unknown) {

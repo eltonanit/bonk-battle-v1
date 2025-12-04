@@ -39,6 +39,11 @@ import { getBattleStatePDA } from '@/lib/solana/pdas';
 import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
 import { queryKeys } from '@/lib/queryClient';
 import { BattleStatus, BattleTier } from '@/types/bonk';
+import {
+  lamportsToSol,
+  calculateSolProgress,
+  calculateVolumeProgress,
+} from '@/lib/solana/constants';
 
 /**
  * Parsed Token Battle State V2 - matches on-chain structure
@@ -65,6 +70,11 @@ export interface ParsedTokenBattleState {
   symbol: string;
   uri: string;
   image?: string;
+  // V3: Computed SOL-based progress
+  solCollectedSol?: number;
+  totalVolumeSol?: number;
+  solProgress?: number;
+  volumeProgress?: number;
 }
 
 /**
@@ -141,6 +151,11 @@ async function fetchTokenBattleState(
         symbol,
         uri: tokenData.uri || '',
         image: image || undefined,
+        // V3: Computed SOL-based progress
+        solCollectedSol: lamportsToSol(Number(tokenData.real_sol_reserves || 0)),
+        totalVolumeSol: lamportsToSol(Number(tokenData.total_trade_volume || 0)),
+        solProgress: calculateSolProgress(lamportsToSol(Number(tokenData.real_sol_reserves || 0))),
+        volumeProgress: calculateVolumeProgress(lamportsToSol(Number(tokenData.total_trade_volume || 0))),
       };
     }
 
@@ -293,9 +308,14 @@ async function fetchTokenBattleState(
           symbol,
           uri,
           image,
+          // V3: Computed SOL-based progress
+          solCollectedSol: lamportsToSol(realSolReserves),
+          totalVolumeSol: lamportsToSol(totalTradeVolume),
+          solProgress: calculateSolProgress(lamportsToSol(realSolReserves)),
+          volumeProgress: calculateVolumeProgress(lamportsToSol(totalTradeVolume)),
         };
 
-        console.log('✅ Battle State V2 fetched from RPC:', {
+        console.log('✅ Battle State V3 fetched from RPC:', {
           name: parsedState.name,
           symbol: parsedState.symbol,
           tier: parsedState.tier,
