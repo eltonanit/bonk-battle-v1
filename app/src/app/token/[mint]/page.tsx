@@ -145,7 +145,7 @@ export default function TokenDetailPage() {
     return (
       <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4 animate-bounce">💎</div>
+          <img src="/BONK-LOGO.svg" alt="Loading" className="w-16 h-16 mx-auto mb-4 animate-bounce" />
           <div className="text-xl font-bold">Loading token data...</div>
         </div>
       </div>
@@ -213,6 +213,7 @@ export default function TokenDetailPage() {
                   name: state.name || mintAddress.slice(0, 8) + '...',
                   symbol: state.symbol || 'UNK',
                   metadataUri: state.uri || '',
+                  creator: state.creatorWallet || null,
                   createdAt: state.creationTimestamp,
                   mint: mintAddress,
                   marketCapUsd: marketCapUsd ?? undefined

@@ -29,7 +29,7 @@ export function MobileBottomNav() {
           <Link
             href="/"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/') && pathname === '/'
-                ? 'text-white bg-white/10'
+                ? 'text-orange-400 bg-orange-500/20'
                 : 'text-white/60'
               }`}
           >
@@ -46,7 +46,7 @@ export function MobileBottomNav() {
           <Link
             href="/create"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
-                ? 'text-white bg-white/10'
+                ? 'text-orange-400 bg-orange-500/20'
                 : 'text-white/60'
               }`}
           >
@@ -78,7 +78,7 @@ export function MobileBottomNav() {
           <Link
             href="/profile"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
-                ? 'text-white bg-white/10'
+                ? 'text-orange-400 bg-orange-500/20'
                 : 'text-white/60'
               }`}
           >
@@ -95,7 +95,7 @@ export function MobileBottomNav() {
           <Link
             href="/winners"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/winners')
-                ? 'text-white bg-white/10'
+                ? 'text-orange-400 bg-orange-500/20'
                 : 'text-white/60'
               }`}
           >

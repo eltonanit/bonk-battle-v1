@@ -70,6 +70,7 @@ export interface ParsedTokenBattleState {
   symbol: string;
   uri: string;
   image?: string;
+  creatorWallet?: string; // Creator wallet address from Supabase
   // V3: Computed SOL-based progress
   solCollectedSol?: number;
   totalVolumeSol?: number;
@@ -132,12 +133,12 @@ async function fetchTokenBattleState(
       return {
         mint: new PublicKey(tokenData.mint),
         tier: (tokenData.tier ?? 0) as BattleTier,
-        virtualSolReserves: Number(tokenData.virtual_sol_reserves || 0),
-        virtualTokenReserves: Number(tokenData.virtual_token_reserves || 0),
-        realSolReserves: Number(tokenData.real_sol_reserves || 0),
-        realTokenReserves: Number(tokenData.real_token_reserves || 0),
-        tokensSold: Number(tokenData.tokens_sold || 0),
-        totalTradeVolume: Number(tokenData.total_trade_volume || 0),
+        virtualSolReserves: parseFloat(tokenData.virtual_sol_reserves) || 0,
+        virtualTokenReserves: parseFloat(tokenData.virtual_token_reserves) || 0,
+        realSolReserves: parseFloat(tokenData.real_sol_reserves) || 0,
+        realTokenReserves: parseFloat(tokenData.real_token_reserves) || 0,
+        tokensSold: parseFloat(tokenData.tokens_sold) || 0,
+        totalTradeVolume: parseFloat(tokenData.total_trade_volume) || 0,
         isActive: tokenData.is_active ?? true,
         battleStatus: (tokenData.battle_status ?? 0) as BattleStatus,
         opponentMint: new PublicKey(tokenData.opponent_mint || PublicKey.default.toString()),
@@ -151,6 +152,7 @@ async function fetchTokenBattleState(
         symbol,
         uri: tokenData.uri || '',
         image: image || undefined,
+        creatorWallet: tokenData.creator_wallet || undefined,
         // V3: Computed SOL-based progress
         solCollectedSol: lamportsToSol(Number(tokenData.real_sol_reserves || 0)),
         totalVolumeSol: lamportsToSol(Number(tokenData.total_trade_volume || 0)),
@@ -418,13 +420,26 @@ export function calculateMarketCapFromReserves(
   solPriceUsd: number,
   totalSupply: number = TOTAL_SUPPLY
 ): number {
-  if (virtualTokenReserves === 0) return 0;
+  if (virtualTokenReserves === 0 || virtualSolReserves === 0) return 0;
 
-  // MC in lamports = (virtualSolReserves * totalSupply) / virtualTokenReserves
-  const mcLamports = (virtualSolReserves * totalSupply) / virtualTokenReserves;
+  // Price per token in SOL (lamports / token base units)
+  const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
 
-  // Convert to USD: mcLamports / 1e9 (lamports to SOL) * solPriceUsd / 1e6 (price has 6 decimals)
-  const mcUsd = (mcLamports / 1e9) * (solPriceUsd / 1e6);
+  // MC in SOL = price per token * total supply
+  const mcLamports = pricePerTokenLamports * totalSupply;
+
+  // Convert lamports to SOL, then to USD
+  // solPriceUsd is already in USD (e.g., 137.47)
+  const mcUsd = (mcLamports / 1e9) * solPriceUsd;
+
+  console.log('📊 MC Calculation:', {
+    virtualSolReserves,
+    virtualTokenReserves,
+    pricePerTokenLamports,
+    mcLamports,
+    solPriceUsd,
+    mcUsd
+  });
 
   return mcUsd;
 }
@@ -442,8 +457,8 @@ export function calculatePricePerToken(
   // Price per token in lamports
   const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
 
-  // Convert to USD
-  const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * (solPriceUsd / 1e6);
+  // Convert to USD - solPriceUsd is already in USD (e.g., 137.47)
+  const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * solPriceUsd;
 
   return pricePerTokenUsd;
 }

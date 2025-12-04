@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PublicKey } from '@solana/web3.js';
@@ -73,6 +73,12 @@ interface Metadata {
   description?: string;
 }
 
+interface CreatorProfile {
+  wallet: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
 interface TokenHeroProps {
   token: {
     name: string;
@@ -93,6 +99,8 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
   const { metadata: fetchedMetadata } = useTokenMetadata(token.mint);
   const [imageError, setImageError] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
+  const [avatarError, setAvatarError] = useState(false);
 
   // Use preloaded metadata if available, otherwise use fetched metadata
   const metadata = preloadedMetadata || fetchedMetadata;
@@ -101,17 +109,39 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
   const displaySymbol = metadata?.symbol || token.symbol || 'UNK';
   const imageUrl = metadata?.image || '';
 
+  // Get creator wallet address
+  const creatorWallet = token.creator
+    ? (typeof token.creator === 'string' ? token.creator : token.creator.toString())
+    : null;
+
+  // Fetch creator profile
+  useEffect(() => {
+    if (!creatorWallet) return;
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`/api/user/profile?wallet=${creatorWallet}`);
+        const data = await res.json();
+        if (data.success && data.profile) {
+          setCreatorProfile(data.profile);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch creator profile:', err);
+      }
+    };
+
+    fetchProfile();
+  }, [creatorWallet]);
+
   // Use consistent emoji based on mint address (not random)
   const emojiIndex = token.mint ?
     token.mint.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % EMOJI_FALLBACKS.length :
     0;
   const fallbackEmoji = EMOJI_FALLBACKS[emojiIndex];
 
-  const creatorDisplay = token.creator
-    ? (typeof token.creator === 'string'
-      ? `${token.creator.slice(0, 4)}...${token.creator.slice(-4)}`
-      : `${token.creator.toString().slice(0, 4)}...${token.creator.toString().slice(-4)}`)
-    : 'Unknown';
+  // Display name: username if available, otherwise shortened address
+  const creatorDisplayName = creatorProfile?.username
+    || (creatorWallet ? `${creatorWallet.slice(0, 4)}...${creatorWallet.slice(-4)}` : 'Unknown');
 
   // Time since creation
   let createdDisplay = 'Just now';
@@ -135,22 +165,11 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
       />
 
       <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-4">
-        <div className="flex items-start gap-3">
-          {/* Share Button - Top left, light green */}
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex-shrink-0"
-            title="Share"
-          >
-            <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-          </button>
-
-          {/* Token Image + MC under it */}
-          <div className="flex flex-col items-center">
+        <div className="flex items-start gap-4">
+          {/* Token Image with border */}
+          <div className="flex flex-col items-center flex-shrink-0">
             <div
-              className="w-16 h-16 rounded-lg flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden"
+              className="w-20 h-20 rounded-xl flex items-center justify-center text-3xl overflow-hidden border-2 border-bonk-border"
               style={{
                 background: imageUrl && !imageError
                   ? 'transparent'
@@ -161,8 +180,8 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
                 <Image
                   src={imageUrl}
                   alt={displayName}
-                  width={64}
-                  height={64}
+                  width={80}
+                  height={80}
                   className="w-full h-full object-cover"
                   onError={() => setImageError(true)}
                   priority
@@ -171,44 +190,93 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
                 <span>{fallbackEmoji}</span>
               )}
             </div>
-            {/* MC under photo */}
-            {token.marketCapUsd !== undefined && (
-              <div className="mt-2 text-center">
-                <div className="text-xs text-gray-500">MC</div>
-                <div className="text-sm font-bold text-green-400">
-                  ${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                </div>
+            {/* MC under photo - DYNAMIC */}
+            <div className="mt-2 text-center">
+              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Market Cap</div>
+              <div className="text-lg font-bold text-white">
+                {token.marketCapUsd !== undefined && token.marketCapUsd !== null
+                  ? `$${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                  : '...'
+                }
               </div>
-            )}
+            </div>
           </div>
 
           {/* Token Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between mb-1">
+            {/* Top row: Name + Ticker + Share button */}
+            <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Symbol as main title */}
-                <h1 className="text-xl font-bold text-white">${displaySymbol}</h1>
+                {/* Token Name */}
+                <h1 className="text-xl font-bold text-white">{displayName}</h1>
+                {/* Ticker badge */}
+                <span className="px-2 py-0.5 bg-bonk-border rounded text-sm text-gray-300 font-medium">
+                  ${displaySymbol}
+                </span>
                 {/* In Battle button */}
                 {battleId && (
                   <Link
                     href={`/battle/${battleId}`}
                     className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors"
                   >
-                    ⚔️ In battle: view match
+                    ⚔️ In battle
                   </Link>
                 )}
               </div>
-              {/* Time ago in top right */}
-              <span className="text-sm text-gray-400 whitespace-nowrap ml-2">
-                {createdDisplay}
-              </span>
+
+              {/* Share button - top right, responsive */}
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex-shrink-0 ml-2"
+                title="Share"
+              >
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                {/* Text visible only on desktop (>600px) */}
+                <span className="hidden sm:inline text-sm font-medium text-emerald-400">Share</span>
+              </button>
             </div>
 
-            {/* Name and creator info */}
-            <div className="text-sm text-gray-400">
-              <span className="text-gray-300">{displayName}</span>
-              <span className="mx-2">•</span>
-              <span>{creatorDisplay}</span>
+            {/* Created by row: avatar + username/address + time ago */}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="text-gray-500">Created by</span>
+
+              {/* Creator avatar + name (clickable) */}
+              {creatorWallet ? (
+                <Link
+                  href={`/profile/${creatorWallet}`}
+                  className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+                >
+                  {/* Avatar */}
+                  <div className="w-5 h-5 rounded-full overflow-hidden bg-bonk-border flex items-center justify-center">
+                    {creatorProfile?.avatar_url && !avatarError ? (
+                      <Image
+                        src={creatorProfile.avatar_url}
+                        alt={creatorDisplayName}
+                        width={20}
+                        height={20}
+                        className="w-full h-full object-cover"
+                        onError={() => setAvatarError(true)}
+                      />
+                    ) : (
+                      <span className="text-[10px] text-gray-400">
+                        {creatorDisplayName.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  {/* Username or address */}
+                  <span className="text-emerald-400 hover:text-emerald-300 font-medium">
+                    {creatorDisplayName}
+                  </span>
+                </Link>
+              ) : (
+                <span className="text-gray-500">Unknown</span>
+              )}
+
+              {/* Time ago */}
+              <span className="text-gray-500">•</span>
+              <span className="text-gray-400">{createdDisplay}</span>
             </div>
           </div>
         </div>

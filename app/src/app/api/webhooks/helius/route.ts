@@ -394,6 +394,18 @@ export async function POST(request: NextRequest) {
                     metadata: { signature: event.signature }
                 });
                 activitiesLogged++;
+
+                // Save creator wallet to token record
+                const { error: creatorError } = await supabase
+                    .from('tokens')
+                    .update({ creator_wallet: event.feePayer })
+                    .eq('mint', detected.tokenMint);
+
+                if (creatorError) {
+                    console.warn(`⚠️ Could not update creator_wallet for ${detected.tokenMint.slice(0, 8)}...`);
+                } else {
+                    console.log(`👤 Creator saved: ${event.feePayer.slice(0, 6)}... for ${detected.tokenMint.slice(0, 8)}...`);
+                }
             }
         }
 

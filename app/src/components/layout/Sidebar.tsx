@@ -125,8 +125,8 @@ export function Sidebar() {
             className={
               isActive(item.href)
                 ? item.href === '/winners'
-                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-yellow-500/20 text-yellow-400 relative'
-                  : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-bonk-gray-orange text-white relative'
+                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
+                  : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
                 : item.href === '/winners'
                   ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 relative'
                   : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white hover:text-white hover:bg-bonk-card/50 relative'
