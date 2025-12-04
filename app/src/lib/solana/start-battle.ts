@@ -1,8 +1,9 @@
 /**
- * BONK BATTLE V2 - Start Battle Function
+ * BONK BATTLE V1 - Start Battle Function
  * KEEPER ONLY: Requires KEEPER_AUTHORITY to sign
  * 
- * FIXED: Added price_oracle account required by deployed contract
+ * ⚠️ FIXED: Uses V1 struct offsets matching deployed contract
+ * The deployed contract does NOT have tier field!
  */
 
 import {
@@ -19,9 +20,23 @@ const KEEPER_AUTHORITY = new PublicKey('753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7
 // Anchor discriminator for start_battle
 const START_BATTLE_DISCRIMINATOR = Buffer.from([87, 12, 31, 196, 33, 191, 140, 147]);
 
-// V2 ACCOUNT STRUCTURE OFFSETS
-const OFFSET_TIER = 40;
-const OFFSET_BATTLE_STATUS = 90;
+// ═══════════════════════════════════════════════════════════════════════════
+// V1 ACCOUNT STRUCTURE OFFSETS (DEPLOYED CONTRACT)
+// ═══════════════════════════════════════════════════════════════════════════
+// pub struct TokenBattleState {
+//     pub mint: Pubkey,                    // 32 bytes (offset 8-40)
+//     pub sol_collected: u64,              // 8 bytes  (offset 40-48)
+//     pub tokens_sold: u64,                // 8 bytes  (offset 48-56)
+//     pub total_trade_volume: u64,         // 8 bytes  (offset 56-64)
+//     pub is_active: bool,                 // 1 byte   (offset 64)
+//     pub battle_status: BattleStatus,     // 1 byte   (offset 65)
+//     pub opponent_mint: Pubkey,           // 32 bytes (offset 66-98)
+//     ... timestamps and strings follow
+// }
+// ═══════════════════════════════════════════════════════════════════════════
+
+const OFFSET_IS_ACTIVE = 64;      // V1: is_active at offset 64
+const OFFSET_BATTLE_STATUS = 65;  // V1: battle_status at offset 65
 
 export interface StartBattleResult {
   success: boolean;
@@ -38,22 +53,23 @@ function getBattleStatePDA(mint: PublicKey): [PublicKey, number] {
   );
 }
 
-function getPriceOraclePDA(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from('price_oracle')],
-    BONK_BATTLE_PROGRAM_ID
-  );
-}
+// Note: StartBattle does NOT require price_oracle account
 
-function parseTokenState(data: Buffer): {
-  tier: number;
+/**
+ * Parse V1 token state from account data
+ * V1 does NOT have tier field - all tokens are implicitly TEST tier
+ */
+function parseTokenStateV1(data: Buffer): {
   battleStatus: number;
   isActive: boolean;
 } {
+  // Skip 8-byte discriminator
+  const isActive = data[OFFSET_IS_ACTIVE] === 1;
+  const battleStatus = data[OFFSET_BATTLE_STATUS];
+
   return {
-    tier: data[OFFSET_TIER],
-    battleStatus: data[OFFSET_BATTLE_STATUS],
-    isActive: data[89] === 1,
+    battleStatus,
+    isActive,
   };
 }
 
@@ -67,7 +83,7 @@ export async function startBattle(
   tokenAMint: PublicKey,
   tokenBMint: PublicKey
 ): Promise<StartBattleResult> {
-  console.log('⚔️ START BATTLE');
+  console.log('⚔️ START BATTLE (V1)');
   console.log('Token A:', tokenAMint.toString());
   console.log('Token B:', tokenBMint.toString());
 
@@ -96,17 +112,14 @@ export async function startBattle(
   try {
     const [tokenAStatePDA] = getBattleStatePDA(tokenAMint);
     const [tokenBStatePDA] = getBattleStatePDA(tokenBMint);
-    const [priceOraclePDA] = getPriceOraclePDA();
 
     console.log('Token A PDA:', tokenAStatePDA.toString());
     console.log('Token B PDA:', tokenBStatePDA.toString());
-    console.log('Price Oracle PDA:', priceOraclePDA.toString());
 
-    // Fetch all accounts
-    const [tokenAInfo, tokenBInfo, priceOracleInfo] = await Promise.all([
+    // Fetch token accounts (StartBattle does NOT require price_oracle)
+    const [tokenAInfo, tokenBInfo] = await Promise.all([
       connection.getAccountInfo(tokenAStatePDA),
       connection.getAccountInfo(tokenBStatePDA),
-      connection.getAccountInfo(priceOraclePDA),
     ]);
 
     if (!tokenAInfo) {
@@ -115,42 +128,36 @@ export async function startBattle(
     if (!tokenBInfo) {
       return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: `Token B state not found on-chain` };
     }
-    if (!priceOracleInfo) {
-      return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: `Price oracle not found on-chain` };
-    }
 
-    // Parse states with V2 offsets
-    const stateA = parseTokenState(tokenAInfo.data as Buffer);
-    const stateB = parseTokenState(tokenBInfo.data as Buffer);
+    // Parse states with V1 offsets
+    const stateA = parseTokenStateV1(tokenAInfo.data as Buffer);
+    const stateB = parseTokenStateV1(tokenBInfo.data as Buffer);
 
-    console.log('Token A state:', stateA);
-    console.log('Token B state:', stateB);
+    console.log('Token A state (V1):', stateA);
+    console.log('Token B state (V1):', stateB);
 
     // Validate battle conditions
+    // BattleStatus: 0=Created, 1=Qualified, 2=InBattle, 3=VictoryPending, 4=Won, 5=Lost
     if (stateA.battleStatus !== 1) {
       return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: `Token A not qualified (status: ${stateA.battleStatus})` };
     }
     if (stateB.battleStatus !== 1) {
       return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: `Token B not qualified (status: ${stateB.battleStatus})` };
     }
-    if (stateA.tier !== stateB.tier) {
-      return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: `Tier mismatch: A=${stateA.tier}, B=${stateB.tier}` };
-    }
+    // V1: No tier check needed - all tokens are same tier (TEST)
     if (!stateA.isActive || !stateB.isActive) {
       return { success: false, signature: '', tokenA: tokenAMint, tokenB: tokenBMint, error: 'One or both tokens are not active' };
     }
 
-    // Build instruction with price_oracle
+    // Build instruction - NO price_oracle needed for StartBattle!
     // Account order must match the contract's StartBattle struct:
-    // 1. token_a_state
-    // 2. token_b_state
-    // 3. price_oracle
-    // 4. keeper_authority
-    // 5. system_program
+    // 1. token_a_state (writable)
+    // 2. token_b_state (writable)
+    // 3. keeper_authority (signer)
+    // 4. system_program
     const keys = [
       { pubkey: tokenAStatePDA, isSigner: false, isWritable: true },
       { pubkey: tokenBStatePDA, isSigner: false, isWritable: true },
-      { pubkey: priceOraclePDA, isSigner: false, isWritable: false },
       { pubkey: keeperKeypair.publicKey, isSigner: true, isWritable: false },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
@@ -205,7 +212,7 @@ export async function startBattle(
       } else if (errorMessage.includes('Unauthorized') || errorMessage.includes('0x1774')) {
         errorMessage = 'Unauthorized: Only keeper can start battles';
       } else if (errorMessage.includes('AccountOwnedByWrongProgram')) {
-        errorMessage = 'Account ownership mismatch - check price_oracle PDA';
+        errorMessage = 'Account ownership mismatch - check PDA derivation';
       }
     }
 
@@ -214,13 +221,13 @@ export async function startBattle(
 }
 
 /**
- * Check if two tokens can battle each other
+ * Check if two tokens can battle each other (V1 version)
  */
 export async function canTokensBattle(
   connection: Connection,
   tokenAMint: PublicKey,
   tokenBMint: PublicKey
-): Promise<{ canBattle: boolean; reason?: string; details?: { tierA: number; tierB: number; statusA: number; statusB: number } }> {
+): Promise<{ canBattle: boolean; reason?: string; details?: { statusA: number; statusB: number; activeA: boolean; activeB: boolean } }> {
   try {
     const [tokenAStatePDA] = getBattleStatePDA(tokenAMint);
     const [tokenBStatePDA] = getBattleStatePDA(tokenBMint);
@@ -234,18 +241,18 @@ export async function canTokensBattle(
       return { canBattle: false, reason: 'One or both tokens do not exist on-chain' };
     }
 
-    // Parse with V2 offsets
-    const stateA = parseTokenState(tokenAInfo.data as Buffer);
-    const stateB = parseTokenState(tokenBInfo.data as Buffer);
+    // Parse with V1 offsets
+    const stateA = parseTokenStateV1(tokenAInfo.data as Buffer);
+    const stateB = parseTokenStateV1(tokenBInfo.data as Buffer);
 
     const details = {
-      tierA: stateA.tier,
-      tierB: stateB.tier,
       statusA: stateA.battleStatus,
       statusB: stateB.battleStatus,
+      activeA: stateA.isActive,
+      activeB: stateB.isActive,
     };
 
-    console.log(`🔍 canTokensBattle check:`, details);
+    console.log(`🔍 canTokensBattle V1 check:`, details);
 
     // Check battle status (1 = Qualified)
     if (stateA.battleStatus !== 1) {
@@ -255,10 +262,7 @@ export async function canTokensBattle(
       return { canBattle: false, reason: `Token B not qualified (status: ${stateB.battleStatus})`, details };
     }
 
-    // Check same tier
-    if (stateA.tier !== stateB.tier) {
-      return { canBattle: false, reason: `Tier mismatch: Token A is tier ${stateA.tier}, Token B is tier ${stateB.tier}`, details };
-    }
+    // V1: No tier check - all tokens are implicitly TEST tier
 
     // Check active
     if (!stateA.isActive || !stateB.isActive) {

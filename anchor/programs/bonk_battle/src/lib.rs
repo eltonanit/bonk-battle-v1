@@ -278,9 +278,16 @@ pub mod bonk_battle {
             BonkError::TradingInactive
         );
 
-        // ⭐ SOL-BASED GRADUATION CHECK
+        // ⭐ FIX: SOL-BASED GRADUATION CHECK (uses NET amount after fee)
+        let fee_for_check = sol_amount
+            .checked_mul(TRADING_FEE_BPS)
+            .ok_or(BonkError::MathOverflow)?
+            .checked_div(10000)
+            .ok_or(BonkError::MathOverflow)?;
+        let net_amount_for_check = sol_amount.checked_sub(fee_for_check).ok_or(BonkError::MathOverflow)?;
+        
         let total_sol_after = ctx.accounts.token_battle_state.sol_collected
-            .checked_add(sol_amount)
+            .checked_add(net_amount_for_check)
             .ok_or(BonkError::MathOverflow)?;
         
         require!(
@@ -573,7 +580,9 @@ pub mod bonk_battle {
         let sol_collected = token_state.sol_collected;
         let total_volume = token_state.total_trade_volume;
 
-        let has_sol_victory = sol_collected >= TARGET_SOL;
+        // ⭐ FIX: 99.5% tolerance for edge cases (fee rounding near graduation)
+        let sol_threshold = TARGET_SOL.checked_mul(995).unwrap().checked_div(1000).unwrap();
+        let has_sol_victory = sol_collected >= sol_threshold;
         let has_volume_victory = total_volume >= VICTORY_VOLUME_SOL;
 
         // Calculate USD values only for logging/events (display only!)
@@ -597,7 +606,7 @@ pub mod bonk_battle {
             });
             
             msg!("🏆 VICTORY ACHIEVED!");
-            msg!("   SOL Collected: {}/{} ✅", 
+            msg!("   SOL Collected: {}/{} (threshold: 99.5%) ✅", 
                  sol_collected / 1_000_000_000, TARGET_SOL / 1_000_000_000);
             msg!("   Volume: {}/{} SOL ✅", 
                  total_volume / 1_000_000_000, VICTORY_VOLUME_SOL / 1_000_000_000);

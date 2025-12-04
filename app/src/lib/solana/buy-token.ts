@@ -1,5 +1,6 @@
 // src/lib/solana/buy-token.ts
 // BONK BATTLE V2 - Con min_tokens_out per slippage protection
+// ✅ FIX: Aggiunto isGraduationBuy per bypassare check $10 USD
 import {
   Connection,
   PublicKey,
@@ -61,6 +62,14 @@ export interface BuyTokenResult {
 }
 
 /**
+ * 🚀 NEW: Buy Token Options
+ */
+export interface BuyTokenOptions {
+  /** Skip the $10 USD minimum check - used for graduation buys */
+  isGraduationBuy?: boolean;
+}
+
+/**
  * Buys tokens from the BONK BATTLE bonding curve
  *
  * This function:
@@ -77,21 +86,18 @@ export interface BuyTokenResult {
  * @param solAmount - Amount of SOL to spend (in SOL, e.g., 0.1 for 0.1 SOL)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
  * @param minTokensOut - Minimum tokens to receive (slippage protection), default 0 = no slippage check
+ * @param options - Optional configuration (e.g., isGraduationBuy to skip $10 check)
  * @returns Promise resolving to transaction signature and amounts
  *
  * @throws Error if validation fails, insufficient balance, or transaction fails
  *
  * @example
  * ```typescript
- * const result = await buyToken(
- *   wallet.publicKey,
- *   new PublicKey('mint-address'),
- *   0.1, // 0.1 SOL
- *   wallet.signTransaction,
- *   0    // no slippage protection
- * );
- * console.log('Signature:', result.signature);
- * console.log('Spent:', result.solAmount / 1e9, 'SOL');
+ * // Normal buy
+ * const result = await buyToken(wallet.publicKey, mint, 0.1, signTransaction);
+ * 
+ * // Graduation buy (skips $10 minimum)
+ * const result = await buyToken(wallet.publicKey, mint, 0.008, signTransaction, 0, { isGraduationBuy: true });
  * ```
  */
 export async function buyToken(
@@ -99,14 +105,20 @@ export async function buyToken(
   mint: PublicKey,
   solAmount: number,
   signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
-  minTokensOut: number = 0  // V2: Slippage protection (0 = disabled)
+  minTokensOut: number = 0,  // V2: Slippage protection (0 = disabled)
+  options: BuyTokenOptions = {}  // 🚀 NEW: Options parameter
 ): Promise<BuyTokenResult> {
+  const { isGraduationBuy = false } = options;  // 🚀 NEW: Extract flag
+
   console.log('💰 Starting buy token transaction (V2)...');
   console.log('📋 Buy Details:');
   console.log('  Wallet:', wallet.toString());
   console.log('  Token Mint:', mint.toString());
   console.log('  SOL Amount:', solAmount, 'SOL');
   console.log('  Min Tokens Out:', minTokensOut, '(slippage protection)');
+  if (isGraduationBuy) {
+    console.log('  🚀 GRADUATION BUY: Skipping $10 minimum check');
+  }
 
   // Validate input
   if (solAmount <= 0) {
@@ -120,47 +132,51 @@ export async function buyToken(
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
   const lamports = Math.floor(solAmount * 1e9);
 
-  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION
-  try {
-    // Fetch price oracle to get SOL price in USD
-    const [priceOraclePDA] = getPriceOraclePDA();
-    const priceOracleInfo = await connection.getAccountInfo(priceOraclePDA);
+  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION (skipped if isGraduationBuy)
+  if (!isGraduationBuy) {  // 🚀 NEW: Skip check if graduation buy
+    try {
+      // Fetch price oracle to get SOL price in USD
+      const [priceOraclePDA] = getPriceOraclePDA();
+      const priceOracleInfo = await connection.getAccountInfo(priceOraclePDA);
 
-    if (priceOracleInfo) {
-      // Parse SOL price from oracle (u64 at offset 8, with 6 decimals)
-      const data = priceOracleInfo.data;
-      let solPriceUsdRaw = 0n;
-      for (let i = 0; i < 8; i++) {
-        solPriceUsdRaw |= BigInt(data[8 + i]) << BigInt(i * 8);
+      if (priceOracleInfo) {
+        // Parse SOL price from oracle (u64 at offset 8, with 6 decimals)
+        const data = priceOracleInfo.data;
+        let solPriceUsdRaw = 0n;
+        for (let i = 0; i < 8; i++) {
+          solPriceUsdRaw |= BigInt(data[8 + i]) << BigInt(i * 8);
+        }
+        const solPriceUsd = Number(solPriceUsdRaw) / 1_000_000;
+
+        // Calculate buy amount in USD
+        const buyAmountUsd = solAmount * solPriceUsd;
+
+        console.log(`💵 Buy amount: ${solAmount} SOL = $${buyAmountUsd.toFixed(2)} USD`);
+        console.log(`📊 SOL price: $${solPriceUsd.toFixed(2)}`);
+
+        // Minimum $10 USD required for qualification
+        const MIN_USD_FOR_QUALIFICATION = 10;
+
+        if (buyAmountUsd < MIN_USD_FOR_QUALIFICATION) {
+          const minSOL = MIN_USD_FOR_QUALIFICATION / solPriceUsd;
+          throw new Error(
+            `Minimum buy for qualification is $${MIN_USD_FOR_QUALIFICATION} USD ` +
+            `(~${minSOL.toFixed(3)} SOL at current price of $${solPriceUsd.toFixed(2)}/SOL)`
+          );
+        }
+
+        console.log(`✅ Buy amount meets qualification requirement ($${buyAmountUsd.toFixed(2)} >= $${MIN_USD_FOR_QUALIFICATION})`);
       }
-      const solPriceUsd = Number(solPriceUsdRaw) / 1_000_000;
-
-      // Calculate buy amount in USD
-      const buyAmountUsd = solAmount * solPriceUsd;
-
-      console.log(`💵 Buy amount: ${solAmount} SOL = $${buyAmountUsd.toFixed(2)} USD`);
-      console.log(`📊 SOL price: $${solPriceUsd.toFixed(2)}`);
-
-      // Minimum $10 USD required for qualification
-      const MIN_USD_FOR_QUALIFICATION = 10;
-
-      if (buyAmountUsd < MIN_USD_FOR_QUALIFICATION) {
-        const minSOL = MIN_USD_FOR_QUALIFICATION / solPriceUsd;
-        throw new Error(
-          `Minimum buy for qualification is $${MIN_USD_FOR_QUALIFICATION} USD ` +
-          `(~${minSOL.toFixed(3)} SOL at current price of $${solPriceUsd.toFixed(2)}/SOL)`
-        );
+    } catch (err) {
+      // If oracle check fails, log but continue (backwards compatibility)
+      console.warn('⚠️ Could not verify USD amount against price oracle:', err);
+      // Re-throw if it's our custom minimum USD error
+      if (err instanceof Error && err.message.includes('Minimum buy for qualification')) {
+        throw err;
       }
-
-      console.log(`✅ Buy amount meets qualification requirement ($${buyAmountUsd.toFixed(2)} >= $${MIN_USD_FOR_QUALIFICATION})`);
     }
-  } catch (err) {
-    // If oracle check fails, log but continue (backwards compatibility)
-    console.warn('⚠️ Could not verify USD amount against price oracle:', err);
-    // Re-throw if it's our custom minimum USD error
-    if (err instanceof Error && err.message.includes('Minimum buy for qualification')) {
-      throw err;
-    }
+  } else {
+    console.log('🚀 Graduation buy - skipping $10 USD qualification check');
   }
 
   try {
@@ -392,17 +408,19 @@ export async function buyToken(
       throw new Error('Insufficient liquidity in pool');
     } else if (errorMessage.includes('0x1784')) { // 6020 - InvalidTreasury
       throw new Error('Invalid treasury wallet address');
-    } else if (errorMessage.includes('0x1786')) { // 6022 - MathOverflow
-      throw new Error('Mathematical overflow in calculation');
     } else if (errorMessage.includes('0x1787')) { // 6023 - InvalidCurveState
       throw new Error('Invalid bonding curve state');
     } else if (
-      errorMessage.includes('0x1788') ||
+      errorMessage.includes('0x1786') ||  // 6022 - WouldExceedGraduation
+      errorMessage.includes('0x1788') ||  // 6024 - backup
       errorMessage.includes('WouldExceedGraduation') ||
+      errorMessage.includes('6022') ||
       errorMessage.includes('6024')
     ) {
-      // 6024 - WouldExceedGraduation - Token reached victory threshold!
+      // Token reached graduation threshold!
       throw new Error('GRADUATION_READY: This token has reached the victory threshold!');
+    } else if (errorMessage.includes('MathOverflow')) {
+      throw new Error('Mathematical overflow in calculation');
     } else if (errorMessage.includes('custom program error')) {
       const errorCode = errorMessage.match(/0x[0-9a-fA-F]+/)?.[0];
       throw new Error(`Program error ${errorCode}. Check Solscan for details.`);

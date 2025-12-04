@@ -414,3 +414,17 @@
   background-size: 40px 40px;
   background-position: 0 0, 20px 20px;
 }
+
+/* ✨ SHIMMER ANIMATION - For glowing social claim boxes */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}

@@ -32,7 +32,7 @@ export interface UseUserTokenBalanceResult {
  * - Handles account not found gracefully (balance = 0)
  *
  * @param mint - Token mint public key (null to disable fetching)
- * @param decimals - Token decimals for formatting (default: 6 for BONK tokens)
+ * @param decimals - Token decimals for formatting (default: 9 for BONK BATTLE tokens)
  * @returns Hook result with balance, loading, error, and refetch function
  *
  * @example
@@ -58,7 +58,7 @@ const globalBalancePromises = new Map<string, Promise<number | null>>();
 
 export function useUserTokenBalance(
   mint: PublicKey | null,
-  decimals: number = 6
+  decimals: number = 9  // BONK BATTLE tokens use 9 decimals
 ): UseUserTokenBalanceResult {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -199,7 +199,7 @@ export function useHasSufficientBalance(
 
 export function useMultipleTokenBalances(
   mints: PublicKey[],
-  decimals: number = 6
+  decimals: number = 9  // BONK BATTLE tokens use 9 decimals
 ): Record<string, number> {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -273,7 +273,7 @@ export function useMultipleTokenBalances(
  */
 export function useFormatTokenAmount(
   rawAmount: number | null,
-  decimals: number = 6
+  decimals: number = 9  // BONK BATTLE tokens use 9 decimals
 ): string {
   if (rawAmount === null) return '0';
 
