@@ -216,20 +216,20 @@ export default function CreatePage() {
 
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between">
-                                            <span className="text-gray-400">Initial MC:</span>
-                                            <span className="text-white font-semibold">~${TIER_CONFIG[BattleTier.Test].initialMcUsd}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Victory MC:</span>
-                                            <span className="text-yellow-500 font-semibold">${TIER_CONFIG[BattleTier.Test].victoryMcUsd.toLocaleString()}</span>
+                                            <span className="text-gray-400">Target SOL:</span>
+                                            <span className="text-white font-semibold">{TIER_CONFIG.TEST.TARGET_SOL} SOL</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-gray-400">Victory Volume:</span>
-                                            <span className="text-white font-semibold">${TIER_CONFIG[BattleTier.Test].victoryVolumeUsd}</span>
+                                            <span className="text-yellow-500 font-semibold">{TIER_CONFIG.TEST.VICTORY_VOLUME_SOL} SOL</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-gray-400">Target SOL:</span>
-                                            <span className="text-white font-semibold">~{TIER_CONFIG[BattleTier.Test].targetSol} SOL</span>
+                                            <span className="text-gray-400">Qualification:</span>
+                                            <span className="text-white font-semibold">{TIER_CONFIG.TEST.QUALIFICATION_SOL} SOL</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-400">Est. Final MC:</span>
+                                            <span className="text-white font-semibold">~${TIER_CONFIG.TEST.ESTIMATED_MC_FINAL_USD}</span>
                                         </div>
                                     </div>
                                 </button>
@@ -264,20 +264,20 @@ export default function CreatePage() {
 
                                     <div className="space-y-2 text-sm">
                                         <div className="flex justify-between">
-                                            <span className="text-gray-400">Initial MC:</span>
-                                            <span className="text-white font-semibold">~${TIER_CONFIG[BattleTier.Production].initialMcUsd.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Victory MC:</span>
-                                            <span className="text-green-500 font-semibold">${TIER_CONFIG[BattleTier.Production].victoryMcUsd.toLocaleString()}</span>
+                                            <span className="text-gray-400">Target SOL:</span>
+                                            <span className="text-white font-semibold">{TIER_CONFIG.PRODUCTION.TARGET_SOL} SOL</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-gray-400">Victory Volume:</span>
-                                            <span className="text-white font-semibold">${TIER_CONFIG[BattleTier.Production].victoryVolumeUsd.toLocaleString()}</span>
+                                            <span className="text-green-500 font-semibold">{TIER_CONFIG.PRODUCTION.VICTORY_VOLUME_SOL} SOL</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-gray-400">Target SOL:</span>
-                                            <span className="text-white font-semibold">~{TIER_CONFIG[BattleTier.Production].targetSol} SOL</span>
+                                            <span className="text-gray-400">Qualification:</span>
+                                            <span className="text-white font-semibold">{TIER_CONFIG.PRODUCTION.QUALIFICATION_SOL} SOL</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-400">Est. Final MC:</span>
+                                            <span className="text-white font-semibold">~${TIER_CONFIG.PRODUCTION.ESTIMATED_MC_FINAL_USD.toLocaleString()}</span>
                                         </div>
                                     </div>
                                 </button>
@@ -296,8 +296,8 @@ export default function CreatePage() {
                                 </div>
                                 <p className="text-sm text-gray-300 mt-1">
                                     {selectedTier === BattleTier.Test
-                                        ? 'Lower thresholds for quick testing. Reach $5,500 MC to win battles!'
-                                        : 'Full thresholds for real battles. Reach $25,000 MC to achieve victory!'
+                                        ? `Lower thresholds for quick testing. Reach ${TIER_CONFIG.TEST.TARGET_SOL} SOL + ${TIER_CONFIG.TEST.VICTORY_VOLUME_SOL} SOL volume to win!`
+                                        : `Full thresholds for real battles. Reach ${TIER_CONFIG.PRODUCTION.TARGET_SOL} SOL + ${TIER_CONFIG.PRODUCTION.VICTORY_VOLUME_SOL} SOL volume to win!`
                                     }
                                 </p>
                             </div>
@@ -371,10 +371,10 @@ export default function CreatePage() {
                                             {selectedTier === BattleTier.Test ? '🧪 Test Tier' : '🚀 Production Tier'} Battle Flow
                                         </div>
                                         <div className="text-sm text-gray-300 space-y-2">
-                                            <div>├─ <strong>Created:</strong> Your token starts here (MC: ~${currentTierConfig.initialMcUsd})</div>
-                                            <div>├─ <strong>Qualified:</strong> First $10+ purchase qualifies for battles</div>
+                                            <div>├─ <strong>Created:</strong> Your token starts here</div>
+                                            <div>├─ <strong>Qualified:</strong> {currentTierConfig.QUALIFICATION_SOL} SOL collected to qualify</div>
                                             <div>├─ <strong>In Battle:</strong> Fight another token! Winner takes loser&apos;s liquidity</div>
-                                            <div>├─ <strong>Victory:</strong> Reach ${currentTierConfig.victoryMcUsd.toLocaleString()} MC + ${currentTierConfig.victoryVolumeUsd.toLocaleString()} volume</div>
+                                            <div>├─ <strong>Victory:</strong> Reach {currentTierConfig.TARGET_SOL} SOL + {currentTierConfig.VICTORY_VOLUME_SOL} SOL volume</div>
                                             <div>└─ <strong>Listed:</strong> Winner gets permanent Raydium DEX listing!</div>
                                         </div>
                                     </div>
@@ -386,7 +386,7 @@ export default function CreatePage() {
                                         <div className="text-gray-300 text-sm">
                                             <p><strong>Bonding Curve:</strong> Constant product (xy=k) like Pump.fun</p>
                                             <p className="mt-1"><strong>Platform Fee:</strong> 2% on sells</p>
-                                            <p className="mt-1"><strong>Target SOL:</strong> ~{currentTierConfig.targetSol} SOL to reach victory</p>
+                                            <p className="mt-1"><strong>Target SOL:</strong> {currentTierConfig.TARGET_SOL} SOL to reach victory</p>
                                         </div>
                                     </div>
                                 </div>
