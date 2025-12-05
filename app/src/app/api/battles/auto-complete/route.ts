@@ -595,14 +595,73 @@ async function executeFullPipeline(
     listing_timestamp: new Date().toISOString(),
   }).eq('mint', tokenMint);
 
-  // Add to winners table
+  // ═══════════════════════════════════════════════════════════════
+  // FETCH WINNER & LOSER DATA FOR WINNERS TABLE
+  // ═══════════════════════════════════════════════════════════════
+
+  // Get winner token data
+  const { data: winnerData } = await supabase
+    .from('tokens')
+    .select('name, symbol, image_url')
+    .eq('mint', tokenMint)
+    .single();
+
+  // Get loser token data
+  const { data: loserData } = await supabase
+    .from('tokens')
+    .select('mint, name, symbol, image_url')
+    .eq('mint', opponentMint.toString())
+    .single();
+
+  // Calculate spoils (50% of loser's SOL collected)
+  const [loserStatePDA] = getBattleStatePDA(opponentMint);
+  const loserStateAccount = await connection.getAccountInfo(loserStatePDA);
+  let spoilsSol = 0;
+  if (loserStateAccount) {
+    const loserSolCollected = Number(loserStateAccount.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
+    spoilsSol = (loserSolCollected / 1e9) * 0.5; // 50% of loser's SOL
+  }
+
+  // Platform fee (2% of winner's SOL)
+  const platformFeeSol = (solCollected / 1e9) * 0.02;
+
+  // Add to winners table with ALL fields
   await supabase.from('winners').upsert({
-    token_mint: tokenMint,
+    // Primary key
+    mint: tokenMint,
+
+    // Winner info
+    name: winnerData?.name || 'Unknown',
+    symbol: winnerData?.symbol || '???',
+    image: winnerData?.image_url || null,
+
+    // Loser info
+    loser_mint: opponentMint.toString(),
+    loser_name: loserData?.name || 'Unknown',
+    loser_symbol: loserData?.symbol || '???',
+    loser_image: loserData?.image_url || null,
+
+    // Battle stats (SOL-based)
+    final_sol_collected: solCollected / 1e9,
+    final_volume_sol: totalVolume / 1e9,
+    final_mc_usd: 0, // We're SOL-based now, can calculate later
+    final_volume_usd: 0,
+
+    // Rewards
+    spoils_sol: spoilsSol,
+    platform_fee_sol: platformFeeSol,
+
+    // Pool info
     pool_id: poolResult.poolId,
     raydium_url: raydiumUrl,
-    sol_liquidity: solForPool,
+
+    // Timestamps & status
     victory_timestamp: new Date().toISOString(),
-  }, { onConflict: 'token_mint' });
+    status: 'pool_created',
+
+  }, { onConflict: 'mint' });
+
+  console.log('✅ Winner record saved with full data');
 
   console.log('\n═══════════════════════════════════════════════════════════════');
   console.log('🎉 AUTO-COMPLETE PIPELINE SUCCESS!');

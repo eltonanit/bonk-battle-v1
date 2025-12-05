@@ -33,6 +33,58 @@ interface Winner {
 export default function WinnersPage() {
   const [winners, setWinners] = useState<Winner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [solPrice, setSolPrice] = useState<number>(0);
+  const [poolData, setPoolData] = useState<Record<string, any>>({});
+
+  // Fetch SOL price
+  useEffect(() => {
+    async function fetchSolPrice() {
+      try {
+        const res = await fetch('/api/price/sol');
+        const data = await res.json();
+        setSolPrice(data.price || 0);
+      } catch (err) {
+        console.error('Error fetching SOL price:', err);
+        setSolPrice(230); // Fallback price
+      }
+    }
+    fetchSolPrice();
+
+    // Refresh price every 30 seconds
+    const interval = setInterval(fetchSolPrice, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch real-time pool data for each winner
+  useEffect(() => {
+    async function fetchPoolData() {
+      const newPoolData: Record<string, any> = {};
+
+      for (const winner of winners) {
+        if (winner.pool_id) {
+          try {
+            const res = await fetch(`/api/raydium/pool-info?poolId=${winner.pool_id}`);
+            const data = await res.json();
+            if (data.success) {
+              newPoolData[winner.mint] = data;
+            }
+          } catch (err) {
+            console.error(`Error fetching pool data for ${winner.symbol}:`, err);
+          }
+        }
+      }
+
+      setPoolData(newPoolData);
+    }
+
+    if (winners.length > 0) {
+      fetchPoolData();
+
+      // Refresh every 10 seconds for real-time updates
+      const interval = setInterval(fetchPoolData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [winners]);
 
   useEffect(() => {
     async function fetchWinners() {
@@ -99,25 +151,17 @@ export default function WinnersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bonk-dark text-white flex">
-      {/* Sidebar - Desktop */}
-      <div className="hidden lg:block">
-        <Sidebar />
-      </div>
+    <div className="min-h-screen bg-bonk-dark text-white">
+      {/* Headers */}
+      <DesktopHeader />
+      <Sidebar />
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Desktop Header */}
-        <div className="hidden lg:block">
-          <DesktopHeader />
-        </div>
-
-        {/* Page Content */}
-        <main className="flex-1 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
+      {/* Main Content - with proper desktop margins */}
+      <main className="pt-20 lg:pt-0 lg:ml-56 lg:mt-16 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 mb-2">
-              👑 HALL OF CHAMPIONS
+              HALL OF CHAMPIONS
             </h1>
             <p className="text-gray-400">
               Tokens that conquered the arena and ascended to Raydium
@@ -138,15 +182,15 @@ export default function WinnersPage() {
             </div>
             <div className="bg-gradient-to-br from-blue-900/30 to-cyan-900/20 border border-blue-500/30 rounded-xl p-4 text-center">
               <div className="text-3xl font-black text-blue-400">
-                {winners.reduce((sum, w) => sum + Number(w.spoils_sol || 0), 0).toFixed(2)}
+                {Object.values(poolData).reduce((sum: number, p: any) => sum + (p?.solInPool || 0), 0).toFixed(2)}
               </div>
-              <div className="text-sm text-gray-400">Total Spoils (SOL)</div>
+              <div className="text-sm text-gray-400">Total Liquidity (SOL)</div>
             </div>
             <div className="bg-gradient-to-br from-purple-900/30 to-pink-900/20 border border-purple-500/30 rounded-xl p-4 text-center">
               <div className="text-3xl font-black text-purple-400">
-                ${winners.reduce((sum, w) => sum + Number(w.final_mc_usd || 0), 0).toLocaleString()}
+                ${Object.values(poolData).reduce((sum: number, p: any) => sum + (p?.poolValueUsd || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
               </div>
-              <div className="text-sm text-gray-400">Total MC at Victory</div>
+              <div className="text-sm text-gray-400">Total Value (USD)</div>
             </div>
           </div>
 
@@ -256,25 +300,54 @@ export default function WinnersPage() {
                         </div>
                       )}
 
-                      {/* Stats */}
+                      {/* Stats - REAL-TIME from Raydium */}
                       <div className="grid grid-cols-2 gap-3 mb-4">
                         <div className="bg-black/30 rounded-lg p-3">
-                          <div className="text-gray-500 text-xs mb-1">Final MC</div>
+                          <div className="text-gray-500 text-xs mb-1">Pool Liquidity</div>
                           <div className="text-yellow-400 font-bold">
-                            ${Number(winner.final_mc_usd || 0).toLocaleString()}
+                            {poolData[winner.mint] ? (
+                              <>
+                                {poolData[winner.mint].solInPool.toFixed(2)} SOL
+                                <div className="text-gray-400 text-xs">
+                                  (${poolData[winner.mint].poolValueUsd.toFixed(0)})
+                                </div>
+                              </>
+                            ) : winner.pool_id ? (
+                              <span className="animate-pulse text-gray-500">Loading...</span>
+                            ) : (
+                              <span className="text-gray-500">-</span>
+                            )}
                           </div>
                         </div>
                         <div className="bg-black/30 rounded-lg p-3">
-                          <div className="text-gray-500 text-xs mb-1">Spoils Won</div>
+                          <div className="text-gray-500 text-xs mb-1">Market Cap</div>
                           <div className="text-green-400 font-bold">
-                            +{Number(winner.spoils_sol || 0).toFixed(2)} SOL
+                            {poolData[winner.mint] ? (
+                              `$${poolData[winner.mint].marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                            ) : winner.pool_id ? (
+                              <span className="animate-pulse text-gray-500">Loading...</span>
+                            ) : (
+                              <span className="text-gray-500">-</span>
+                            )}
                           </div>
                         </div>
                       </div>
 
+                      {/* Token Price - Real-time */}
+                      {poolData[winner.mint] && (
+                        <div className="bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg p-2 mb-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400 text-xs">Token Price</span>
+                            <span className="text-purple-400 font-bold text-sm">
+                              ${poolData[winner.mint].tokenPriceUsd.toFixed(8)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Victory Date */}
                       <div className="text-xs text-gray-500 mb-4">
-                        🏆 Victory: {formatDate(winner.victory_timestamp)}
+                        Victory: {formatDate(winner.victory_timestamp)}
                       </div>
 
                       {/* Actions */}
@@ -292,7 +365,7 @@ export default function WinnersPage() {
                             rel="noopener noreferrer"
                             className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-center py-2 rounded-lg text-sm font-semibold hover:from-blue-400 hover:to-purple-400 transition-all"
                           >
-                            Trade →
+                            Trade
                           </a>
                         ) : (
                           <span className="flex-1 bg-gray-700 text-gray-400 text-center py-2 rounded-lg text-sm cursor-not-allowed">
@@ -306,11 +379,10 @@ export default function WinnersPage() {
               })}
             </div>
           )}
-        </main>
+      </main>
 
-        {/* Mobile Bottom Nav */}
-        <MobileBottomNav />
-      </div>
+      {/* Mobile Bottom Nav */}
+      <MobileBottomNav />
     </div>
   );
 }

@@ -72,7 +72,7 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
 
   const handleStartBattle = () => {
     onClose();
-    router.push('/create');
+    router.push('/battlestart');
   };
 
   const handleHowItWorks = () => {

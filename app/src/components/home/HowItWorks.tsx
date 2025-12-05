@@ -84,7 +84,7 @@ export function HowItWorks() {
 
           {/* Log in / Start Battle Button */}
           <div className="flex justify-center mt-3 lg:mt-3">
-            <Link href="/create">
+            <Link href="/battlestart">
               <button
                 className="rounded-xl font-bold uppercase tracking-wide transition-all hover:opacity-90 active:scale-95 py-2 lg:py-2 px-4 lg:px-4 text-xs lg:text-xs"
                 style={{

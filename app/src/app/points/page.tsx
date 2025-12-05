@@ -89,10 +89,10 @@ function SocialClaimBox({ type, claimed, onClaim, loading }: SocialClaimBoxProps
 
         <button
           onClick={() => onClaim(type)}
-          disabled={claimed || loading}
+          disabled={loading}
           className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
             claimed
-              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+              ? 'bg-green-600 text-white hover:bg-green-500'
               : 'bg-white text-black hover:bg-gray-200 hover:scale-105 active:scale-95'
           }`}
         >
@@ -191,15 +191,16 @@ export default function PointsPage() {
     return () => window.removeEventListener('focus', handleFocus);
   }, [publicKey, points?.totalPoints, refetch]);
 
-  const handleClaim = async (type: 'x' | 'instagram' | 'telegram') => {
-    if (!publicKey || claimedSocials.has(type)) return;
+  const handleClaim = (type: 'x' | 'instagram' | 'telegram') => {
+    // Always open social link
+    window.open(SOCIAL_LINKS[type], '_blank');
 
-    // Store pending claim in localStorage
+    // If already claimed or wallet not connected, don't track
+    if (claimedSocials.has(type) || !publicKey) return;
+
+    // Store pending claim in localStorage for when user returns
     localStorage.setItem('pending_social_claim', type);
     setPendingClaim(type);
-
-    // Open social link in new tab
-    window.open(SOCIAL_LINKS[type], '_blank');
   };
 
   return (

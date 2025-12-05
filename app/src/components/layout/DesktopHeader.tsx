@@ -139,7 +139,7 @@ export function DesktopHeader() {
             )}
 
             {/* Start Battle Button - Arancione chiaro */}
-            <Link href="/create">
+            <Link href="/battlestart">
               <button className="bg-bonk-orange-dark text-black px-5 py-2 rounded-lg font-semibold text-sm hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap">
                 Start Battle
               </button>

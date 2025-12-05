@@ -164,7 +164,7 @@ export function Sidebar() {
 
         {/* Start Battle Button - Arancione chiaro (no glow, swords icon) */}
         <Link
-          href="/create"
+          href="/battlestart"
           className="flex items-center justify-center gap-2 mx-2 px-4 py-3 bg-bonk-orange-dark rounded-xl text-black font-semibold text-[15px] hover:bg-bonk-orange-dark/90 active:scale-95 transition-all"
         >
           {/* Crossed Swords Icon */}

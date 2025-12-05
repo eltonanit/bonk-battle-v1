@@ -150,7 +150,7 @@ export function Header() {
             <JoinArmyButton size="sm" />
 
             {/* Start Battle Button - Arancione */}
-            <Link href="/create">
+            <Link href="/battlestart">
               <button className="bg-bonk-orange-dark text-black px-3 py-2 rounded-lg font-semibold text-xs hover:bg-bonk-orange-dark/90 transition-colors whitespace-nowrap border border-black/20">
                 Start Battle
               </button>
