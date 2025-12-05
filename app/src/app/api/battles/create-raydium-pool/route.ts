@@ -25,9 +25,16 @@ import {
 } from '@raydium-io/raydium-sdk-v2';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import BN from 'bn.js';
+import { createClient } from '@supabase/supabase-js';
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
 const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+
+// Supabase client for updating database
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Token decimals
 const TOKEN_DECIMALS = 9;
@@ -94,7 +101,7 @@ export async function POST(request: NextRequest) {
 
         const [battleStatePDA] = getBattleStatePDA(mint);
 
-        // Verify token has PoolCreated status (withdrew successfully)
+        // Verify token has Listed status (withdrew successfully)
         const battleStateAccount = await connection.getAccountInfo(battleStatePDA);
         if (!battleStateAccount) {
             return NextResponse.json({
@@ -102,8 +109,8 @@ export async function POST(request: NextRequest) {
             }, { status: 404 });
         }
 
-        const battleStatus = battleStateAccount.data[65]; // Fix: correct offset
-        if (battleStatus !== BattleStatus.Listed) { // Fix: after withdraw status is Listed
+        const battleStatus = battleStateAccount.data[65]; // V1 offset for battle_status
+        if (battleStatus !== BattleStatus.Listed) {
             return NextResponse.json({
                 error: 'Token not ready for pool creation',
                 currentStatus: battleStatus,
@@ -218,8 +225,33 @@ export async function POST(request: NextRequest) {
 
             console.log('  Pool Info:', poolInfo);
 
-            // Generate Raydium URL
-            const raydiumUrl = `https://raydium.io/liquidity/increase/?mode=add&pool_id=${poolInfo.poolId}?cluster=devnet`;
+            // ✅ FIX: Generate SWAP URL (not liquidity URL)
+            // This is better for users who want to trade their tokens
+            const raydiumSwapUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
+            const raydiumLiquidityUrl = `https://raydium.io/liquidity/increase/?mode=add&pool_id=${poolInfo.poolId}&cluster=devnet`;
+
+            // Update database with pool info
+            try {
+                await supabase.from('tokens').update({
+                    battle_status: BattleStatus.PoolCreated,
+                    raydium_pool_id: poolInfo.poolId,
+                    raydium_url: raydiumSwapUrl,
+                    listing_timestamp: new Date().toISOString(),
+                }).eq('mint', tokenMint);
+
+                // Add to winners table
+                await supabase.from('winners').upsert({
+                    token_mint: tokenMint,
+                    pool_id: poolInfo.poolId,
+                    raydium_url: raydiumSwapUrl,
+                    sol_liquidity: solForPool,
+                    victory_timestamp: new Date().toISOString(),
+                }, { onConflict: 'token_mint' });
+
+                console.log('✅ Database updated with pool info');
+            } catch (dbError) {
+                console.warn('⚠️ Database update failed (non-critical):', dbError);
+            }
 
             return NextResponse.json({
                 success: true,
@@ -227,7 +259,8 @@ export async function POST(request: NextRequest) {
                 signature: txId,
                 solscanUrl: `https://solscan.io/tx/${txId}?cluster=devnet`,
                 pool: poolInfo,
-                raydiumUrl,
+                raydiumUrl: raydiumSwapUrl,        // ✅ Main URL for trading
+                raydiumLiquidityUrl,               // Also provide liquidity URL
                 liquidity: {
                     sol: solForPool,
                     tokens: tokensForPool,
@@ -263,7 +296,7 @@ export async function GET(request: NextRequest) {
             endpoint: 'create-raydium-pool',
             usage: 'POST with { tokenMint: "...", solAmount?: number, tokenAmount?: number }',
             description: 'Creates a Raydium CPMM liquidity pool for a token that completed battle',
-            requirements: 'Token must be in PoolCreated status (completed withdraw-for-listing)',
+            requirements: 'Token must be in Listed status (completed withdraw-for-listing)',
             defaults: {
                 solAmount: '6 SOL',
                 tokenAmount: '206,900,000 tokens'
@@ -272,6 +305,10 @@ export async function GET(request: NextRequest) {
                 tokenMint: 'GBZf7U9mRzxLfRiZL5hFs7Q397YCvd6C5ckW6kng1Y1',
                 solAmount: 6,
                 tokenAmount: 206900000
+            },
+            urls: {
+                swap: 'https://raydium.io/swap/?inputMint={TOKEN}&outputMint=sol&cluster=devnet',
+                liquidity: 'https://raydium.io/liquidity/increase/?mode=add&pool_id={POOL_ID}&cluster=devnet'
             }
         });
     }

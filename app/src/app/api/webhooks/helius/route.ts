@@ -454,7 +454,7 @@ export async function POST(request: NextRequest) {
                     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
                 // Fire and forget - non blocca il webhook
-                fetch(`${baseUrl}/api/battles/auto-detect-winners`, { method: 'GET' })
+                fetch(`${baseUrl}/api/battles/auto-complete`, { method: 'GET' })
                     .then(res => res.json())
                     .then(data => {
                         if (data.potentialWinners?.length > 0) {
