@@ -77,15 +77,17 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
   } : null;
 
   // Status badge configuration
-  const statusConfig = {
+  const statusConfig: Record<number, { color: string; label: string }> = {
     [BattleStatus.Created]: { color: 'bg-bonk-green', label: 'NEW' },
     [BattleStatus.Qualified]: { color: 'bg-bonk-orange-light text-black', label: 'QUALIFIED' },
     [BattleStatus.InBattle]: { color: 'bg-bonk-orange-light text-black animate-pulse', label: '⚔️ IN BATTLE' },
     [BattleStatus.VictoryPending]: { color: 'bg-bonk-gold text-black', label: '🏆 VICTORY' },
-    [BattleStatus.Listed]: { color: 'bg-bonk-border text-bonk-text', label: 'LISTED' },
+    [BattleStatus.Listed]: { color: 'bg-green-500', label: '✅ LISTED' },
+    [BattleStatus.PoolCreated]: { color: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black', label: '🏆 WINNER' },
   };
 
-  const status = statusConfig[state.battleStatus];
+  // Fallback for unknown status
+  const status = statusConfig[state.battleStatus] || { color: 'bg-gray-500', label: 'UNKNOWN' };
 
   return (
     <Link href={`/token/${mintAddress}`}>
