@@ -60,6 +60,58 @@ export default function BattleDetailPage() {
   // Currently selected token for trading
   const [selectedToken, setSelectedToken] = useState<'A' | 'B'>('A');
 
+  // ═══════════════════════════════════════════════════════════════
+  // FIX 3: CHECK IF BATTLE IS COMPLETED AND REDIRECT
+  // ═══════════════════════════════════════════════════════════════
+  const [battleEnded, setBattleEnded] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(true);
+
+  useEffect(() => {
+    async function checkBattleStatus() {
+      if (!battleId) {
+        setCheckingStatus(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/battles/status?id=${battleId}`);
+        const data = await response.json();
+
+        if (data.completed && data.winnerMint) {
+          // Battle is over! Redirect to winner's token page
+          console.log('🏆 Battle completed! Redirecting to winner:', data.winnerMint);
+          setBattleEnded(true);
+
+          // Show brief message before redirect
+          setTimeout(() => {
+            router.push(`/token/${data.winnerMint}`);
+          }, 2000);
+        } else {
+          setCheckingStatus(false);
+        }
+      } catch (error) {
+        console.error('Error checking battle status:', error);
+        setCheckingStatus(false);
+      }
+    }
+
+    checkBattleStatus();
+  }, [battleId, router]);
+
+  // Show "Battle Ended" screen while redirecting
+  if (battleEnded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🏆</div>
+          <h1 className="text-3xl font-bold text-yellow-400 mb-2">Battle Complete!</h1>
+          <p className="text-gray-400">Redirecting to winner&apos;s token page...</p>
+          <div className="mt-4 animate-spin w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+
   // Battle animation states
   const [attackA, setAttackA] = useState(false);
   const [attackB, setAttackB] = useState(false);

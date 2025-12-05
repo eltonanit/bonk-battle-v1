@@ -16,8 +16,8 @@ import { supabase } from '@/lib/supabase';
 
 // Social links
 const SOCIAL_LINKS = {
-  x: 'https://x.com/bonk_battle',
-  instagram: 'https://instagram.com/bonkbattle',
+  x: 'https://x.com/bonk_battle?s=20',
+  instagram: 'https://www.instagram.com/bonk_battle',
   telegram: 'https://t.me/bonkbattle',
 };
 
@@ -103,11 +103,35 @@ function SocialClaimBox({ type, claimed, onClaim, loading }: SocialClaimBoxProps
   );
 }
 
+// Notification component for +1000 points
+function PointsNotification({ show, onClose }: { show: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(onClose, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [show, onClose]);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-bounce">
+      <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-6 py-3 rounded-xl shadow-2xl shadow-emerald-500/50 flex items-center gap-3">
+        <span className="text-2xl">🎉</span>
+        <span className="text-xl font-bold">+1,000 pts</span>
+        <span className="text-2xl">🎉</span>
+      </div>
+    </div>
+  );
+}
+
 export default function PointsPage() {
-  const { points, loading } = useUserPoints();
+  const { points, loading, refetch } = useUserPoints();
   const { publicKey } = useWallet();
   const [claimedSocials, setClaimedSocials] = useState<Set<string>>(new Set());
   const [claimLoading, setClaimLoading] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [pendingClaim, setPendingClaim] = useState<string | null>(null);
 
   // Fetch claimed socials on mount
   useEffect(() => {
@@ -127,42 +151,62 @@ export default function PointsPage() {
     fetchClaims();
   }, [publicKey]);
 
+  // Listen for window focus to show notification when user returns
+  useEffect(() => {
+    const handleFocus = async () => {
+      const pending = localStorage.getItem('pending_social_claim');
+      if (pending && publicKey) {
+        // Process the claim
+        try {
+          const { error } = await supabase
+            .from('social_claims')
+            .insert({
+              wallet_address: publicKey.toString(),
+              social_type: pending,
+            });
+
+          if (!error) {
+            // Add 1000 points
+            await supabase
+              .from('user_points')
+              .upsert({
+                wallet_address: publicKey.toString(),
+                total_points: (points?.totalPoints || 0) + 1000,
+              }, { onConflict: 'wallet_address' });
+
+            setClaimedSocials(prev => new Set([...prev, pending]));
+            setShowNotification(true);
+            refetch?.();
+          }
+        } catch (err) {
+          console.error('Claim error:', err);
+        } finally {
+          localStorage.removeItem('pending_social_claim');
+          setPendingClaim(null);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [publicKey, points?.totalPoints, refetch]);
+
   const handleClaim = async (type: 'x' | 'instagram' | 'telegram') => {
     if (!publicKey || claimedSocials.has(type)) return;
 
+    // Store pending claim in localStorage
+    localStorage.setItem('pending_social_claim', type);
+    setPendingClaim(type);
+
     // Open social link in new tab
     window.open(SOCIAL_LINKS[type], '_blank');
-
-    setClaimLoading(true);
-    try {
-      // Save claim to database
-      const { error } = await supabase
-        .from('social_claims')
-        .insert({
-          wallet_address: publicKey.toString(),
-          social_type: type,
-        });
-
-      if (!error) {
-        // Add 1000 points
-        await supabase
-          .from('user_points')
-          .upsert({
-            wallet_address: publicKey.toString(),
-            total_points: (points?.totalPoints || 0) + 1000,
-          }, { onConflict: 'wallet_address' });
-
-        setClaimedSocials(prev => new Set([...prev, type]));
-      }
-    } catch (err) {
-      console.error('Claim error:', err);
-    } finally {
-      setClaimLoading(false);
-    }
   };
 
   return (
     <div className="min-h-screen bg-[#0a1a1a] text-white">
+      {/* +1000 Points Notification */}
+      <PointsNotification show={showNotification} onClose={() => setShowNotification(false)} />
+
       {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
         <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">

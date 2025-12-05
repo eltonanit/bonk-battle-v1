@@ -225,28 +225,29 @@ export async function POST(request: NextRequest) {
 
             console.log('  Pool Info:', poolInfo);
 
-            // ✅ FIX: Generate SWAP URL (not liquidity URL)
-            // This is better for users who want to trade their tokens
+            // Generate URLs
             const raydiumSwapUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
             const raydiumLiquidityUrl = `https://raydium.io/liquidity/increase/?mode=add&pool_id=${poolInfo.poolId}&cluster=devnet`;
 
-            // Update database with pool info
+            // ✅ UPDATE DATABASE - FIXED COLUMN NAMES
             try {
+                // Update tokens table
                 await supabase.from('tokens').update({
                     battle_status: BattleStatus.PoolCreated,
                     raydium_pool_id: poolInfo.poolId,
                     raydium_url: raydiumSwapUrl,
-                    listing_timestamp: new Date().toISOString(),
+                    listing_timestamp: Math.floor(Date.now() / 1000), // bigint unix timestamp
                 }).eq('mint', tokenMint);
 
-                // Add to winners table
+                // Add to winners table (using correct column names)
                 await supabase.from('winners').upsert({
-                    token_mint: tokenMint,
+                    mint: tokenMint,                              // ✅ Fixed: was token_mint
                     pool_id: poolInfo.poolId,
                     raydium_url: raydiumSwapUrl,
-                    sol_liquidity: solForPool,
-                    victory_timestamp: new Date().toISOString(),
-                }, { onConflict: 'token_mint' });
+                    status: 'pool_created',                       // ✅ Fixed: use existing column
+                    pool_created_at: new Date().toISOString(),    // ✅ Fixed: correct column name
+                    pool_signature: txId,                         // ✅ Added: save tx signature
+                }, { onConflict: 'mint' });                       // ✅ Fixed: was token_mint
 
                 console.log('✅ Database updated with pool info');
             } catch (dbError) {
@@ -259,8 +260,8 @@ export async function POST(request: NextRequest) {
                 signature: txId,
                 solscanUrl: `https://solscan.io/tx/${txId}?cluster=devnet`,
                 pool: poolInfo,
-                raydiumUrl: raydiumSwapUrl,        // ✅ Main URL for trading
-                raydiumLiquidityUrl,               // Also provide liquidity URL
+                raydiumUrl: raydiumSwapUrl,
+                raydiumLiquidityUrl,
                 liquidity: {
                     sol: solForPool,
                     tokens: tokensForPool,
