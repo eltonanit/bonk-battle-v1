@@ -41,6 +41,10 @@ export default function TokenDetailPage() {
   // ⭐ Stato per tracciare se popup è stato chiuso
   const [qualificationPopupDismissed, setQualificationPopupDismissed] = useState(false);
 
+  // ⭐ Winner state for Raydium pool integration
+  const [isWinner, setIsWinner] = useState(false);
+  const [poolData, setPoolData] = useState<any>(null);
+
   // ⭐ Validate mint address before parsing
   const isValidMint = isValidPublicKey(mintAddress);
 
@@ -120,6 +124,42 @@ export default function TokenDetailPage() {
       });
     }
   }, [state]);
+
+  // ⭐ Check if token is a winner with Raydium pool
+  useEffect(() => {
+    async function checkWinnerStatus() {
+      try {
+        // Check winners table
+        const { data: winnerData } = await supabase
+          .from('winners')
+          .select('*')
+          .eq('mint', mintAddress)
+          .single();
+
+        if (winnerData && winnerData.pool_id) {
+          setIsWinner(true);
+
+          // Fetch real-time pool data
+          const res = await fetch(`/api/raydium/pool-info?poolId=${winnerData.pool_id}`);
+          const pool = await res.json();
+          if (pool.success) {
+            setPoolData(pool);
+          }
+        }
+      } catch (err) {
+        // Not a winner or error - that's ok
+        console.log('Token is not a winner or error checking:', err);
+      }
+    }
+
+    if (mintAddress && isValidMint) {
+      checkWinnerStatus();
+
+      // Refresh pool data every 10 seconds
+      const interval = setInterval(checkWinnerStatus, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [mintAddress, isValidMint]);
 
   // ⭐ CONDITIONAL RETURNS AFTER ALL HOOKS
 
@@ -201,6 +241,54 @@ export default function TokenDetailPage() {
 
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
+
+          {/* Winner Banner - Show if token won */}
+          {isWinner && (
+            <div className="bg-gradient-to-r from-yellow-500 via-orange-500 to-yellow-500 p-1 rounded-xl mb-6">
+              <div className="bg-black/90 rounded-lg p-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-4xl">🏆</span>
+                    <div>
+                      <h2 className="text-xl font-black text-yellow-400">CHAMPION!</h2>
+                      <p className="text-gray-400 text-sm">This token won its battle and is now trading on Raydium</p>
+                    </div>
+                  </div>
+
+                  {/* Real-time stats */}
+                  {poolData && (
+                    <div className="flex gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-yellow-400 font-bold">{poolData.solInPool?.toFixed(2)} SOL</div>
+                        <div className="text-gray-500 text-xs">Liquidity</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-green-400 font-bold">${poolData.marketCapUsd?.toLocaleString()}</div>
+                        <div className="text-gray-500 text-xs">Market Cap</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-purple-400 font-bold">${poolData.tokenPriceUsd?.toFixed(8)}</div>
+                        <div className="text-gray-500 text-xs">Price</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trade Button */}
+                  <a
+                    href={`https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold px-6 py-3 rounded-xl hover:from-blue-400 hover:to-purple-400 transition-all flex items-center gap-2"
+                  >
+                    <span>Trade on Raydium</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Main Grid Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
