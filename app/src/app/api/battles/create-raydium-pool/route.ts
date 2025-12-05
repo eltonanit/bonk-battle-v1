@@ -102,17 +102,17 @@ export async function POST(request: NextRequest) {
             }, { status: 404 });
         }
 
-        const battleStatus = battleStateAccount.data[90];
-        if (battleStatus !== BattleStatus.PoolCreated) {
+        const battleStatus = battleStateAccount.data[65]; // Fix: correct offset
+        if (battleStatus !== BattleStatus.Listed) { // Fix: after withdraw status is Listed
             return NextResponse.json({
-                error: 'Token has not completed withdrawal',
+                error: 'Token not ready for pool creation',
                 currentStatus: battleStatus,
                 statusName: ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][battleStatus],
                 hint: 'Call withdraw-for-listing first'
             }, { status: 400 });
         }
 
-        console.log('✅ Token status verified: PoolCreated');
+        console.log('✅ Token status verified: Listed (ready for pool)');
 
         // Initialize Raydium SDK
         console.log('📦 Loading Raydium SDK...');

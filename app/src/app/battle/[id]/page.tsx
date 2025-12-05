@@ -25,11 +25,11 @@ import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 const TIER_CONFIG = {
   TEST: {
     TARGET_SOL: 6,           // 6 SOL = graduation
-    VICTORY_VOLUME_SOL: 0.87, // ~$200 at $230/SOL
+    VICTORY_VOLUME_SOL: 6.6, // 110% of TARGET_SOL (SOL-based!)
   },
   PRODUCTION: {
-    TARGET_SOL: 127.5,       // 127.5 SOL = graduation
-    VICTORY_VOLUME_SOL: 87,  // ~$20,000 at $230/SOL
+    TARGET_SOL: 37.7,        // 37.7 SOL = graduation
+    VICTORY_VOLUME_SOL: 41.5, // 110% of TARGET_SOL (SOL-based!)
   }
 };
 const CURRENT_TIER = TIER_CONFIG.TEST;
