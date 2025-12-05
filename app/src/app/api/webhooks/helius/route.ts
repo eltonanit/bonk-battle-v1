@@ -447,23 +447,41 @@ export async function POST(request: NextRequest) {
 
         console.log(`⚡ Webhook completed in ${duration}ms | Synced: ${successCount}/${mintArray.length} | Activities: ${activitiesLogged} | Trades: ${tradesSaved}`);
 
-        // 🏆 Auto-detect winners after trades
-        if (tradesSaved > 0) {
-            try {
-                const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+        // 🏆 Auto-complete victory pipeline for traded tokens
+        if (tradesSaved > 0 && mintArray.length > 0) {
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL ||
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
-                // Fire and forget - non blocca il webhook
-                fetch(`${baseUrl}/api/battles/auto-complete`, { method: 'GET' })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.potentialWinners?.length > 0) {
-                            console.log(`🏆 Found ${data.potentialWinners.length} winner(s)!`);
-                        }
-                    })
-                    .catch(err => console.error('⚠️ Auto-detect winners error:', err.message));
-            } catch {
-                // Silently fail - non deve bloccare il webhook
+            console.log(`🏆 Checking victory conditions for ${mintArray.length} token(s)...`);
+
+            // Process each traded token - call POST with specific mint
+            for (const mint of mintArray) {
+                try {
+                    console.log(`🔍 Checking: ${mint.slice(0, 8)}...`);
+
+                    const response = await fetch(`${baseUrl}/api/battles/auto-complete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tokenMint: mint }),
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success && result.poolId) {
+                        console.log(`🎉 VICTORY! ${mint.slice(0, 8)}... → Pool: ${result.poolId}`);
+                        console.log(`🌊 Raydium: ${result.raydiumUrl}`);
+                    } else if (result.error?.includes('Victory conditions not met')) {
+                        // Normal - battle continues
+                        console.log(`⚔️ Battle continues: ${mint.slice(0, 8)}...`);
+                    } else if (result.error?.includes('Cannot process token with status')) {
+                        // Token not in battle or already processed
+                        console.log(`⏭️ Skipped: ${mint.slice(0, 8)}... (${result.error})`);
+                    } else if (result.error) {
+                        console.warn(`⚠️ Auto-complete issue: ${mint.slice(0, 8)}... - ${result.error}`);
+                    }
+                } catch (err: any) {
+                    console.error(`❌ Auto-complete error for ${mint.slice(0, 8)}...:`, err.message);
+                }
             }
         }
 

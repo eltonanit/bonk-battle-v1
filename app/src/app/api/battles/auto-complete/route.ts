@@ -452,6 +452,13 @@ async function executeFullPipeline(
   }
 
   const currentStatus = battleStateAccount.data[V1_OFFSET_BATTLE_STATUS];
+
+  // ⚠️ Validate status is in valid range (0-5)
+  if (currentStatus < 0 || currentStatus > 5) {
+    console.warn(`⚠️ Invalid battle status: ${currentStatus} - token may have corrupted data`);
+    return { success: false, steps, error: `Invalid battle status: ${currentStatus}` };
+  }
+
   const solCollected = Number(battleStateAccount.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
   const totalVolume = Number(battleStateAccount.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
 
@@ -510,6 +517,23 @@ async function executeFullPipeline(
 
     if (!finalizeResult.success) {
       return { success: false, steps, error: 'Finalize duel failed' };
+    }
+
+    // ✅ Update LOSER in database: status → Qualified, opponent_mint → null
+    console.log('📝 Updating loser in database...');
+    const { error: loserUpdateError } = await supabase
+      .from('tokens')
+      .update({
+        battle_status: BattleStatus.Qualified,
+        opponent_mint: null,
+        battle_end_timestamp: new Date().toISOString(),
+      })
+      .eq('mint', opponentMint.toString());
+
+    if (loserUpdateError) {
+      console.warn('⚠️ Failed to update loser in DB:', loserUpdateError.message);
+    } else {
+      console.log('✅ Loser reset to Qualified:', opponentMint.toString().slice(0, 8) + '...');
     }
 
     await sleep(2000);
@@ -629,6 +653,21 @@ async function scanForWinners(): Promise<{
       const account = await connection.getAccountInfo(battleStatePDA);
 
       if (!account) continue;
+
+      // Validate status from chain
+      const chainStatus = account.data[V1_OFFSET_BATTLE_STATUS];
+      if (chainStatus < 0 || chainStatus > 5) {
+        console.warn(`⚠️ Skipping ${token.mint.slice(0, 8)}... - invalid chain status: ${chainStatus}`);
+        continue;
+      }
+
+      // Only process if actually InBattle on-chain
+      if (chainStatus !== BattleStatus.InBattle) {
+        console.log(`⏭️ Skipping ${token.mint.slice(0, 8)}... - chain status: ${chainStatus} (not InBattle)`);
+        // Sync database with chain
+        await supabase.from('tokens').update({ battle_status: chainStatus }).eq('mint', token.mint);
+        continue;
+      }
 
       const solCollected = Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
       const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
