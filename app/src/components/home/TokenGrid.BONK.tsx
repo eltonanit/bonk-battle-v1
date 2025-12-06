@@ -42,6 +42,7 @@ export function TokenGridBonk() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>('battle');
   const [loading, setLoading] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
+  const [poolData, setPoolData] = useState<Record<string, any>>({});
 
   // ⭐ REAL SOL PRICE from on-chain oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -78,6 +79,41 @@ export function TokenGridBonk() {
     loadTokens();
     // Rimosso auto-refresh per evitare che le BattleCard spariscano
   }, []);
+
+  // ⭐ Fetch real-time pool data for winners
+  useEffect(() => {
+    async function fetchPoolData() {
+      if (winners.length === 0) return;
+
+      const newPoolData: Record<string, any> = {};
+
+      for (const winner of winners) {
+        if (winner.pool_id) {
+          try {
+            const res = await fetch(`/api/raydium/pool-info?poolId=${winner.pool_id}`);
+            const data = await res.json();
+            if (data.success) {
+              newPoolData[winner.mint] = data;
+            }
+          } catch (error) {
+            console.error(`Error fetching pool for ${winner.symbol}:`, error);
+          }
+        }
+      }
+
+      setPoolData(newPoolData);
+    }
+
+    fetchPoolData();
+    // Refresh every 15 seconds when on winners tab
+    const interval = setInterval(() => {
+      if (activeFilter === 'winners') {
+        fetchPoolData();
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [winners, activeFilter]);
 
   // Group tokens into battle pairs (including completed battles)
   const battlePairs = useMemo((): (BattlePair & { winner?: 'A' | 'B' | null })[] => {
@@ -348,16 +384,6 @@ export function TokenGridBonk() {
                   <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs font-bold px-2 py-1 rounded">
                     👑 WINNER
                   </span>
-                  {winner.pool_id && (
-                    <a
-                      href={winner.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${winner.mint}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:text-blue-300"
-                    >
-                      Trade on Raydium →
-                    </a>
-                  )}
                 </div>
 
                 {/* Token Info */}
@@ -394,12 +420,16 @@ export function TokenGridBonk() {
                   </div>
                 )}
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                {/* Stats - REAL-TIME from pool */}
+                <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                   <div className="bg-black/30 rounded p-2">
-                    <div className="text-gray-500">Final MC</div>
+                    <div className="text-gray-500">Market Cap</div>
                     <div className="text-yellow-400 font-bold">
-                      ${Number(winner.final_mc_usd || 0).toLocaleString()}
+                      {poolData[winner.mint] ? (
+                        `$${poolData[winner.mint].marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                      ) : (
+                        <span className="animate-pulse text-gray-500">Loading...</span>
+                      )}
                     </div>
                   </div>
                   <div className="bg-black/30 rounded p-2">
@@ -410,8 +440,28 @@ export function TokenGridBonk() {
                   </div>
                 </div>
 
+                {/* Two Buttons: View Token + Trade on Raydium */}
+                <div className="flex gap-2 mb-2">
+                  <a
+                    href={`/token/${winner.mint}`}
+                    className="flex-1 bg-bonk-card hover:bg-bonk-border text-white text-center text-sm font-semibold py-2 px-3 rounded-lg transition-all"
+                  >
+                    View Token
+                  </a>
+                  {winner.pool_id && (
+                    <a
+                      href={`https://raydium.io/swap/?inputMint=sol&outputMint=${winner.mint}&cluster=devnet`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-center text-sm font-semibold py-2 px-3 rounded-lg transition-all"
+                    >
+                      Trade on Raydium →
+                    </a>
+                  )}
+                </div>
+
                 {/* Victory Date */}
-                <div className="mt-3 text-xs text-gray-500 text-center">
+                <div className="text-xs text-gray-500 text-center">
                   Won {new Date(winner.victory_timestamp).toLocaleDateString()}
                 </div>
               </div>
