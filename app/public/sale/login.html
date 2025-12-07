@@ -224,10 +224,15 @@
             </button>
         </form>
 
-        <a href="/" class="back-link">← Back to Home</a>
+        <a href="/sale/" class="back-link">← Back to Home</a>
     </div>
 
     <script>
+        // Check if already logged in - redirect to admin
+        if (localStorage.getItem('adminAuth')) {
+            window.location.href = '/sale/admin.html';
+        }
+
         // Simple authentication - replace with real auth in production
         const ADMIN_CREDENTIALS = {
             username: 'admin',
@@ -253,7 +258,7 @@
             if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
                 // Store auth in localStorage (replace with proper session in production)
                 localStorage.setItem('adminAuth', btoa(username + ':' + Date.now()));
-                window.location.href = '/admin';
+                window.location.href = 'admin.html';
             } else {
                 errorDiv.textContent = 'Invalid username or password';
                 errorDiv.classList.add('show');

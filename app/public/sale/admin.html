@@ -743,7 +743,7 @@
         function checkAuth() {
             const auth = localStorage.getItem('adminAuth');
             if (!auth) {
-                window.location.href = '/login';
+                window.location.href = 'login.html';
                 return false;
             }
             return true;
@@ -751,7 +751,7 @@
 
         function logout() {
             localStorage.removeItem('adminAuth');
-            window.location.href = '/login';
+            window.location.href = 'login.html';
         }
 
         // API base URL - update this to your actual domain
