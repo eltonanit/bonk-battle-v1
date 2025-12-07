@@ -219,6 +219,8 @@ export default function TokenDetailPage() {
       {state.battleStatus === BattleStatus.Created && !qualificationPopupDismissed && (
         <QualificationPopup
           mint={mint}
+          tokenSymbol={state.symbol || 'TOKEN'}
+          tokenImage={state.image || ''}
           onQualified={() => {
             refetch();
             setQualificationPopupDismissed(true);

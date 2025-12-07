@@ -7,15 +7,17 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { buyToken } from '@/lib/solana/buy-token';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { Lightbulb, X } from 'lucide-react';
-import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
 
 interface QualificationPopupProps {
     mint: PublicKey;
+    tokenSymbol?: string;
+    tokenImage?: string;
     onQualified: () => void;
     onClose?: () => void;
 }
 
-export function QualificationPopup({ mint, onQualified, onClose }: QualificationPopupProps) {
+export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified, onClose }: QualificationPopupProps) {
     const { publicKey, signTransaction } = useWallet();
     const { connection } = useConnection();
     const { solPriceUsd } = usePriceOracle();
@@ -24,8 +26,9 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [solBalance, setSolBalance] = useState<number | null>(null);
-    const [showSuccess, setShowSuccess] = useState(false);
-    const [successMessage, setSuccessMessage] = useState('');
+
+    // ⚔️ BATTLE READY POPUP STATE
+    const [showBattleReady, setShowBattleReady] = useState(false);
 
     // ⚠️ FIX: Calculate minimum SOL needed for $10 USD
     const minUSD = 10;
@@ -103,15 +106,12 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
 
             console.log('✅ Qualification buy successful!', result);
 
-            // Show success popup
-            const usdValue = solPriceUsd ? (solAmount * solPriceUsd).toFixed(2) : '?';
-            setSuccessMessage(`Bought ${solAmount} SOL (~$${usdValue})`);
-            setShowSuccess(true);
+            // ⚔️ Show Battle Ready popup instead of simple success
+            console.log('⚔️ Showing Battle Ready popup!');
+            setShowBattleReady(true);
 
-            // Trigger callback to refresh token state after popup shows
-            setTimeout(() => {
-                onQualified();
-            }, 2000);
+            // ⚠️ DON'T call onQualified() here - it will unmount this component!
+            // onQualified() will be called when BattleReadyPopup closes
 
         } catch (err) {
             console.error('❌ Qualification buy error:', err);
@@ -122,21 +122,28 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
         }
     };
 
-    const handleSuccessClose = useCallback(() => {
-        setShowSuccess(false);
-    }, []);
+    const handleBattleReadyClose = useCallback(() => {
+        setShowBattleReady(false);
+        // ⚔️ NOW call onQualified to refresh token state and close popup
+        onQualified();
+        // Close the qualification popup too
+        if (onClose) onClose();
+    }, [onClose, onQualified]);
+
+    // If showing Battle Ready popup, render only that
+    if (showBattleReady) {
+        return (
+            <BattleReadyPopup
+                show={true}
+                onClose={handleBattleReadyClose}
+                tokenImage={tokenImage || ''}
+                tokenSymbol={tokenSymbol || 'TOKEN'}
+                tokenMint={mint.toString()}
+            />
+        );
+    }
 
     return (
-        <>
-        {/* Success Popup */}
-        <TransactionSuccessPopup
-            show={showSuccess}
-            message="Transaction Successful!"
-            subMessage={successMessage}
-            onClose={handleSuccessClose}
-            autoCloseMs={2500}
-        />
-
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
             {/* ⭐ Responsive container: più piccolo su mobile, centrato su desktop */}
             <div className="w-full max-w-[420px] md:max-w-md">
@@ -255,6 +262,5 @@ export function QualificationPopup({ mint, onQualified, onClose }: Qualification
                 </div>
             </div>
         </div>
-        </>
     );
 }

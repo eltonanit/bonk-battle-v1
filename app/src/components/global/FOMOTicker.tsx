@@ -373,6 +373,12 @@ export function FOMOTicker() {
   }
 
   const currentEvent = events[currentIndex];
+
+  // Guard against undefined currentEvent
+  if (!currentEvent) {
+    return null;
+  }
+
   const color = currentEvent.type === 'won' ? WINNER_COLOR : TICKER_COLORS[currentIndex % TICKER_COLORS.length];
 
   return (

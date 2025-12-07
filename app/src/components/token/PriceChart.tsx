@@ -4,11 +4,29 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { createChart, ColorType, IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
 import { supabase } from '@/lib/supabase';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import {
+  Plus, Crosshair, TrendingUp, BarChart3,
+  PenLine, Type, Eraser, ZoomIn, Camera
+} from 'lucide-react';
 
-// Total supply: 1B tokens
-const TOTAL_SUPPLY = 1_000_000_000;
-// Initial MC in USD (from constants)
-const INITIAL_MC_USD = 5000;
+// ============================================
+// BONDING CURVE CONSTANTS (match smart contract)
+// ============================================
+const VIRTUAL_SOL_INIT_LAMPORTS = 2_050_000_000; // 2.05 SOL in lamports
+const BONDING_CURVE_SUPPLY_WITH_DECIMALS = 793_100_000_000_000_000n; // 793.1M * 10^9
+const TOTAL_SUPPLY_WITH_DECIMALS = 1_000_000_000_000_000_000n; // 1B * 10^9
+const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens (for MC calculation)
+
+/**
+ * Calculate INITIAL Market Cap (at token creation, 0 SOL collected)
+ * Formula: (VIRTUAL_SOL_INIT / BONDING_CURVE_SUPPLY) × TOTAL_SUPPLY × solPriceUsd
+ */
+function calculateInitialMarketCap(solPriceUsd: number): number {
+  const pricePerToken = Number(VIRTUAL_SOL_INIT_LAMPORTS) / Number(BONDING_CURVE_SUPPLY_WITH_DECIMALS);
+  const mcLamports = pricePerToken * Number(TOTAL_SUPPLY_WITH_DECIMALS);
+  const mcUsd = (mcLamports / 1e9) * solPriceUsd;
+  return mcUsd;
+}
 
 interface PriceChartProps {
   token: {
@@ -19,7 +37,7 @@ interface PriceChartProps {
     createdAt: number;
     name: string;
     symbol: string;
-    marketCapUsd?: number;
+    marketCapUsd?: number; // Real MC from bonding curve
   };
 }
 
@@ -50,7 +68,7 @@ function formatMarketCap(value: number): string {
   if (value >= 1_000_000) {
     return `$${(value / 1_000_000).toFixed(2)}M`;
   } else if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(2)}K`;
+    return `$${(value / 1_000).toFixed(1)}K`;
   }
   return `$${value.toFixed(0)}`;
 }
@@ -67,6 +85,18 @@ function formatPrice(value: number): string {
   return `$${value.toFixed(4)}`;
 }
 
+// Left toolbar icons (pump.fun style) - REDUCED
+const TOOLBAR_ICONS = [
+  { icon: Plus, name: 'cursor', tooltip: 'Cursor' },
+  { icon: PenLine, name: 'line', tooltip: 'Trend Line' },
+  { icon: TrendingUp, name: 'fib', tooltip: 'Fibonacci' },
+  { icon: Crosshair, name: 'crosshair', tooltip: 'Crosshair' },
+  { icon: Type, name: 'text', tooltip: 'Text' },
+  { icon: Eraser, name: 'eraser', tooltip: 'Eraser' },
+  { icon: ZoomIn, name: 'zoom', tooltip: 'Zoom' },
+  { icon: Camera, name: 'screenshot', tooltip: 'Screenshot' },
+];
+
 export function PriceChart({ token }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -78,13 +108,17 @@ export function PriceChart({ token }: PriceChartProps) {
   const [loading, setLoading] = useState(true);
   const [displayMode, setDisplayMode] = useState<'mcap' | 'price'>('mcap');
   const [currencyMode, setCurrencyMode] = useState<'usd' | 'sol'>('usd');
+  const [activeTool, setActiveTool] = useState<string>('cursor');
 
   // Get SOL price from oracle
   const { solPriceUsd } = usePriceOracle();
   const currentSolPrice = solPriceUsd || 230;
 
-  // Real market cap from props or calculate from initial
-  const realMarketCap = token.marketCapUsd || INITIAL_MC_USD;
+  // ⭐ Calculate INITIAL MC dynamically based on current SOL price
+  const initialMarketCap = calculateInitialMarketCap(currentSolPrice);
+
+  // Real market cap from props (current state) or use initial
+  const realMarketCap = token.marketCapUsd || initialMarketCap;
 
   // Fetch trades from database
   const fetchTrades = useCallback(async () => {
@@ -139,9 +173,26 @@ export function PriceChart({ token }: PriceChartProps) {
     };
   }, [token.mint]);
 
-  // Aggregate trades into candles
-  const aggregateToCandles = useCallback((trades: Trade[], intervalSeconds: number, solPrice: number) => {
-    if (trades.length === 0) return [];
+  // Aggregate trades into candles - use REAL MC, start from initial MC
+  const aggregateToCandles = useCallback((
+    trades: Trade[],
+    intervalSeconds: number,
+    solPrice: number,
+    currentMC: number,
+    initialMC: number
+  ) => {
+    if (trades.length === 0) {
+      // No trades - show single candle at current MC
+      const now = Math.floor(Date.now() / 1000);
+      const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+      return [{
+        time: candleTime as UTCTimestamp,
+        open: currentMC,
+        high: currentMC,
+        low: currentMC,
+        close: currentMC,
+      }];
+    }
 
     const candles: Map<number, { open: number; high: number; low: number; close: number; volume: number }> = new Map();
 
@@ -150,9 +201,12 @@ export function PriceChart({ token }: PriceChartProps) {
       const candleTime = Math.floor(timestamp / intervalSeconds) * intervalSeconds;
 
       const tokenPriceSol = parseFloat(trade.token_price_sol);
-      const value = displayMode === 'mcap'
+      let value = displayMode === 'mcap'
         ? priceToMarketCap(tokenPriceSol, currencyMode === 'usd' ? solPrice : 1)
         : tokenPriceSol * (currencyMode === 'usd' ? solPrice : 1);
+
+      // Ensure value is at least the initial MC
+      value = Math.max(value, initialMC * 0.5);
 
       const volume = Number(trade.sol_amount) / 1e9;
 
@@ -173,7 +227,7 @@ export function PriceChart({ token }: PriceChartProps) {
       }
     });
 
-    // Fill gaps
+    // Fill gaps with previous close
     const sortedTimes = Array.from(candles.keys()).sort((a, b) => a - b);
     if (sortedTimes.length > 1) {
       const minTime = sortedTimes[0];
@@ -220,17 +274,26 @@ export function PriceChart({ token }: PriceChartProps) {
       },
       rightPriceScale: {
         borderColor: '#1f2937',
-        scaleMargins: { top: 0.1, bottom: 0.2 },
+        scaleMargins: { top: 0.1, bottom: 0.15 },
+      },
+      localization: {
+        priceFormatter: (price: number) => {
+          if (price >= 1000000) return `$${(price / 1000000).toFixed(1)}M`;
+          if (price >= 1000) return `$${(price / 1000).toFixed(1)}K`;
+          return `$${price.toFixed(0)}`;
+        },
       },
       timeScale: {
         borderColor: '#1f2937',
         timeVisible: true,
         secondsVisible: false,
+        barSpacing: 8, // ⭐ Smaller candles
+        minBarSpacing: 4,
       },
       handleScroll: { vertTouchDrag: false },
     });
 
-    // V4 API - addCandlestickSeries
+    // V4 API - Candlestick with thinner bars
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
@@ -240,7 +303,7 @@ export function PriceChart({ token }: PriceChartProps) {
       wickDownColor: '#ef4444',
     });
 
-    // V4 API - addHistogramSeries
+    // V4 API - Volume histogram
     const volumeSeries = chart.addHistogramSeries({
       color: '#3b82f6',
       priceFormat: { type: 'volume' },
@@ -248,7 +311,7 @@ export function PriceChart({ token }: PriceChartProps) {
     });
 
     volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.85, bottom: 0 },
     });
 
     chartRef.current = chart;
@@ -280,58 +343,66 @@ export function PriceChart({ token }: PriceChartProps) {
     const tf = TIMEFRAMES.find(t => t.key === timeframe);
     if (!tf) return;
 
-    const candles = aggregateToCandles(trades, tf.seconds, currentSolPrice);
+    const candles = aggregateToCandles(trades, tf.seconds, currentSolPrice, realMarketCap, initialMarketCap);
 
-    if (candles.length > 0) {
-      candleSeriesRef.current.setData(candles);
+    candleSeriesRef.current.setData(candles);
 
-      const volumeData = trades.reduce((acc, trade) => {
-        const timestamp = Math.floor(new Date(trade.block_time).getTime() / 1000);
-        const candleTime = Math.floor(timestamp / tf.seconds) * tf.seconds;
-        const volume = Number(trade.sol_amount) / 1e9;
-        const isBuy = trade.trade_type === 'buy';
+    // Volume data
+    const volumeData = trades.reduce((acc, trade) => {
+      const timestamp = Math.floor(new Date(trade.block_time).getTime() / 1000);
+      const candleTime = Math.floor(timestamp / tf.seconds) * tf.seconds;
+      const volume = Number(trade.sol_amount) / 1e9;
+      const isBuy = trade.trade_type === 'buy';
 
-        const existing = acc.find(v => v.time === candleTime);
-        if (existing) {
-          existing.value += volume;
-        } else {
-          acc.push({
-            time: candleTime as UTCTimestamp,
-            value: volume,
-            color: isBuy ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
-          });
-        }
-        return acc;
-      }, [] as { time: UTCTimestamp; value: number; color: string }[]);
+      const existing = acc.find(v => v.time === candleTime);
+      if (existing) {
+        existing.value += volume;
+      } else {
+        acc.push({
+          time: candleTime as UTCTimestamp,
+          value: volume,
+          color: isBuy ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)',
+        });
+      }
+      return acc;
+    }, [] as { time: UTCTimestamp; value: number; color: string }[]);
 
+    if (volumeData.length > 0) {
       volumeSeriesRef.current.setData(volumeData.sort((a, b) => a.time - b.time));
-      chartRef.current?.timeScale().fitContent();
     }
-  }, [trades, timeframe, aggregateToCandles, currentSolPrice]);
 
-  // Stats calculations
-  const currentTokenPrice = trades.length > 0 ? parseFloat(trades[trades.length - 1].token_price_sol) : 0;
-  const currentMC = trades.length > 0 ? priceToMarketCap(currentTokenPrice, currentSolPrice) : realMarketCap;
-  const athMC = trades.length > 0
-    ? Math.max(...trades.map(t => priceToMarketCap(parseFloat(t.token_price_sol), currentSolPrice)), realMarketCap)
-    : realMarketCap;
+    chartRef.current?.timeScale().fitContent();
+  }, [trades, timeframe, aggregateToCandles, currentSolPrice, realMarketCap, initialMarketCap]);
+
+  // ⭐ Stats - use REAL MC from bonding curve
+  const currentMC = realMarketCap;
+
+  // Calculate ATH from trades (if any trades pushed MC higher)
+  const tradesMC = trades.length > 0
+    ? trades.map(t => priceToMarketCap(parseFloat(t.token_price_sol), currentSolPrice))
+    : [];
+  const athMC = tradesMC.length > 0 ? Math.max(...tradesMC, realMarketCap) : realMarketCap;
   const athProgress = athMC > 0 ? (currentMC / athMC) * 100 : 100;
 
-  const firstTokenPrice = trades.length > 0 ? parseFloat(trades[0].token_price_sol) : 0;
-  const firstMC = trades.length > 0 ? priceToMarketCap(firstTokenPrice, currentSolPrice) : realMarketCap;
-  const priceChange = firstMC > 0 ? ((currentMC - firstMC) / firstMC) * 100 : 0;
-  const priceChangeUsd = currentMC - firstMC;
+  // Price change (first trade to current MC)
+  const firstTradeMC = tradesMC.length > 0 ? tradesMC[0] : realMarketCap;
+  const priceChange = firstTradeMC > 0 ? ((currentMC - firstTradeMC) / firstTradeMC) * 100 : 0;
+  const priceChangeUsd = currentMC - firstTradeMC;
 
+  // Volume
   const totalVolumeSol = trades.reduce((sum, t) => sum + Number(t.sol_amount) / 1e9, 0);
   const totalVolumeUsd = totalVolumeSol * currentSolPrice;
-  const pricePerTokenUsd = currentTokenPrice * currentSolPrice;
 
+  // Current token price from MC
+  const pricePerTokenUsd = currentMC / TOTAL_SUPPLY;
+
+  // Period changes
   const getChangeForPeriod = (seconds: number): number => {
     const cutoff = Date.now() - (seconds * 1000);
     const recentTrades = trades.filter(t => new Date(t.block_time).getTime() >= cutoff);
-    if (recentTrades.length === 0 || trades.length === 0) return 0;
-    const oldPrice = parseFloat(recentTrades[0].token_price_sol);
-    return oldPrice > 0 ? ((currentTokenPrice - oldPrice) / oldPrice) * 100 : 0;
+    if (recentTrades.length === 0) return 0;
+    const oldMC = priceToMarketCap(parseFloat(recentTrades[0].token_price_sol), currentSolPrice);
+    return oldMC > 0 ? ((currentMC - oldMC) / oldMC) * 100 : 0;
   };
 
   const change5m = getChangeForPeriod(300);
@@ -342,15 +413,19 @@ export function PriceChart({ token }: PriceChartProps) {
     <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
-        <div className="flex items-start justify-between mb-3">
+        <div className="flex items-start justify-between">
           <div>
             <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-bold text-white">{formatMarketCap(currentMC)}</span>
-              <span className={`text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
-              </span>
-              <span className="text-gray-500 text-sm">24hr</span>
+              {trades.length > 0 && (
+                <>
+                  <span className={`text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
+                  </span>
+                  <span className="text-gray-500 text-sm">24hr</span>
+                </>
+              )}
             </div>
           </div>
           <div className="text-right">
@@ -363,7 +438,9 @@ export function PriceChart({ token }: PriceChartProps) {
               </div>
               <div className="text-right">
                 <div className="text-xs text-gray-500">ATH</div>
-                <div className="text-sm font-bold text-white">{athMC > realMarketCap ? formatMarketCap(athMC) : 'N/A'}</div>
+                <div className="text-sm font-bold text-white">
+                  {athMC > realMarketCap ? formatMarketCap(athMC) : 'N/A'}
+                </div>
               </div>
             </div>
           </div>
@@ -386,6 +463,18 @@ export function PriceChart({ token }: PriceChartProps) {
               </button>
             ))}
           </div>
+
+          <div className="h-4 w-px bg-gray-700" />
+
+          {/* Trade Display (placeholder) */}
+          <button className="text-gray-400 hover:text-white text-xs flex items-center gap-1">
+            <BarChart3 className="w-3 h-3" />
+            Trade Display
+          </button>
+
+          <button className="text-gray-400 hover:text-white text-xs">
+            Hide All Bubbles
+          </button>
 
           <div className="h-4 w-px bg-gray-700" />
 
@@ -415,28 +504,59 @@ export function PriceChart({ token }: PriceChartProps) {
         </div>
       </div>
 
-      {/* Chart Info Bar */}
-      <div className="px-4 py-1 border-b border-gray-800 flex items-center gap-4 text-xs">
-        <span className="text-gray-500">Volume</span>
-        <span className="text-green-400">{totalVolumeSol.toFixed(2)}</span>
-      </div>
+      {/* Chart Area with Left Toolbar */}
+      <div className="flex">
+        {/* Left Toolbar */}
+        <div className="w-10 bg-[#0a0a0a] border-r border-gray-800 flex flex-col items-center py-2 gap-0.5">
+          {TOOLBAR_ICONS.map(({ icon: Icon, name, tooltip }) => (
+            <button
+              key={name}
+              onClick={() => setActiveTool(name)}
+              className={`p-1.5 rounded transition-colors ${
+                activeTool === name
+                  ? 'bg-blue-500/20 text-blue-400'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+              }`}
+              title={tooltip}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+        </div>
 
-      {/* Chart */}
-      <div className="relative h-80">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
-            <div className="text-gray-400">Loading chart data...</div>
+        {/* Chart */}
+        <div className="flex-1 relative">
+          {/* Volume indicator */}
+          <div className="absolute top-2 left-2 z-10 text-xs">
+            <span className="text-gray-500">Volume</span>
+            <span className="text-green-400 ml-2">{totalVolumeSol.toFixed(2)}</span>
           </div>
-        )}
-        {!loading && trades.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
-            <div className="text-center">
-              <div className="text-6xl mb-4 opacity-30">👻</div>
-              <div className="text-gray-400 text-lg">No data here</div>
-            </div>
+
+          <div className="relative h-72">
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
+                <div className="text-gray-400">Loading chart data...</div>
+              </div>
+            )}
+            {!loading && trades.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
+                <div className="text-center">
+                  <div className="text-6xl mb-4 opacity-30">👻</div>
+                  <div className="text-gray-400 text-lg">No data here</div>
+                </div>
+              </div>
+            )}
+            <div ref={chartContainerRef} className="w-full h-full" />
           </div>
-        )}
-        <div ref={chartContainerRef} className="w-full h-full" />
+
+          {/* Bottom time info */}
+          <div className="absolute bottom-2 right-2 z-10 flex items-center gap-3 text-xs text-gray-500">
+            <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} UTC</span>
+            <span>%</span>
+            <span className="text-blue-400">log</span>
+            <span className="text-blue-400">auto</span>
+          </div>
+        </div>
       </div>
 
       {/* Stats Bar */}

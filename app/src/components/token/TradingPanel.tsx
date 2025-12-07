@@ -1,5 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
-// ✅ CON POPUP GRADUATION - Mostra importo esatto per completare
+// ✅ CON POPUP BATTLE READY - Mostra quando token si qualifica
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -9,6 +9,8 @@ import { useUserTokenBalance } from '@/hooks/useUserTokenBalance';
 import { buyToken } from '@/lib/solana/buy-token';
 import { sellToken } from '@/lib/solana/sell-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
+import { supabase } from '@/lib/supabase';
 
 // ============================================================
 // 🎯 VICTORY TARGETS (SOL-BASED - TEST TIER)
@@ -48,7 +50,7 @@ interface GraduationPopupProps {
   show: boolean;
   onClose: () => void;
   onBuyExact: (amount: number) => void;
-  onTriggerVictory: () => void;  // 🆕 NEW: For when token is already at limit
+  onTriggerVictory: () => void;
   solRemaining: number;
   solCollected: number;
   targetSol: number;
@@ -69,30 +71,19 @@ function GraduationPopup({
 }: GraduationPopupProps) {
   if (!show) return null;
 
-  // Progress percentage
   const progressPercent = (solCollected / targetSol) * 100;
-
-  // 🆕 Check if token is already at graduation limit (< 0.01 SOL remaining)
   const isAtLimit = solRemaining < 0.01;
-
-  // Calculate exact amount needed (only if not at limit)
-  // The contract checks: sol_collected + sol_amount > TARGET_SOL
-  // So we need: sol_amount < TARGET_SOL - sol_collected
-  // We use 99% of remaining to stay safely under the limit
   const maxSafeAmount = isAtLimit ? 0 : solRemaining * 0.99;
-  const safeAmount = Math.floor(maxSafeAmount * 10000) / 10000; // Round down
+  const safeAmount = Math.floor(maxSafeAmount * 10000) / 10000;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Popup */}
       <div className="relative bg-[#1a1f2e] border-2 border-yellow-500/50 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl shadow-yellow-500/20">
-        {/* Header */}
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">{isAtLimit ? '🏆' : '⚠️'}</div>
           <h2 className="text-xl font-bold text-yellow-400">
@@ -106,19 +97,17 @@ function GraduationPopup({
           </p>
         </div>
 
-        {/* Progress Display */}
         <div className="bg-black/30 rounded-xl p-4 mb-6">
           <div className="flex justify-between items-center mb-2">
             <span className="text-gray-400">SOL Collected</span>
             <span className="text-white font-bold">{solCollected.toFixed(4)} SOL</span>
           </div>
 
-          {/* Progress Bar */}
           <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden mb-2">
             <div
               className={`h-full rounded-full transition-all duration-300 ${isAtLimit
-                  ? 'bg-gradient-to-r from-green-400 to-green-500 animate-pulse'
-                  : 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                ? 'bg-gradient-to-r from-green-400 to-green-500 animate-pulse'
+                : 'bg-gradient-to-r from-yellow-400 to-orange-500'
                 }`}
               style={{ width: `${Math.min(progressPercent, 100)}%` }}
             />
@@ -132,21 +121,18 @@ function GraduationPopup({
           </div>
         </div>
 
-        {/* 🆕 CONDITIONAL CONTENT: At Limit vs Can Buy More */}
         {isAtLimit ? (
-          // Token is at limit - show victory trigger
           <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mb-6">
             <div className="text-center">
               <p className="text-green-400 font-bold text-lg mb-2">
                 🎯 Victory Threshold Reached!
               </p>
               <p className="text-gray-400 text-sm">
-                The bonding curve is complete. Click below to check victory conditions and finalize the battle.
+                The bonding curve is complete. Click below to check victory conditions.
               </p>
             </div>
           </div>
         ) : (
-          // Can still buy - show amount
           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
             <div className="text-center">
               <p className="text-gray-400 text-sm mb-1">Maximum safe buy amount:</p>
@@ -160,10 +146,8 @@ function GraduationPopup({
           </div>
         )}
 
-        {/* Buttons */}
         <div className="space-y-3">
           {isAtLimit ? (
-            // Victory button
             <button
               onClick={onTriggerVictory}
               disabled={loading}
@@ -181,7 +165,6 @@ function GraduationPopup({
               )}
             </button>
           ) : (
-            // Buy button
             <button
               onClick={() => onBuyExact(safeAmount)}
               disabled={loading || safeAmount <= 0}
@@ -200,7 +183,6 @@ function GraduationPopup({
             </button>
           )}
 
-          {/* Cancel Button */}
           <button
             onClick={onClose}
             disabled={loading}
@@ -210,7 +192,6 @@ function GraduationPopup({
           </button>
         </div>
 
-        {/* Info Note */}
         <p className="text-center text-gray-500 text-xs mt-4">
           {isAtLimit
             ? '⚡ Victory check will verify both SOL and Volume conditions'
@@ -241,6 +222,9 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   // 🚀 GRADUATION POPUP STATE
   const [showGraduationPopup, setShowGraduationPopup] = useState(false);
   const [graduationLoading, setGraduationLoading] = useState(false);
+
+  // ⚔️ BATTLE READY POPUP STATE
+  const [showBattleReady, setShowBattleReady] = useState(false);
 
   // Fetch SOL balance
   useEffect(() => {
@@ -273,24 +257,19 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     const solCollectedSol = tokenState.solCollected / 1e9;
     const totalVolumeSol = tokenState.totalTradeVolume / 1e9;
 
-    // SOL-based progress (PRIMARY)
     const solProgress = (solCollectedSol / TARGET_SOL) * 100;
     const volumeProgress = (totalVolumeSol / VICTORY_VOLUME_SOL) * 100;
 
-    // USD values (for display)
     const currentMcUsd = solCollectedSol * (solPriceUsd || 0);
     const currentVolUsd = totalVolumeSol * (solPriceUsd || 0);
     const mcProgress = Math.min((currentMcUsd / VICTORY_MC_USD) * 100, 100);
     const volProgress = Math.min((currentVolUsd / VICTORY_VOLUME_USD) * 100, 100);
 
-    // Overall progress based on SOL collected
     const overallProgress = solProgress;
 
-    // Calculate remaining and max buyable
     const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
-    const maxBuyableSol = solRemaining / (1 - TRADING_FEE); // Account for fee
+    const maxBuyableSol = solRemaining / (1 - TRADING_FEE);
 
-    // Check graduation states
     const isNearGraduation = solProgress >= AUTO_DISABLE_THRESHOLD;
     const isGraduationLocked = solProgress >= 100 || solRemaining <= 0.001;
 
@@ -311,11 +290,35 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     };
   }, [tokenState, solPriceUsd]);
 
-  // Format USD helper
-  const formatUsd = (value: number) => {
-    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`;
-    return `$${value.toFixed(0)}`;
-  };
+  // ============================================================
+  // ⚔️ CHECK IF TOKEN JUST QUALIFIED
+  // ============================================================
+  const checkQualification = useCallback(async (statusBeforeBuy: number | undefined) => {
+    try {
+      console.log('⚔️ Checking qualification. Status before buy:', statusBeforeBuy);
+
+      // Fetch current status from Supabase
+      const { data } = await supabase
+        .from('tokens')
+        .select('battle_status')
+        .eq('mint', mint.toString())
+        .single();
+
+      console.log('⚔️ Current status from DB:', data?.battle_status);
+
+      // Check if status changed from 0 (Created) to 1 (Qualified)
+      if (data && data.battle_status === 1 && statusBeforeBuy === 0) {
+        // Token just qualified! Show popup
+        console.log('⚔️ Token just qualified! Showing Battle Ready popup');
+        setShowBattleReady(true);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error checking qualification:', err);
+      return false;
+    }
+  }, [mint]);
 
   // ============================================================
   // 🛒 BUY HANDLER
@@ -326,7 +329,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    // Check if graduation locked
     if (progressData.isGraduationLocked) {
       setSuccessMessage('🏆 This token has reached victory! Finalizing battle...');
       setIsVictoryPopup(true);
@@ -346,6 +348,10 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
+    // ⚔️ SAVE STATUS BEFORE BUY
+    const statusBeforeBuy = tokenState?.battleStatus;
+    console.log('⚔️ Status BEFORE buy:', statusBeforeBuy);
+
     setLoading(true);
     try {
       const result = await buyToken(
@@ -353,21 +359,30 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         mint,
         solAmount,
         signTransaction,
-        0,                          // minTokensOut (no slippage protection)
-        tokenState?.battleStatus    // ⭐ Pass battleStatus to skip $10 check if qualified
+        0,
+        tokenState?.battleStatus
       );
 
       console.log('✅ Buy successful:', result);
-      setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
-      setIsVictoryPopup(false);
-      setShowSuccess(true);
+
+      // ⚔️ Check if token just qualified after buy
+      // Wait for webhook to sync
+      setTimeout(async () => {
+        const qualified = await checkQualification(statusBeforeBuy);
+        if (!qualified) {
+          // Normal success popup
+          setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
+          setIsVictoryPopup(false);
+          setShowSuccess(true);
+        }
+      }, 2500); // 2.5 seconds for webhook sync
+
       setAmount('');
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error('❌ Buy error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
-      // 🚀 Handle graduation case - SHOW POPUP!
       if (errorMessage.includes('GRADUATION_READY') ||
         errorMessage.includes('WouldExceedGraduation') ||
         errorMessage.includes('0x1786') ||
@@ -377,7 +392,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         return;
       }
 
-      // Regular error - show alert
       alert(`Failed to buy tokens: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -385,7 +399,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   };
 
   // ============================================================
-  // 🚀 GRADUATION BUY HANDLER (from popup)
+  // 🚀 GRADUATION BUY HANDLER
   // ============================================================
   const handleGraduationBuy = async (exactAmount: number) => {
     if (!publicKey || !signTransaction) {
@@ -397,14 +411,13 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     try {
       console.log(`🚀 Graduation buy: ${exactAmount} SOL`);
 
-      // 🚀 Pass battleStatus to skip $10 minimum check for qualified tokens
       const result = await buyToken(
         publicKey,
         mint,
         exactAmount,
         signTransaction,
-        0,                          // minTokensOut (no slippage protection)
-        tokenState?.battleStatus    // ⭐ Pass battleStatus (>= 1 skips $10 check)
+        0,
+        tokenState?.battleStatus
       );
 
       console.log('✅ Graduation buy successful:', result);
@@ -414,7 +427,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       setShowSuccess(true);
       setAmount('');
 
-      // Trigger victory check
       triggerVictoryCheck();
 
       if (onSuccess) onSuccess();
@@ -422,7 +434,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       console.error('❌ Graduation buy error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
-      // Even if it fails with graduation error, it means we're at the limit
       if (errorMessage.includes('GRADUATION_READY') ||
         errorMessage.includes('WouldExceedGraduation')) {
         setShowGraduationPopup(false);
@@ -440,7 +451,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   };
 
   // ============================================================
-  // 🏆 VICTORY CHECK FROM POPUP (when token is at limit)
+  // 🏆 VICTORY CHECK FROM POPUP
   // ============================================================
   const handleVictoryFromPopup = async () => {
     setGraduationLoading(true);
@@ -448,7 +459,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       console.log('🏆 Triggering victory check from graduation popup');
       await triggerVictoryCheck();
 
-      // Close popup and show success
       setShowGraduationPopup(false);
       setSuccessMessage('🏆 Victory conditions checked! See results above.');
       setIsVictoryPopup(true);
@@ -505,7 +515,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    const tokenAmountRaw = Math.floor(tokenAmount * 1e9); // 9 decimals
+    const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
     if (balance === null || tokenAmountRaw > balance) {
       alert('Insufficient token balance');
@@ -541,13 +551,17 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     setIsVictoryPopup(false);
   }, []);
 
+  const handleBattleReadyClose = useCallback(() => {
+    setShowBattleReady(false);
+  }, []);
+
   // ============================================================
   // 🎮 PERCENTAGE BUTTONS
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
       if (!solBalance) return;
-      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol); // Keep 0.01 SOL for fees
+      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol);
       const value = Math.max(0, maxUsable * (percent / 100));
       setAmount(value.toFixed(4));
     } else {
@@ -557,7 +571,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     }
   };
 
-  // Token symbol for display
   const tokenSymbol = tokenState?.symbol || 'TOKEN';
 
   return (
@@ -575,6 +588,15 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         loading={graduationLoading}
       />
 
+      {/* ⚔️ BATTLE READY POPUP */}
+      <BattleReadyPopup
+        show={showBattleReady}
+        onClose={handleBattleReadyClose}
+        tokenImage={tokenState?.image || ''}
+        tokenSymbol={tokenSymbol}
+        tokenMint={mint.toString()}
+      />
+
       {/* Success Popup */}
       <TransactionSuccessPopup
         show={showSuccess}
@@ -585,33 +607,31 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       />
 
       {/* ============================================================ */}
-      {/* 🏆 VICTORY PROGRESS SECTION (SOL-BASED) */}
+      {/* 🏆 VICTORY PROGRESS SECTION */}
       {/* ============================================================ */}
       {tokenState && (
         <div className="mb-4 p-3 bg-white/5 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-gray-300">🏆 Victory Progress</span>
             <span className={`text-sm font-bold ${progressData.isGraduationLocked ? 'text-yellow-400' :
-                progressData.isNearGraduation ? 'text-orange-400' : 'text-green-400'
+              progressData.isNearGraduation ? 'text-orange-400' : 'text-green-400'
               }`}>
               {progressData.overallProgress.toFixed(1)}%
             </span>
           </div>
 
-          {/* Progress Bar */}
           <div className="h-2 bg-[#2a3544] rounded-full overflow-hidden mb-3">
             <div
               className={`h-full rounded-full transition-all duration-500 ${progressData.isGraduationLocked
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-500 animate-pulse'
-                  : progressData.isNearGraduation
-                    ? 'bg-gradient-to-r from-orange-400 to-red-500'
-                    : 'bg-gradient-to-r from-green-400 to-green-600'
+                ? 'bg-gradient-to-r from-yellow-400 to-orange-500 animate-pulse'
+                : progressData.isNearGraduation
+                  ? 'bg-gradient-to-r from-orange-400 to-red-500'
+                  : 'bg-gradient-to-r from-green-400 to-green-600'
                 }`}
               style={{ width: `${progressData.overallProgress}%` }}
             />
           </div>
 
-          {/* SOL Stats Row */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <span className="text-gray-500">SOL:</span>
@@ -625,14 +645,12 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
             </div>
           </div>
 
-          {/* SOL Remaining */}
           {mode === 'buy' && progressData.solRemaining > 0 && progressData.solRemaining < 1 && (
             <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded text-xs text-yellow-300">
               ⚡ Only <span className="font-bold">{progressData.solRemaining.toFixed(4)} SOL</span> remaining to graduate!
             </div>
           )}
 
-          {/* Graduation Locked Warning */}
           {progressData.isGraduationLocked && (
             <div className="mt-2 p-2 bg-yellow-500/20 border border-yellow-500/30 rounded text-xs text-yellow-300 text-center">
               🏆 GRADUATION COMPLETE - Token ready for DEX listing!
@@ -753,10 +771,10 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
           (mode === 'buy' && progressData.isGraduationLocked)
         }
         className={`w-full py-3 rounded-lg font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy' && progressData.isGraduationLocked
-            ? 'bg-yellow-500/50 text-yellow-200 cursor-not-allowed'
-            : mode === 'buy'
-              ? 'bg-green-500 hover:bg-green-600 text-black'
-              : 'bg-red-500 hover:bg-red-600 text-white'
+          ? 'bg-yellow-500/50 text-yellow-200 cursor-not-allowed'
+          : mode === 'buy'
+            ? 'bg-green-500 hover:bg-green-600 text-black'
+            : 'bg-red-500 hover:bg-red-600 text-white'
           }`}
       >
         {loading
