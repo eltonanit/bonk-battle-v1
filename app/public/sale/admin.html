@@ -12,6 +12,9 @@
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
 
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         :root {
             --bg-primary: #0a0a0f;
@@ -195,10 +198,28 @@
             }
         }
 
+        .refresh-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.875rem;
+            margin-left: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
         /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 24px;
             margin-bottom: 32px;
         }
@@ -243,6 +264,10 @@
             background: rgba(251, 191, 36, 0.1);
         }
 
+        .stat-icon.red {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
         .stat-label {
             font-size: 0.875rem;
             color: var(--text-muted);
@@ -266,6 +291,23 @@
 
         .stat-change.negative {
             color: var(--accent-red);
+        }
+
+        .loading {
+            color: var(--text-muted);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
         }
 
         /* Cards Grid */
@@ -305,6 +347,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             font-family: inherit;
+            text-decoration: none;
         }
 
         .card-action:hover {
@@ -356,6 +399,13 @@
             align-items: center;
             justify-content: center;
             font-size: 1rem;
+            overflow: hidden;
+        }
+
+        .token-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .token-name {
@@ -375,19 +425,29 @@
             font-weight: 500;
         }
 
-        .status-badge.active {
-            background: rgba(0, 255, 136, 0.1);
-            color: var(--accent-green);
+        .status-badge.created {
+            background: rgba(100, 116, 139, 0.2);
+            color: #94a3b8;
         }
 
-        .status-badge.pending {
+        .status-badge.qualified {
             background: rgba(251, 191, 36, 0.1);
             color: var(--accent-yellow);
         }
 
-        .status-badge.completed {
+        .status-badge.inbattle {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+        }
+
+        .status-badge.victorypending {
             background: rgba(139, 92, 246, 0.1);
             color: var(--accent-purple);
+        }
+
+        .status-badge.listed {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--accent-green);
         }
 
         /* Quick Actions */
@@ -412,6 +472,7 @@
             text-align: left;
             font-family: inherit;
             width: 100%;
+            text-decoration: none;
         }
 
         .action-btn:hover {
@@ -475,6 +536,12 @@
         }
 
         /* Responsive */
+        @media (max-width: 1400px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
         @media (max-width: 1200px) {
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -567,9 +634,12 @@
     <main class="main-content">
         <div class="page-header">
             <h1 class="page-title">Dashboard</h1>
-            <div class="header-badge">
-                <span class="status-dot"></span>
-                System Online
+            <div style="display: flex; align-items: center;">
+                <div class="header-badge">
+                    <span class="status-dot"></span>
+                    System Online
+                </div>
+                <button class="refresh-btn" onclick="fetchAllData()">🔄 Refresh</button>
             </div>
         </div>
 
@@ -578,19 +648,9 @@
             <div class="stat-card">
                 <div class="stat-header">
                     <div>
-                        <div class="stat-label">Total Revenue</div>
-                        <div class="stat-value">$0</div>
-                        <div class="stat-change positive">Platform launch pending</div>
-                    </div>
-                    <div class="stat-icon green">💰</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-header">
-                    <div>
-                        <div class="stat-label">Tokens Created</div>
-                        <div class="stat-value" id="tokenCount">--</div>
-                        <div class="stat-change positive">Loading...</div>
+                        <div class="stat-label">Total Tokens</div>
+                        <div class="stat-value" id="tokenCount"><span class="loading">...</span></div>
+                        <div class="stat-change positive" id="tokenChange">Loading...</div>
                     </div>
                     <div class="stat-icon purple">🪙</div>
                 </div>
@@ -599,20 +659,40 @@
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Active Battles</div>
-                        <div class="stat-value" id="battleCount">--</div>
-                        <div class="stat-change">Loading...</div>
+                        <div class="stat-value" id="battleCount"><span class="loading">...</span></div>
+                        <div class="stat-change" id="battleChange">Loading...</div>
                     </div>
-                    <div class="stat-icon blue">⚔️</div>
+                    <div class="stat-icon red">⚔️</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Winners</div>
+                        <div class="stat-value" id="winnerCount"><span class="loading">...</span></div>
+                        <div class="stat-change positive" id="winnerChange">Loading...</div>
+                    </div>
+                    <div class="stat-icon green">🏆</div>
                 </div>
             </div>
             <div class="stat-card">
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Total Users</div>
-                        <div class="stat-value" id="userCount">--</div>
-                        <div class="stat-change positive">Loading...</div>
+                        <div class="stat-value" id="userCount"><span class="loading">...</span></div>
+                        <div class="stat-change positive" id="userChange">Loading...</div>
                     </div>
                     <div class="stat-icon yellow">👥</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Platform Revenue</div>
+                        <div class="stat-value" id="revenueCount"><span class="loading">...</span></div>
+                        <div class="stat-change positive" id="revenueChange">Loading...</div>
+                    </div>
+                    <div class="stat-icon blue">💰</div>
                 </div>
             </div>
         </div>
@@ -622,23 +702,23 @@
             <!-- Recent Activity -->
             <div class="card">
                 <div class="card-header">
-                    <h2 class="card-title">Recent Activity</h2>
-                    <button class="card-action">View All</button>
+                    <h2 class="card-title">Recent Token Activity</h2>
+                    <a href="https://bonk-battle.vercel.app" target="_blank" class="card-action">View Platform ↗</a>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead>
                             <tr>
                                 <th>Token</th>
-                                <th>Action</th>
+                                <th>SOL Collected</th>
                                 <th>Status</th>
-                                <th>Time</th>
+                                <th>Last Update</th>
                             </tr>
                         </thead>
                         <tbody id="activityTable">
                             <tr>
                                 <td colspan="4" style="text-align: center; color: var(--text-muted);">
-                                    Loading activity...
+                                    <span class="loading">Loading activity...</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -696,8 +776,8 @@
                     <div class="system-item">
                         <span class="system-label">Database</span>
                         <span class="system-value">
-                            <span class="system-dot online"></span>
-                            Supabase Online
+                            <span class="system-dot" id="dbStatus"></span>
+                            <span id="dbStatusText">Checking...</span>
                         </span>
                     </div>
                 </div>
@@ -722,7 +802,7 @@
                     <span class="action-text">Vercel Cron Jobs</span>
                     <span class="action-arrow">↗</span>
                 </a>
-                <a href="https://supabase.com/dashboard" target="_blank" class="action-btn"
+                <a href="https://supabase.com/dashboard/project/jfpuluquxjnamvyzocad" target="_blank" class="action-btn"
                     style="flex: 1; min-width: 200px;">
                     <span class="action-icon">🗄️</span>
                     <span class="action-text">Supabase Dashboard</span>
@@ -739,7 +819,28 @@
     </main>
 
     <script>
-        // Check authentication
+        // =============================================
+        // SUPABASE CONFIGURATION
+        // =============================================
+        const SUPABASE_URL = 'https://jfpuluquxjnamvyzocad.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcHVsdXF1eGpuYW12eXpvY2FkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM1Mjk4NjMsImV4cCI6MjA3OTEwNTg2M30.E2RVbigE0g6I4GIY48hbJoHcqxkocSW_kLMoetuqufE';
+        const API_BASE = 'https://bonk-battle.vercel.app';
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Battle status mapping
+        const BATTLE_STATUS = {
+            0: { name: 'Created', class: 'created' },
+            1: { name: 'Qualified', class: 'qualified' },
+            2: { name: 'In Battle', class: 'inbattle' },
+            3: { name: 'Victory Pending', class: 'victorypending' },
+            4: { name: 'Listed', class: 'listed' },
+        };
+
+        // =============================================
+        // AUTHENTICATION
+        // =============================================
         function checkAuth() {
             const auth = localStorage.getItem('adminAuth');
             if (!auth) {
@@ -751,89 +852,210 @@
 
         function logout() {
             localStorage.removeItem('adminAuth');
-            window.location.href = 'login.html';
+            window.location.href = '/sale/login.html';
         }
 
-        // API base URL - update this to your actual domain
-        const API_BASE = 'https://bonk-battle.vercel.app';
-
-        // Fetch dashboard data
-        async function fetchDashboardData() {
+        // =============================================
+        // DATA FETCHING
+        // =============================================
+        async function fetchTokenStats() {
             try {
-                // These would be real API calls in production
-                // For now, we'll show placeholder data
+                // Total tokens
+                const { count: totalTokens, error: tokenError } = await supabase
+                    .from('tokens')
+                    .select('*', { count: 'exact', head: true });
 
-                document.getElementById('tokenCount').textContent = '12';
-                document.getElementById('battleCount').textContent = '3';
-                document.getElementById('userCount').textContent = '48';
+                if (tokenError) throw tokenError;
 
-                // Update activity table
-                const activityTable = document.getElementById('activityTable');
-                activityTable.innerHTML = `
-          <tr>
-            <td>
-              <div class="token-cell">
-                <div class="token-icon">🐕</div>
-                <div>
-                  <div class="token-name">DogeCoin</div>
-                  <div class="token-symbol">DOGE</div>
-                </div>
-              </div>
-            </td>
-            <td>Battle Won</td>
-            <td><span class="status-badge completed">Listed</span></td>
-            <td>2 min ago</td>
-          </tr>
-          <tr>
-            <td>
-              <div class="token-cell">
-                <div class="token-icon">🐱</div>
-                <div>
-                  <div class="token-name">CatMeme</div>
-                  <div class="token-symbol">CAT</div>
-                </div>
-              </div>
-            </td>
-            <td>In Battle</td>
-            <td><span class="status-badge active">Active</span></td>
-            <td>5 min ago</td>
-          </tr>
-          <tr>
-            <td>
-              <div class="token-cell">
-                <div class="token-icon">🚀</div>
-                <div>
-                  <div class="token-name">MoonShot</div>
-                  <div class="token-symbol">MOON</div>
-                </div>
-              </div>
-            </td>
-            <td>Qualified</td>
-            <td><span class="status-badge pending">Waiting</span></td>
-            <td>12 min ago</td>
-          </tr>
-        `;
+                // Active battles (status = 2)
+                const { count: activeBattles, error: battleError } = await supabase
+                    .from('tokens')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('battle_status', 2);
+
+                if (battleError) throw battleError;
+
+                // Qualified tokens waiting
+                const { count: qualifiedTokens, error: qualError } = await supabase
+                    .from('tokens')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('battle_status', 1);
+
+                document.getElementById('tokenCount').textContent = totalTokens || 0;
+                document.getElementById('tokenChange').textContent = `${qualifiedTokens || 0} qualified, waiting`;
+                document.getElementById('tokenChange').className = 'stat-change positive';
+
+                document.getElementById('battleCount').textContent = activeBattles || 0;
+                document.getElementById('battleChange').textContent = 'Active now';
+                document.getElementById('battleChange').className = 'stat-change';
 
             } catch (error) {
-                console.error('Failed to fetch dashboard data:', error);
+                console.error('Error fetching token stats:', error);
+                document.getElementById('tokenCount').textContent = 'Error';
+                document.getElementById('battleCount').textContent = 'Error';
             }
         }
 
-        // Quick action handlers
+        async function fetchWinnerStats() {
+            try {
+                // Total winners
+                const { count: totalWinners, error: winnerError } = await supabase
+                    .from('winners')
+                    .select('*', { count: 'exact', head: true });
+
+                if (winnerError) throw winnerError;
+
+                // Total platform revenue
+                const { data: revenueData, error: revenueError } = await supabase
+                    .from('winners')
+                    .select('platform_fee_sol, spoils_sol');
+
+                if (revenueError) throw revenueError;
+
+                let totalRevenue = 0;
+                let totalSpoils = 0;
+                if (revenueData) {
+                    revenueData.forEach(w => {
+                        totalRevenue += parseFloat(w.platform_fee_sol || 0);
+                        totalSpoils += parseFloat(w.spoils_sol || 0);
+                    });
+                }
+
+                document.getElementById('winnerCount').textContent = totalWinners || 0;
+                document.getElementById('winnerChange').textContent = `${totalSpoils.toFixed(2)} SOL in spoils`;
+                document.getElementById('winnerChange').className = 'stat-change positive';
+
+                document.getElementById('revenueCount').textContent = `${totalRevenue.toFixed(2)} SOL`;
+                document.getElementById('revenueChange').textContent = 'Platform fees collected';
+                document.getElementById('revenueChange').className = 'stat-change positive';
+
+            } catch (error) {
+                console.error('Error fetching winner stats:', error);
+                document.getElementById('winnerCount').textContent = '0';
+                document.getElementById('revenueCount').textContent = '0 SOL';
+            }
+        }
+
+        async function fetchUserStats() {
+            try {
+                const { count: totalUsers, error } = await supabase
+                    .from('users')
+                    .select('*', { count: 'exact', head: true });
+
+                if (error) throw error;
+
+                document.getElementById('userCount').textContent = totalUsers || 0;
+                document.getElementById('userChange').textContent = 'Registered wallets';
+                document.getElementById('userChange').className = 'stat-change positive';
+
+            } catch (error) {
+                console.error('Error fetching user stats:', error);
+                document.getElementById('userCount').textContent = '0';
+            }
+        }
+
+        async function fetchRecentActivity() {
+            try {
+                const { data: tokens, error } = await supabase
+                    .from('tokens')
+                    .select('mint, name, symbol, image, sol_collected, battle_status, updated_at')
+                    .order('updated_at', { ascending: false })
+                    .limit(5);
+
+                if (error) throw error;
+
+                const activityTable = document.getElementById('activityTable');
+
+                if (!tokens || tokens.length === 0) {
+                    activityTable.innerHTML = `
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-muted);">
+                                No tokens found
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                activityTable.innerHTML = tokens.map(token => {
+                    const status = BATTLE_STATUS[token.battle_status] || { name: 'Unknown', class: 'created' };
+                    const solCollected = (token.sol_collected / 1e9).toFixed(4);
+                    const timeAgo = getTimeAgo(new Date(token.updated_at));
+                    const imageUrl = token.image || '';
+                    const imageHtml = imageUrl
+                        ? `<img src="${imageUrl}" alt="${token.symbol}" onerror="this.parentElement.innerHTML='🪙'">`
+                        : '🪙';
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="token-cell">
+                                    <div class="token-icon">${imageHtml}</div>
+                                    <div>
+                                        <div class="token-name">${token.name || 'Unknown'}</div>
+                                        <div class="token-symbol">${token.symbol || '???'}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${solCollected} SOL</td>
+                            <td><span class="status-badge ${status.class}">${status.name}</span></td>
+                            <td>${timeAgo}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Update DB status
+                document.getElementById('dbStatus').className = 'system-dot online';
+                document.getElementById('dbStatusText').textContent = 'Supabase Online';
+
+            } catch (error) {
+                console.error('Error fetching activity:', error);
+                document.getElementById('dbStatus').className = 'system-dot offline';
+                document.getElementById('dbStatusText').textContent = 'Connection Error';
+            }
+        }
+
+        // =============================================
+        // HELPER FUNCTIONS
+        // =============================================
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+
+            if (seconds < 60) return `${seconds}s ago`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        async function fetchAllData() {
+            console.log('🔄 Refreshing dashboard data...');
+            await Promise.all([
+                fetchTokenStats(),
+                fetchWinnerStats(),
+                fetchUserStats(),
+                fetchRecentActivity(),
+            ]);
+            console.log('✅ Dashboard data refreshed');
+        }
+
+        // =============================================
+        // QUICK ACTIONS
+        // =============================================
         async function triggerAutoComplete() {
-            alert('Triggering auto-complete scan...\n\nThis calls: GET /api/battles/auto-complete');
+            if (!confirm('Run auto-complete scan?\n\nThis will check for winners and process them.')) return;
 
             try {
                 const response = await fetch(`${API_BASE}/api/battles/auto-complete`);
                 const data = await response.json();
-                alert('Result:\n' + JSON.stringify(data, null, 2));
+                alert('✅ Auto-Complete Result:\n\n' + JSON.stringify(data, null, 2));
+                fetchAllData(); // Refresh data
             } catch (error) {
-                alert('Error: ' + error.message);
+                alert('❌ Error: ' + error.message);
             }
         }
 
         async function updatePrice() {
-            const secret = prompt('Enter CRON_SECRET:');
+            const secret = prompt('Enter CRON_SECRET to update SOL price:');
             if (!secret) return;
 
             try {
@@ -841,9 +1063,9 @@
                     headers: { 'Authorization': `Bearer ${secret}` }
                 });
                 const data = await response.json();
-                alert('Result:\n' + JSON.stringify(data, null, 2));
+                alert('💱 Price Update Result:\n\n' + JSON.stringify(data, null, 2));
             } catch (error) {
-                alert('Error: ' + error.message);
+                alert('❌ Error: ' + error.message);
             }
         }
 
@@ -851,9 +1073,13 @@
             window.open('https://vercel.com/eltonanits-projects/bonk-battle/logs', '_blank');
         }
 
-        // Initialize
+        // =============================================
+        // INITIALIZE
+        // =============================================
         if (checkAuth()) {
-            fetchDashboardData();
+            fetchAllData();
+            // Auto-refresh every 30 seconds
+            setInterval(fetchAllData, 30000);
         }
     </script>
 </body>
