@@ -2,14 +2,75 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
-import { ParsedTokenBattleState, BattleStatus } from '@/types/bonk';
+import { supabase } from '@/lib/supabase';
+import { BattleStatus } from '@/types/bonk';
 import Link from 'next/link';
 import Image from 'next/image';
 
+// Token data from Supabase
+interface TokenData {
+  mint: string;
+  name: string;
+  symbol: string;
+  image: string | null;
+  uri: string | null;
+  battle_status: number;
+  sol_collected: number;
+  real_sol_reserves: number;
+  creation_timestamp: number;
+  creator: string | null;
+  creator_wallet: string | null;
+}
+
+// Status badge info for grid overlay
+function getStatusBadge(status: number): { label: string; color: string; bgColor: string } {
+  switch (status) {
+    case BattleStatus.Created:
+      return { label: 'NEW', color: 'text-emerald-400', bgColor: 'bg-emerald-500/30' };
+    case BattleStatus.Qualified:
+      return { label: 'QUALIFIED', color: 'text-yellow-400', bgColor: 'bg-yellow-500/30' };
+    case BattleStatus.InBattle:
+      return { label: 'IN BATTLE', color: 'text-orange-400', bgColor: 'bg-orange-500/30' };
+    case BattleStatus.VictoryPending:
+      return { label: 'WINNER', color: 'text-purple-400', bgColor: 'bg-purple-500/30' };
+    case BattleStatus.Listed:
+      return { label: 'LISTED', color: 'text-cyan-400', bgColor: 'bg-cyan-500/30' };
+    default:
+      return { label: 'UNKNOWN', color: 'text-gray-400', bgColor: 'bg-gray-500/30' };
+  }
+}
+
+// Format market cap
+function formatMarketCap(solCollected: number): string {
+  // Rough MC estimate: solCollected * SOL price * multiplier
+  const solPrice = 150; // Approximate
+  const mcUsd = solCollected * solPrice * 10;
+
+  if (mcUsd >= 1000000) {
+    return `$${(mcUsd / 1000000).toFixed(1)}M`;
+  } else if (mcUsd >= 1000) {
+    return `$${(mcUsd / 1000).toFixed(1)}K`;
+  }
+  return `$${mcUsd.toFixed(0)}`;
+}
+
+// Parse image from URI JSON if needed
+function parseImageFromUri(uri: string | null): string | null {
+  if (!uri) return null;
+  try {
+    if (uri.startsWith('{')) {
+      const parsed = JSON.parse(uri);
+      return parsed.image || null;
+    }
+  } catch {
+    // Not JSON
+  }
+  return null;
+}
+
 export function CoinsTab() {
   const { publicKey } = useWallet();
-  const [coins, setCoins] = useState<ParsedTokenBattleState[]>([]);
+  const [coins, setCoins] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchCreatedCoins = useCallback(async () => {
@@ -17,28 +78,25 @@ export function CoinsTab() {
 
     try {
       setLoading(true);
-      console.log('🎨 Fetching created BONK tokens for:', publicKey.toBase58());
+      const walletAddress = publicKey.toBase58();
 
-      // Fetch all BONK tokens
-      const allTokens = await fetchAllBonkTokens();
+      // Query Supabase for tokens created by this wallet
+      const { data, error } = await supabase
+        .from('tokens')
+        .select('mint, name, symbol, image, uri, battle_status, sol_collected, real_sol_reserves, creation_timestamp, creator, creator_wallet')
+        .or(`creator.eq.${walletAddress},creator_wallet.eq.${walletAddress}`)
+        .order('creation_timestamp', { ascending: false });
 
-      console.log(`📊 Found ${allTokens.length} total BONK tokens`);
+      if (error) {
+        console.error('❌ Supabase error:', error);
+        setCoins([]);
+        return;
+      }
 
-      // Filter only tokens created by this user
-      const userCreatedTokens = allTokens.filter(
-        token => token.creator?.toString() === publicKey.toBase58()
-      );
-
-      console.log(`🎨 Found ${userCreatedTokens.length} tokens created by ${publicKey.toBase58()}`);
-
-      // Sort by creation timestamp (newest first)
-      userCreatedTokens.sort((a, b) => b.creationTimestamp - a.creationTimestamp);
-
-      setCoins(userCreatedTokens);
-      console.log(`✅ Loaded ${userCreatedTokens.length} user-created BONK tokens`);
-
+      setCoins(data || []);
     } catch (error) {
       console.error('❌ Error fetching created coins:', error);
+      setCoins([]);
     } finally {
       setLoading(false);
     }
@@ -49,42 +107,8 @@ export function CoinsTab() {
       setLoading(false);
       return;
     }
-
     fetchCreatedCoins();
   }, [publicKey, fetchCreatedCoins]);
-
-  function getStatusName(status: BattleStatus): string {
-    switch (status) {
-      case BattleStatus.Created: return 'Created';
-      case BattleStatus.Qualified: return 'Qualified';
-      case BattleStatus.InBattle: return 'In Battle';
-      case BattleStatus.VictoryPending: return 'Victory Pending';
-      case BattleStatus.Listed: return 'Listed';
-      default: return 'Unknown';
-    }
-  }
-
-  function getStatusColor(status: BattleStatus): string {
-    switch (status) {
-      case BattleStatus.Created: return 'text-green-400';
-      case BattleStatus.Qualified: return 'text-yellow-400';
-      case BattleStatus.InBattle: return 'text-orange-400';
-      case BattleStatus.VictoryPending: return 'text-purple-400';
-      case BattleStatus.Listed: return 'text-blue-400';
-      default: return 'text-gray-400';
-    }
-  }
-
-  function getStatusEmoji(status: BattleStatus): string {
-    switch (status) {
-      case BattleStatus.Created: return '🆕';
-      case BattleStatus.Qualified: return '✅';
-      case BattleStatus.InBattle: return '⚔️';
-      case BattleStatus.VictoryPending: return '🏆';
-      case BattleStatus.Listed: return '🎓';
-      default: return '❓';
-    }
-  }
 
   if (!publicKey) {
     return (
@@ -96,140 +120,112 @@ export function CoinsTab() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white/5 rounded-2xl p-6 animate-pulse">
-            <div className="h-20 bg-white/5 rounded"></div>
-          </div>
-        ))}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-lg font-bold text-white">Your Tokens</div>
+          <div className="w-24 h-8 bg-white/10 rounded-lg animate-pulse" />
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="aspect-square bg-[#1a1f2e] animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div>
-      {/* Header with buttons - always visible when logged in */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="text-lg font-bold text-white">
           Your Tokens ({coins.length})
         </div>
         <Link
           href="/create"
-          className="px-4 py-2 bg-emerald-400 hover:bg-emerald-500 text-black rounded-lg font-bold transition-all text-sm"
+          className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-black rounded-lg font-bold transition-colors text-sm"
         >
           + Create New
         </Link>
       </div>
 
-      {/* Empty state */}
+      {/* Empty State */}
       {coins.length === 0 ? (
-        <div className="text-center py-12 bg-[#1a1f2e] border border-[#2a3544] rounded-xl">
-          <div className="text-6xl mb-4">🚀</div>
-          <div className="text-xl font-bold mb-2">No coins created yet</div>
-          <div className="text-gray-400 mb-6">Create your first token and become a creator</div>
-          <Link
-            href="/create"
-            className="inline-block px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition-all"
-          >
-            Create Your First Coin
-          </Link>
+        <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-8">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🚀</div>
+            <div className="text-xl font-bold mb-2">No coins created yet</div>
+            <div className="text-gray-400 mb-6">Create your first token and become a creator</div>
+            <Link
+              href="/create"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-pink-500 to-pink-600 rounded-lg font-bold hover:from-pink-600 hover:to-pink-700 transition-all"
+            >
+              Create Your First Coin
+            </Link>
+          </div>
         </div>
       ) : (
+        /* Clash Royale Style Grid */
+        <div className="grid grid-cols-3 gap-2">
+          {coins.map((coin) => {
+            const statusBadge = getStatusBadge(coin.battle_status || 0);
+            // SOL collected: use real_sol_reserves or sol_collected, convert from lamports
+            const solCollected = ((coin.real_sol_reserves || coin.sol_collected || 0) / 1e9);
 
-      <div className="space-y-3">
-        {coins.map((coin) => {
-          const status = coin.battleStatus;
-          const isNew = status === BattleStatus.Created;
-          const isQualified = status === BattleStatus.Qualified;
-          const isInBattle = status === BattleStatus.InBattle;
+            // Get image: direct field or parse from URI
+            const imageUrl = coin.image || parseImageFromUri(coin.uri);
 
-          return (
-            <div
-              key={coin.mint.toString()}
-              className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-3 flex items-center justify-between gap-2"
-            >
-              {/* Left: Token image + symbol */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-yellow-500 flex-shrink-0">
-                  {coin.image ? (
+            return (
+              <Link
+                key={coin.mint}
+                href={`/token/${coin.mint}`}
+                className="relative bg-[#1a1f2e] rounded-xl overflow-hidden group border border-[#2a3544] hover:border-[#3a4554] transition-all"
+              >
+                {/* Top Bar - Market Cap with green background */}
+                <div className="bg-emerald-500 px-2 py-1 flex items-center justify-center">
+                  <span className="text-black text-xs font-bold">
+                    {formatMarketCap(solCollected)}
+                  </span>
+                </div>
+
+                {/* Token Image - Square */}
+                <div className="relative aspect-square">
+                  {imageUrl ? (
                     <Image
-                      src={coin.image}
+                      src={imageUrl}
                       alt={coin.symbol || 'Token'}
                       fill
-                      className="object-cover"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-sm font-bold">
-                      {coin.symbol?.charAt(0) || '?'}
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-orange-500/30 to-yellow-500/30">
+                      <span className="text-4xl font-bold text-white/50">
+                        {coin.symbol?.charAt(0) || '?'}
+                      </span>
                     </div>
                   )}
+
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center">
+                    <div className="text-white font-bold text-sm">
+                      ${coin.symbol || 'UNK'}
+                    </div>
+                    <div className="text-gray-300 text-[10px] mt-1">
+                      {solCollected.toFixed(2)} SOL
+                    </div>
+                  </div>
                 </div>
-                <div className="font-semibold text-white text-sm truncate">${coin.symbol || 'UNK'}</div>
-              </div>
 
-              {/* Center: Status badge */}
-              <div className="flex-shrink-0 w-16 text-left">
-                {isInBattle && (
-                  <span className="px-2 py-0.5 bg-orange-500/20 text-orange-400 rounded-full text-xs font-semibold">
-                    In Battle
+                {/* Bottom Bar - Status */}
+                <div className={`px-2 py-1.5 flex items-center justify-center ${statusBadge.bgColor}`}>
+                  <span className={`text-xs font-bold ${statusBadge.color}`}>
+                    {statusBadge.label}
                   </span>
-                )}
-                {isQualified && (
-                  <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs font-semibold">
-                    Qualified
-                  </span>
-                )}
-                {isNew && (
-                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
-                    New
-                  </span>
-                )}
-                {!isInBattle && !isQualified && !isNew && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(status)} bg-white/10`}>
-                    {getStatusName(status)}
-                  </span>
-                )}
-              </div>
-
-              {/* Right: Action button based on status */}
-              <div className="flex-shrink-0">
-                {isNew && (
-                  <Link
-                    href={`/token/${coin.mint.toString()}`}
-                    className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-500 text-black font-semibold rounded-lg text-xs transition-colors"
-                  >
-                    Qualify
-                  </Link>
-                )}
-                {isQualified && (
-                  <Link
-                    href={`/battlestart?token=${coin.mint.toString()}`}
-                    className="px-3 py-1.5 bg-orange-400 hover:bg-orange-500 text-black font-semibold rounded-lg text-xs transition-colors"
-                  >
-                    Find Opponent
-                  </Link>
-                )}
-                {isInBattle && (
-                  <Link
-                    href={`/battle/${coin.currentBattle?.toString() || coin.mint.toString()}`}
-                    className="px-3 py-1.5 bg-orange-300 hover:bg-orange-400 text-black font-semibold rounded-lg text-xs transition-colors"
-                  >
-                    View Match
-                  </Link>
-                )}
-                {!isNew && !isQualified && !isInBattle && (
-                  <Link
-                    href={`/token/${coin.mint.toString()}`}
-                    className="px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg text-xs transition-colors"
-                  >
-                    View
-                  </Link>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
     </div>
   );

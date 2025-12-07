@@ -398,7 +398,10 @@ export async function POST(request: NextRequest) {
                 // Save creator wallet to token record
                 const { error: creatorError } = await supabase
                     .from('tokens')
-                    .update({ creator_wallet: event.feePayer })
+                    .update({
+                        creator: event.feePayer,
+                        creator_wallet: event.feePayer
+                    })
                     .eq('mint', detected.tokenMint);
 
                 if (creatorError) {

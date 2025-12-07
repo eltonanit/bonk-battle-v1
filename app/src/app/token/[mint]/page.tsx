@@ -331,7 +331,8 @@ export default function TokenDetailPage() {
                 constantK: (BigInt(state.virtualSolReserves) * BigInt(state.virtualTokenReserves)).toString(),
                 createdAt: state.creationTimestamp,
                 name: state.name || mintAddress.slice(0, 8),
-                symbol: state.symbol || 'BONK'
+                symbol: state.symbol || 'BONK',
+                marketCapUsd: marketCapUsd ?? undefined,
               }} />
 
               {/* Tabs Section */}

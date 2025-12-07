@@ -114,6 +114,26 @@ export default function CreatePage() {
             console.log('⚔️ Battle State:', result.battleState.toString());
             console.log('🏆 Tier:', result.tier === BattleTier.Test ? 'Test (compile-time)' : 'Production (compile-time)');
 
+            // ⭐ NEW: Save creator to database
+            try {
+                const creatorRes = await fetch('/api/tokens/set-creator', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mint: result.mint.toString(),
+                        creator: publicKey.toBase58()
+                    })
+                });
+
+                if (creatorRes.ok) {
+                    console.log('👤 Creator saved to database');
+                } else {
+                    console.warn('⚠️ Could not save creator to database');
+                }
+            } catch (err) {
+                console.warn('⚠️ Error saving creator:', err);
+            }
+
             // Show success popup and redirect
             setCreatedMint(result.mint.toString());
             setShowSuccess(true);
