@@ -504,7 +504,7 @@
 <body>
     <!-- Sidebar -->
     <aside class="sidebar">
-        <a href="/" class="sidebar-logo">
+        <a href="/sale/" class="sidebar-logo">
             <span class="sidebar-logo-icon">⚔️</span>
             TOKEN ARENA
         </a>
@@ -743,7 +743,7 @@
         function checkAuth() {
             const auth = localStorage.getItem('adminAuth');
             if (!auth) {
-                window.location.href = 'login.html';
+                window.location.href = '/sale/login.html';
                 return false;
             }
             return true;
