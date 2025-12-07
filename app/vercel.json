@@ -1,8 +1,12 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/update-price",
-            "schedule": "0 0 * * *"
-        }
-    ]
+  "crons": [
+    {
+      "path": "/api/battles/auto-complete",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/cron/update-price",
+      "schedule": "0 */12 * * *"
+    }
+  ]
 }
