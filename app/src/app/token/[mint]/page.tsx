@@ -20,6 +20,7 @@ import { TokenHero } from '@/components/token/TokenHero';
 import { PriceChart } from '@/components/token/PriceChart';
 import { BondingCurveCard } from '@/components/token/BondingCurveCard';
 import { QualificationPopup } from '@/components/token/QualificationPopup';
+import { TradesList } from '@/components/token/TradesList';
 
 /**
  * Validates if a string is a valid Solana public key
@@ -40,6 +41,9 @@ export default function TokenDetailPage() {
 
   // ⭐ Stato per tracciare se popup è stato chiuso
   const [qualificationPopupDismissed, setQualificationPopupDismissed] = useState(false);
+
+  // ⭐ Tab state for Thread/Trades/Holders
+  const [activeTab, setActiveTab] = useState<'thread' | 'trades' | 'holders'>('trades');
 
   // ⭐ Winner state for Raydium pool integration
   const [isWinner, setIsWinner] = useState(false);
@@ -321,6 +325,7 @@ export default function TokenDetailPage() {
 
               {/* Chart Section - V2: use realSolReserves instead of solCollected */}
               <PriceChart token={{
+                mint: mintAddress,
                 solRaised: solRaised,
                 virtualSolInit: state.virtualSolReserves / 1e9,
                 constantK: (BigInt(state.virtualSolReserves) * BigInt(state.virtualTokenReserves)).toString(),
@@ -329,17 +334,60 @@ export default function TokenDetailPage() {
                 symbol: state.symbol || 'BONK'
               }} />
 
-              {/* Tabs Section (Placeholder) */}
+              {/* Tabs Section */}
               <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
                 <div className="flex gap-6 border-b border-gray-800 pb-4 mb-4">
-                  <button className="font-bold text-white border-b-2 border-bonk-green pb-4 -mb-4.5">Thread</button>
-                  <button className="font-bold text-gray-400 hover:text-white transition-colors">Trades</button>
-                  <button className="font-bold text-gray-400 hover:text-white transition-colors">Holders</button>
-                  <button className="font-bold text-gray-400 hover:text-white transition-colors">Entrants</button>
+                  <button
+                    onClick={() => setActiveTab('thread')}
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
+                      activeTab === 'thread'
+                        ? 'text-white border-b-2 border-bonk-green'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Thread
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('trades')}
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
+                      activeTab === 'trades'
+                        ? 'text-white border-b-2 border-bonk-green'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Trades
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('holders')}
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
+                      activeTab === 'holders'
+                        ? 'text-white border-b-2 border-bonk-green'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    Holders
+                  </button>
                 </div>
-                <div className="text-center py-12 text-gray-500">
-                  No comments yet. Be the first to start the conversation!
-                </div>
+
+                {/* Tab Content */}
+                {activeTab === 'thread' && (
+                  <div className="text-center py-12 text-gray-500">
+                    No comments yet. Be the first to start the conversation!
+                  </div>
+                )}
+
+                {activeTab === 'trades' && (
+                  <TradesList
+                    tokenMint={mintAddress}
+                    tokenSymbol={state.symbol || 'TOKEN'}
+                  />
+                )}
+
+                {activeTab === 'holders' && (
+                  <div className="text-center py-12 text-gray-500">
+                    Holder distribution coming soon...
+                  </div>
+                )}
               </div>
             </div>
 
