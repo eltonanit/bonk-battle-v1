@@ -167,6 +167,17 @@ export function VictoryModal({
 
           {/* Actions */}
           <div className="px-6 pb-6 space-y-3">
+            {/* Auto-processing indicator (no manual claim needed) */}
+            {!isFinalized && !onClaimVictory && (
+              <div className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-center">
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  Creating Pool...
+                </span>
+              </div>
+            )}
+
+            {/* Manual claim button (if onClaimVictory provided) */}
             {canClaim && (
               <button
                 onClick={handleClaimVictory}

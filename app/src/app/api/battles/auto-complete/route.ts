@@ -13,6 +13,8 @@
  * - Manually via POST with tokenMint
  * - Automatically via GET (scans all InBattle tokens)
  * - From webhook after trades
+ * 
+ * ⭐ FIX: Uses 99.5% tolerance for SOL target (matches smart contract!)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -54,9 +56,18 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Victory thresholds (TEST tier)
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ VICTORY THRESHOLDS (TEST tier) - WITH 99.5% TOLERANCE!
+// ═══════════════════════════════════════════════════════════════════════════
+
 const TARGET_SOL = 6_000_000_000; // 6 SOL in lamports
 const VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL in lamports
+
+// ⭐ FIX: Apply 99.5% tolerance to match smart contract exactly!
+// Smart contract: let sol_threshold = TARGET_SOL.checked_mul(995).unwrap().checked_div(1000).unwrap();
+const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5,970,000,000 lamports = 5.97 SOL
+
+console.log(`🎯 Victory Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} SOL (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9} SOL`);
 
 // V1 Struct offsets
 const V1_OFFSET_SOL_COLLECTED = 40;
@@ -463,8 +474,8 @@ async function executeFullPipeline(
   const totalVolume = Number(battleStateAccount.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
 
   console.log('Current Status:', ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][currentStatus]);
-  console.log('SOL Collected:', (solCollected / 1e9).toFixed(4));
-  console.log('Total Volume:', (totalVolume / 1e9).toFixed(4));
+  console.log('SOL Collected:', (solCollected / 1e9).toFixed(4), `(threshold: ${SOL_THRESHOLD / 1e9})`);
+  console.log('Total Volume:', (totalVolume / 1e9).toFixed(4), `(threshold: ${VICTORY_VOLUME_SOL / 1e9})`);
 
   // Get opponent mint
   const opponentBytes = battleStateAccount.data.slice(V1_OFFSET_OPPONENT_MINT, V1_OFFSET_OPPONENT_MINT + 32);
@@ -478,14 +489,18 @@ async function executeFullPipeline(
   // ─────────────────────────────────────────────────────────────────────────
 
   if (currentStatus === BattleStatus.InBattle) {
-    // Verify conditions are met
-    if (solCollected < TARGET_SOL || totalVolume < VICTORY_VOLUME_SOL) {
+    // ⭐ FIX: Use SOL_THRESHOLD (99.5%) instead of TARGET_SOL!
+    if (solCollected < SOL_THRESHOLD || totalVolume < VICTORY_VOLUME_SOL) {
+      const solProgress = ((solCollected / SOL_THRESHOLD) * 100).toFixed(1);
+      const volProgress = ((totalVolume / VICTORY_VOLUME_SOL) * 100).toFixed(1);
       return {
         success: false,
         steps,
-        error: 'Victory conditions not met',
+        error: `Victory conditions not met: SOL ${solProgress}% (${(solCollected / 1e9).toFixed(4)}/${SOL_THRESHOLD / 1e9}), Volume ${volProgress}% (${(totalVolume / 1e9).toFixed(4)}/${VICTORY_VOLUME_SOL / 1e9})`,
       };
     }
+
+    console.log('✅ Victory conditions MET! Processing...');
 
     const victoryResult = await checkVictory(connection, keeper, mint);
     steps.checkVictory = victoryResult;
@@ -534,6 +549,20 @@ async function executeFullPipeline(
       console.warn('⚠️ Failed to update loser in DB:', loserUpdateError.message);
     } else {
       console.log('✅ Loser reset to Qualified:', opponentMint.toString().slice(0, 8) + '...');
+    }
+
+    // ✅ Update battles table
+    const { error: battleUpdateError } = await supabase
+      .from('battles')
+      .update({
+        status: 'completed',
+        winner_mint: tokenMint,
+        ended_at: new Date().toISOString(),
+      })
+      .or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
+
+    if (battleUpdateError) {
+      console.warn('⚠️ Failed to update battles table:', battleUpdateError.message);
     }
 
     await sleep(2000);
@@ -731,13 +760,14 @@ async function scanForWinners(): Promise<{
   processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string }>;
 }> {
   console.log('\n🔍 Scanning for potential winners...');
+  console.log(`🎯 Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9}`);
 
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
   // Get all InBattle tokens from database
   const { data: inBattleTokens, error } = await supabase
     .from('tokens')
-    .select('mint, symbol')
+    .select('mint, symbol, sol_collected, total_trade_volume')
     .eq('battle_status', BattleStatus.InBattle);
 
   if (error || !inBattleTokens) {
@@ -775,8 +805,13 @@ async function scanForWinners(): Promise<{
       const solCollected = Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
       const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
 
-      // Check if victory conditions are met
-      if (solCollected >= TARGET_SOL && totalVolume >= VICTORY_VOLUME_SOL) {
+      const solProgress = ((solCollected / SOL_THRESHOLD) * 100).toFixed(1);
+      const volProgress = ((totalVolume / VICTORY_VOLUME_SOL) * 100).toFixed(1);
+
+      console.log(`📊 ${token.symbol} (${token.mint.slice(0, 8)}...): SOL ${solProgress}% (${(solCollected / 1e9).toFixed(4)}), Vol ${volProgress}% (${(totalVolume / 1e9).toFixed(4)})`);
+
+      // ⭐ FIX: Check if victory conditions are met using SOL_THRESHOLD (99.5%)!
+      if (solCollected >= SOL_THRESHOLD && totalVolume >= VICTORY_VOLUME_SOL) {
         console.log(`🏆 Winner found: ${token.symbol} (${token.mint.slice(0, 8)}...)`);
         potentialWinners.push(token.mint);
 
@@ -841,6 +876,12 @@ export async function GET() {
       message: result.potentialWinners.length > 0
         ? `Found and processed ${result.potentialWinners.length} winner(s)!`
         : 'No winners found',
+      thresholds: {
+        solThreshold: SOL_THRESHOLD / 1e9,
+        solTarget: TARGET_SOL / 1e9,
+        volumeThreshold: VICTORY_VOLUME_SOL / 1e9,
+        tolerance: '99.5%',
+      },
       ...result,
     });
 

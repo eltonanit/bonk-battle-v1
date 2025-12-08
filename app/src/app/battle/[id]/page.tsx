@@ -127,6 +127,7 @@ export default function BattleDetailPage() {
 
   // Victory modal states
   const [showVictoryModal, setShowVictoryModal] = useState(false);
+  const [victoryProcessing, setVictoryProcessing] = useState(false);
   const [victoryData, setVictoryData] = useState<{
     winnerMint: string;
     winnerSymbol: string;
@@ -234,75 +235,76 @@ export default function BattleDetailPage() {
   const progressA = getProgress(stateA);
   const progressB = getProgress(stateB);
 
-  // Check for victory condition
+  // ═══════════════════════════════════════════════════════════════
+  // AUTO-VICTORY: Detect and process victory automatically
+  // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!stateA || !stateB) return;
+    if (!stateA || victoryProcessing || victoryData?.poolId) return;
 
-    const checkForVictory = () => {
-      // Check if token A won
-      if (progressA.sol >= 100 && progressA.vol >= 100) {
-        setVictoryData({
-          winnerMint: tokenAMint!.toString(),
-          winnerSymbol: stateA.symbol || 'TOKEN',
-          winnerImage: getTokenImage(stateA),
-          loserSymbol: stateB?.symbol,
-          loserImage: stateB ? getTokenImage(stateB) : undefined,
-          solCollected: progressA.solCollected,
-          volumeSol: progressA.volumeSol,
-        });
-        setShowVictoryModal(true);
-        return;
-      }
+    const tokenAWon = progressA.sol >= 100 && progressA.vol >= 100;
+    const tokenBWon = stateB && progressB.sol >= 100 && progressB.vol >= 100;
 
-      // Check if token B won
-      if (progressB.sol >= 100 && progressB.vol >= 100) {
-        setVictoryData({
-          winnerMint: effectiveTokenBMint!.toString(),
-          winnerSymbol: stateB!.symbol || 'TOKEN',
-          winnerImage: getTokenImage(stateB),
-          loserSymbol: stateA.symbol,
-          loserImage: getTokenImage(stateA),
-          solCollected: progressB.solCollected,
-          volumeSol: progressB.volumeSol,
+    if (!tokenAWon && !tokenBWon) return;
+
+    const winnerMint = tokenAWon ? tokenAMint?.toString() : effectiveTokenBMint?.toString();
+    const winnerSymbol = tokenAWon ? (stateA.symbol || 'TOKEN') : (stateB?.symbol || 'TOKEN');
+    const winnerImage = tokenAWon ? getTokenImage(stateA) : getTokenImage(stateB);
+    const loserSymbol = tokenAWon ? stateB?.symbol : stateA.symbol;
+    const loserImage = tokenAWon ? (stateB ? getTokenImage(stateB) : undefined) : getTokenImage(stateA);
+    const solCollected = tokenAWon ? progressA.solCollected : progressB.solCollected;
+    const volumeSol = tokenAWon ? progressA.volumeSol : progressB.volumeSol;
+
+    if (!winnerMint) return;
+
+    // Set victory data and show modal immediately
+    setVictoryData({
+      winnerMint,
+      winnerSymbol,
+      winnerImage,
+      loserSymbol,
+      loserImage,
+      solCollected,
+      volumeSol,
+    });
+    setShowVictoryModal(true);
+
+    // Auto-process victory
+    const processVictory = async () => {
+      setVictoryProcessing(true);
+      console.log('🏆 Auto-processing victory for:', winnerMint.slice(0, 8) + '...');
+
+      try {
+        const response = await fetch('/api/battles/auto-complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenMint: winnerMint }),
         });
-        setShowVictoryModal(true);
+
+        const result = await response.json();
+        console.log('🎉 Victory result:', result);
+
+        if (result.success && result.poolId) {
+          setVictoryData(prev => prev ? {
+            ...prev,
+            poolId: result.poolId,
+            raydiumUrl: result.raydiumUrl,
+          } : null);
+
+          // Refetch states
+          refetchA();
+          refetchB();
+        } else {
+          console.error('Victory processing failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Victory processing error:', error);
+      } finally {
+        setVictoryProcessing(false);
       }
     };
 
-    checkForVictory();
-  }, [progressA.sol, progressA.vol, progressB.sol, progressB.vol, stateA, stateB, tokenAMint, effectiveTokenBMint]);
-
-  // Handle claim victory
-  const handleClaimVictory = async () => {
-    if (!victoryData) return;
-
-    try {
-      const response = await fetch('/api/battles/auto-complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenMint: victoryData.winnerMint }),
-      });
-
-      const result = await response.json();
-
-      if (result.success && result.poolId) {
-        setVictoryData(prev => prev ? {
-          ...prev,
-          poolId: result.poolId,
-          raydiumUrl: result.raydiumUrl,
-        } : null);
-
-        // Refetch states
-        refetchA();
-        refetchB();
-      } else {
-        console.error('Claim victory failed:', result.error);
-        alert(`Failed: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Claim victory error:', error);
-    }
-  };
+    processVictory();
+  }, [progressA.sol, progressA.vol, progressB.sol, progressB.vol, stateA, stateB, tokenAMint, effectiveTokenBMint, victoryProcessing, victoryData?.poolId, refetchA, refetchB]);
 
   // Calculate scores (objectives reached)
   const scoreA = (progressA.sol >= 100 ? 1 : 0) + (progressA.vol >= 100 ? 1 : 0);
@@ -765,7 +767,7 @@ export default function BattleDetailPage() {
       
       <MobileBottomNav />
 
-      {/* Victory Modal */}
+      {/* Victory Modal - Auto-processes victory */}
       {showVictoryModal && victoryData && (
         <VictoryModal
           winnerSymbol={victoryData.winnerSymbol}
@@ -777,7 +779,6 @@ export default function BattleDetailPage() {
           volumeSol={victoryData.volumeSol}
           poolId={victoryData.poolId}
           raydiumUrl={victoryData.raydiumUrl}
-          onClaimVictory={handleClaimVictory}
           onClose={() => setShowVictoryModal(false)}
         />
       )}
