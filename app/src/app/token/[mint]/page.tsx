@@ -213,10 +213,19 @@ export default function TokenDetailPage() {
   // ⭐ V2: Calculate SOL raised from real reserves
   const solRaised = state.realSolReserves / 1e9;
 
+  // ⭐ V3 FIX: Determina se mostrare il popup di qualificazione
+  // Mostra SOLO se il token non ha MAI ricevuto un buy (realSolReserves === 0)
+  // NON basarsi su battleStatus perché il contratto ha soglia 0.12 SOL
+  const shouldShowQualificationPopup =
+    state.realSolReserves === 0 &&  // ⭐ Mai ricevuto un buy
+    !qualificationPopupDismissed &&
+    state.battleStatus !== BattleStatus.InBattle &&  // Non in battaglia
+    state.battleStatus !== BattleStatus.Listed;       // Non già listato
+
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
-      {/* ⭐ Qualification Popup - mostra solo se non qualificato E non dismissed */}
-      {state.battleStatus === BattleStatus.Created && !qualificationPopupDismissed && (
+      {/* ⭐ V3 FIX: Qualification Popup - mostra solo se realSolReserves === 0 */}
+      {shouldShowQualificationPopup && (
         <QualificationPopup
           mint={mint}
           tokenSymbol={state.symbol || 'TOKEN'}
@@ -342,31 +351,28 @@ export default function TokenDetailPage() {
                 <div className="flex gap-6 border-b border-gray-800 pb-4 mb-4">
                   <button
                     onClick={() => setActiveTab('thread')}
-                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
-                      activeTab === 'thread'
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${activeTab === 'thread'
                         ? 'text-white border-b-2 border-bonk-green'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     Thread
                   </button>
                   <button
                     onClick={() => setActiveTab('trades')}
-                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
-                      activeTab === 'trades'
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${activeTab === 'trades'
                         ? 'text-white border-b-2 border-bonk-green'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     Trades
                   </button>
                   <button
                     onClick={() => setActiveTab('holders')}
-                    className={`font-bold pb-4 -mb-4.5 transition-colors ${
-                      activeTab === 'holders'
+                    className={`font-bold pb-4 -mb-4.5 transition-colors ${activeTab === 'holders'
                         ? 'text-white border-b-2 border-bonk-green'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     Holders
                   </button>

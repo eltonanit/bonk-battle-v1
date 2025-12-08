@@ -502,7 +502,7 @@ export function PriceChart({ token }: PriceChartProps) {
       {/* Chart Area with Left Toolbar */}
       <div className="flex">
         {/* Left Toolbar */}
-        <div className="w-10 bg-[#0a0a0a] border-r border-gray-800 flex flex-col items-center py-2 gap-0.5">
+        <div className="w-10 bg-[#0a0a0a] border-r border-gray-800 flex flex-col items-center py-2 gap-0.5 overflow-hidden">
           {TOOLBAR_ICONS.map(({ icon: Icon, name, tooltip }) => (
             <button
               key={name}
@@ -519,7 +519,7 @@ export function PriceChart({ token }: PriceChartProps) {
         </div>
 
         {/* Chart */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-w-0">
           {/* Volume indicator */}
           <div className="absolute top-2 left-2 z-10 text-xs">
             <span className="text-gray-500">Volume</span>

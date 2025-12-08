@@ -115,18 +115,57 @@ export async function POST(request: NextRequest) {
         }
 
         // Log the points activity (optional - for history)
-        await supabase.from('points_history').insert({
-            wallet_address: walletAddress,
-            action: action,
-            points: pointsToAdd,
-            token_mint: tokenMint || null,
-            token_symbol: tokenSymbol || null,
-            token_image: tokenImage || null,
-            created_at: new Date().toISOString()
-        }).catch(() => {
+        try {
+            await supabase.from('points_history').insert({
+                wallet_address: walletAddress,
+                action: action,
+                points: pointsToAdd,
+                token_mint: tokenMint || null,
+                token_symbol: tokenSymbol || null,
+                token_image: tokenImage || null,
+                created_at: new Date().toISOString()
+            });
+        } catch {
             // Ignore if points_history table doesn't exist
             console.log('ℹ️ points_history table not available');
-        });
+        }
+
+        // ⭐ Save notification to notifications table
+        const notificationMessages: Record<string, { title: string; message: string }> = {
+            create_token: { title: '+500 Points', message: 'You created a new coin!' },
+            buy_token: { title: '+700 Points', message: 'You bought a coin!' },
+            sell_token: { title: '+100 Points', message: 'You sold a coin!' },
+            qualify_token: { title: '+1,000 Points', message: 'Your token qualified for battle!' },
+            win_battle: { title: '+10,000 Points', message: 'Your token won the battle!' },
+            share_battle: { title: '+500 Points', message: 'You shared a battle!' },
+            share_win: { title: '+2,000 Points', message: 'You shared your win!' },
+            referral_joins: { title: '+5,000 Points', message: 'Your referral joined!' },
+            new_follower: { title: '+25 Points', message: 'You got a new follower!' },
+            daily_login: { title: '+100 Points', message: 'Daily login bonus claimed!' },
+        };
+
+        const notifData = notificationMessages[action] || { title: `+${pointsToAdd} Points`, message: 'Points earned!' };
+
+        try {
+            await supabase.from('notifications').insert({
+                user_wallet: walletAddress,
+                type: 'points',
+                title: notifData.title,
+                message: notifData.message,
+                read: false,
+                data: {
+                    action: action,
+                    points: pointsToAdd,
+                    token_mint: tokenMint || null,
+                    token_symbol: tokenSymbol || null,
+                    token_image: tokenImage || null
+                },
+                created_at: new Date().toISOString()
+            });
+            console.log('📬 Notification saved to database');
+        } catch (err) {
+            console.warn('⚠️ Could not save notification:', err);
+        }
 
         console.log(`✅ Points added: ${walletAddress.slice(0, 8)}... now has ${newTotalPoints} points (${newTier})`);
 

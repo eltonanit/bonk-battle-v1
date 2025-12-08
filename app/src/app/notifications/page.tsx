@@ -22,9 +22,44 @@ interface Notification {
     created_at: string;
     data?: {
         follower_wallet?: string;
+        action?: string;
+        points?: number;
+        token_mint?: string;
+        token_symbol?: string;
+        token_image?: string;
         [key: string]: unknown;
     } | null;
 }
+
+// Plus Icon Component
+function PlusIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 640 640"
+            className={className}
+            fill="currentColor"
+        >
+            <path d="M352 128C352 110.3 337.7 96 320 96C302.3 96 288 110.3 288 128L288 288L128 288C110.3 288 96 302.3 96 320C96 337.7 110.3 352 128 352L288 352L288 512C288 529.7 302.3 544 320 544C337.7 544 352 529.7 352 512L352 352L512 352C529.7 352 544 337.7 544 320C544 302.3 529.7 288 512 288L352 288L352 128z" />
+        </svg>
+    );
+}
+
+// Points action to message mapping
+const POINTS_MESSAGES: Record<string, string> = {
+    create_token: 'Your new coin created',
+    buy_token: 'You bought a coin',
+    sell_token: 'You sold a coin',
+    qualify_token: 'Your token qualified for battle',
+    win_battle: 'Your token won the battle!',
+    share_battle: 'You shared a battle',
+    share_win: 'You shared your win',
+    referral_joins: 'Your referral joined',
+    new_follower: 'You got a new follower',
+    daily_login: 'Daily login bonus',
+    follow_user: 'You followed a user',
+    first_buy: 'First buy bonus',
+};
 
 export default function NotificationsPage() {
     const router = useRouter();
@@ -47,6 +82,12 @@ export default function NotificationsPage() {
             return;
         }
 
+        // For points notifications, navigate to token page if available
+        if (notification.type === 'points' && notification.data?.token_mint) {
+            router.push(`/token/${notification.data.token_mint}`);
+            return;
+        }
+
         // Navigate to token page
         if (notification.token_launch_id &&
             notification.token_launch_id !== 'TEST_TOKEN' &&
@@ -59,8 +100,8 @@ export default function NotificationsPage() {
     function renderNotification(notif: Notification, isLast: boolean) {
         // Detect follower notifications by title or type
         const isFollower = notif.type === 'new_follower' ||
-                          notif.title?.toLowerCase().includes('follower') ||
-                          notif.message?.includes('started following you');
+            notif.title?.toLowerCase().includes('follower') ||
+            notif.message?.includes('started following you');
         const isPoints = notif.type === 'points';
 
         // For follower notifications: show profile pic + first 4 chars + "started following you"
@@ -112,9 +153,15 @@ export default function NotificationsPage() {
             );
         }
 
-        // For points notifications
+        // ⭐ For points notifications - NEW DESIGN
         if (isPoints) {
-            const cleanTitle = notif.title.replace(/^🎉\s*/, '');
+            const points = notif.data?.points || 0;
+            const action = notif.data?.action || '';
+            const tokenImage = notif.data?.token_image;
+            const tokenMint = notif.data?.token_mint;
+
+            // Get message from action or use notif.message
+            const displayMessage = POINTS_MESSAGES[action] || notif.message;
 
             return (
                 <div
@@ -123,28 +170,42 @@ export default function NotificationsPage() {
                     className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
                 >
                     <div className="flex items-center gap-3">
-                        {/* BONK Logo */}
-                        <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                            <Image
-                                src="/BONK-LOGO.svg"
-                                alt="BONK"
-                                width={24}
-                                height={24}
-                            />
+                        {/* ⭐ Green Plus Icon */}
+                        <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <PlusIcon className="w-5 h-5 text-emerald-500" />
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-semibold">{cleanTitle}</p>
-                            <p className="text-gray-400 text-sm mt-0.5">{notif.message}</p>
+                            {/* ⭐ Points in large green text */}
+                            <p className="text-emerald-500 text-lg font-bold">
+                                +{points.toLocaleString()} pts
+                            </p>
+                            {/* Message */}
+                            <p className="text-gray-400 text-sm mt-0.5">{displayMessage}</p>
+                            {/* Time */}
                             <p className="text-gray-500 text-xs mt-1">
                                 {formatTimeAgo(notif.created_at)}
                             </p>
                         </div>
 
+                        {/* ⭐ Token Image (if available) */}
+                        {tokenImage && (
+                            <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700">
+                                <Image
+                                    src={tokenImage}
+                                    alt="Token"
+                                    width={48}
+                                    height={48}
+                                    className="w-full h-full object-cover"
+                                    unoptimized
+                                />
+                            </div>
+                        )}
+
                         {/* Unread indicator */}
                         {!notif.read && (
-                            <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
                         )}
                     </div>
                 </div>

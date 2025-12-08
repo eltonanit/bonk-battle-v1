@@ -13,7 +13,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
-import { PlusIcon } from '@/components/icons/PlusIcon';
+import { PointsIcon } from '@/components/icons/PointsIcon';
 
 export function DesktopHeader() {
   const { connected, publicKey, disconnect } = useWallet();
@@ -122,7 +122,7 @@ export function DesktopHeader() {
                       : 'bg-bonk-dark/95 hover:bg-white/10 text-white/70'
                     }`}
                 >
-                  <PlusIcon className={`w-5 h-5 ${isOnPointsPage ? 'text-orange-400' : 'text-white/70'}`} />
+                  <PointsIcon className={`w-5 h-5 ${isOnPointsPage ? 'text-orange-400' : 'text-white/70'}`} />
                 </Link>
 
                 {/* Notifiche (Campanello) */}

@@ -11,6 +11,8 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { createBattleToken, BattleTier, TIER_CONFIG } from '@/lib/solana/create-battle-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+import { PointsNotification } from '@/components/shared/PointsNotification';
+import { addPointsForCreateToken, POINTS_VALUES } from '@/lib/points';
 
 export default function CreatePage() {
     const { publicKey, signTransaction } = useWallet();
@@ -26,6 +28,10 @@ export default function CreatePage() {
 
     // NEW: Tier selection state
     const [selectedTier, setSelectedTier] = useState<BattleTier>(BattleTier.Test);
+
+    // Points notification state
+    const [showPointsNotification, setShowPointsNotification] = useState(false);
+    const [createdTokenImage, setCreatedTokenImage] = useState<string>('');
 
     const handleFileSelect = (file: File | null) => {
         if (file) {
@@ -134,6 +140,24 @@ export default function CreatePage() {
                 console.warn('⚠️ Error saving creator:', err);
             }
 
+            // ⭐ Add points for creating token
+            try {
+                const pointsResult = await addPointsForCreateToken(
+                    publicKey.toBase58(),
+                    result.mint.toString(),
+                    symbol,
+                    imageUrl
+                );
+
+                if (pointsResult.success) {
+                    console.log(`🎯 Added ${pointsResult.pointsAdded} points for creating token`);
+                    setCreatedTokenImage(imageUrl);
+                    setShowPointsNotification(true);
+                }
+            } catch (err) {
+                console.warn('⚠️ Error adding points:', err);
+            }
+
             // Show success popup and redirect
             setCreatedMint(result.mint.toString());
             setShowSuccess(true);
@@ -184,6 +208,15 @@ export default function CreatePage() {
                 subMessage="Token Created"
                 onClose={handleSuccessClose}
                 autoCloseMs={2500}
+            />
+
+            {/* Points Notification */}
+            <PointsNotification
+                show={showPointsNotification}
+                points={POINTS_VALUES.create_token}
+                message="You created a new coin"
+                tokenImage={createdTokenImage}
+                onClose={() => setShowPointsNotification(false)}
             />
 
             <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">

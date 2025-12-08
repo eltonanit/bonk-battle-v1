@@ -10,7 +10,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
-import { PlusIcon } from '@/components/icons/PlusIcon';
+import { PointsIcon } from '@/components/icons/PointsIcon';
 
 export function Header() {
   const { connected, publicKey, disconnect, select, wallets } = useWallet();
@@ -285,7 +285,7 @@ export function Header() {
                     : 'bg-bonk-dark/95 hover:bg-white/5'
                   }`}
               >
-                <PlusIcon className={`w-6 h-6 ${isOnPointsPage ? 'text-orange-400' : 'text-bonk-text'}`} />
+                <PointsIcon className={`w-6 h-6 ${isOnPointsPage ? 'text-orange-400' : 'text-bonk-text'}`} />
               </Link>
 
               {/* Notifications Icon */}
@@ -474,7 +474,7 @@ export function Header() {
                   }`}
                 onClick={() => setShowMobileMenu(false)}
               >
-                <PlusIcon className={`w-5 h-5 ${isOnPointsPage ? 'text-orange-400' : 'text-green-400'}`} />
+                <PointsIcon className={`w-5 h-5 ${isOnPointsPage ? 'text-orange-400' : 'text-green-400'}`} />
                 <span className={isOnPointsPage ? 'text-orange-400' : ''}>Points</span>
               </Link>
 

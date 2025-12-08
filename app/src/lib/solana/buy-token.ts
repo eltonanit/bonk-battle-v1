@@ -1,6 +1,6 @@
 // src/lib/solana/buy-token.ts
 // BONK BATTLE V2 - Con min_tokens_out per slippage protection
-// ✅ FIX: Skip $10 check for qualified/battling tokens (battleStatus >= 1)
+// ✅ V3 UPDATE: Any first buy qualifies token - no $10 USD minimum
 import {
   Connection,
   PublicKey,
@@ -62,16 +62,10 @@ export interface BuyTokenResult {
 }
 
 /**
- * BattleStatus enum values (from contract)
- * 0 = Created (needs qualification - $10 check applies)
- * 1 = Qualified (passed threshold - no $10 check)
- * 2 = InBattle (in active battle - no $10 check)
- * 3 = VictoryPending (won but not finalized - no $10 check)
- * 4 = Listed (on DEX - trading inactive)
- */
-
-/**
  * Buys tokens from the BONK BATTLE bonding curve
+ *
+ * V3 UPDATE: Any first buy (>= 0.001 SOL) qualifies the token for battle.
+ * No $10 USD minimum requirement - the UI shows $10 as a SUGGESTION only.
  *
  * This function:
  * 1. Derives all necessary PDAs (battle_state, contract_token_account, user_token_account, price_oracle)
@@ -87,19 +81,15 @@ export interface BuyTokenResult {
  * @param solAmount - Amount of SOL to spend (in SOL, e.g., 0.1 for 0.1 SOL)
  * @param signTransaction - Function to sign the transaction (from wallet adapter)
  * @param minTokensOut - Minimum tokens to receive (slippage protection), default 0 = no slippage check
- * @param battleStatus - Optional: Token's battle status (0=Created, 1=Qualified, 2=InBattle, etc.)
- *                       If >= 1, skips the $10 USD minimum check
+ * @param battleStatus - Optional: Token's battle status (kept for backwards compatibility)
  * @returns Promise resolving to transaction signature and amounts
  *
  * @throws Error if validation fails, insufficient balance, or transaction fails
  *
  * @example
  * ```typescript
- * // Normal buy (token still Created - $10 check applies)
- * const result = await buyToken(wallet.publicKey, mint, 0.1, signTransaction);
- *
- * // Buy for qualified token (no $10 check)
- * const result = await buyToken(wallet.publicKey, mint, 0.008, signTransaction, 0, 1);
+ * // Any buy amount works (minimum 0.001 SOL)
+ * const result = await buyToken(wallet.publicKey, mint, 0.005, signTransaction);
  * ```
  */
 export async function buyToken(
@@ -108,27 +98,21 @@ export async function buyToken(
   solAmount: number,
   signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
   minTokensOut: number = 0,  // V2: Slippage protection (0 = disabled)
-  battleStatus?: number      // ⭐ NEW: 0=Created, 1=Qualified, 2=InBattle, etc.
+  battleStatus?: number      // Kept for backwards compatibility
 ): Promise<BuyTokenResult> {
-  // Skip $10 check if token is already qualified or in battle (status >= 1)
-  const isQualifiedOrBattling = battleStatus !== undefined && battleStatus >= 1;
-
-  console.log('💰 Starting buy token transaction (V2)...');
+  console.log('💰 Starting buy token transaction (V3 - Any Buy Qualifies)...');
   console.log('📋 Buy Details:');
   console.log('  Wallet:', wallet.toString());
   console.log('  Token Mint:', mint.toString());
   console.log('  SOL Amount:', solAmount, 'SOL');
   console.log('  Min Tokens Out:', minTokensOut, '(slippage protection)');
-  console.log('  Battle Status:', battleStatus ?? 'unknown');
-  if (isQualifiedOrBattling) {
-    console.log('  ✅ Token qualified/battling - $10 check skipped');
-  }
 
   // Validate input
   if (solAmount <= 0) {
     throw new Error('SOL amount must be greater than 0');
   }
 
+  // ✅ Only technical minimum: 0.001 SOL (from contract MIN_SOL_PER_TX)
   if (solAmount < 0.001) {
     throw new Error('Minimum buy amount is 0.001 SOL');
   }
@@ -136,52 +120,10 @@ export async function buyToken(
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
   const lamports = Math.floor(solAmount * 1e9);
 
-  // ⭐ VALIDATE MINIMUM $10 USD FOR QUALIFICATION (skipped if already qualified/battling)
-  if (!isQualifiedOrBattling) {
-    try {
-      // Fetch price oracle to get SOL price in USD
-      const [priceOraclePDA] = getPriceOraclePDA();
-      const priceOracleInfo = await connection.getAccountInfo(priceOraclePDA);
-
-      if (priceOracleInfo) {
-        // Parse SOL price from oracle (u64 at offset 8, with 6 decimals)
-        const data = priceOracleInfo.data;
-        let solPriceUsdRaw = 0n;
-        for (let i = 0; i < 8; i++) {
-          solPriceUsdRaw |= BigInt(data[8 + i]) << BigInt(i * 8);
-        }
-        const solPriceUsd = Number(solPriceUsdRaw) / 1_000_000;
-
-        // Calculate buy amount in USD
-        const buyAmountUsd = solAmount * solPriceUsd;
-
-        console.log(`💵 Buy amount: ${solAmount} SOL = $${buyAmountUsd.toFixed(2)} USD`);
-        console.log(`📊 SOL price: $${solPriceUsd.toFixed(2)}`);
-
-        // Minimum $10 USD required for qualification
-        const MIN_USD_FOR_QUALIFICATION = 10;
-
-        if (buyAmountUsd < MIN_USD_FOR_QUALIFICATION) {
-          const minSOL = MIN_USD_FOR_QUALIFICATION / solPriceUsd;
-          throw new Error(
-            `Minimum buy for qualification is $${MIN_USD_FOR_QUALIFICATION} USD ` +
-            `(~${minSOL.toFixed(3)} SOL at current price of $${solPriceUsd.toFixed(2)}/SOL)`
-          );
-        }
-
-        console.log(`✅ Buy amount meets qualification requirement ($${buyAmountUsd.toFixed(2)} >= $${MIN_USD_FOR_QUALIFICATION})`);
-      }
-    } catch (err) {
-      // If oracle check fails, log but continue (backwards compatibility)
-      console.warn('⚠️ Could not verify USD amount against price oracle:', err);
-      // Re-throw if it's our custom minimum USD error
-      if (err instanceof Error && err.message.includes('Minimum buy for qualification')) {
-        throw err;
-      }
-    }
-  } else {
-    console.log(`✅ Token already qualified/battling (status=${battleStatus}) - $10 check skipped`);
-  }
+  // ✅ V3: ANY FIRST BUY = QUALIFIED
+  // No USD minimum check - any buy amount >= 0.001 SOL qualifies the token
+  // The contract sets battleStatus = Qualified after first buy (sol_collected > 0)
+  console.log(`✅ Any buy amount qualifies token - no USD minimum required`);
 
   try {
     // ========================================================================
@@ -283,7 +225,7 @@ export async function buyToken(
       data: instructionData,
     });
 
-    console.log('✅ Buy instruction built (V2)');
+    console.log('✅ Buy instruction built (V3)');
 
     // ========================================================================
     // Step 5: Build transaction with compute budget and ATA creation
