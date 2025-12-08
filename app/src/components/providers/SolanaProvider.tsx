@@ -2,12 +2,13 @@
 
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { 
+import { WalletError } from '@solana/wallet-adapter-base';
+import {
   PhantomWalletAdapter,
   SolflareWalletAdapter,
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { RPC_ENDPOINT } from '@/config/solana';
 
 // Import wallet styles
@@ -28,9 +29,22 @@ export function SolanaProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  // Handle wallet errors gracefully - don't crash the app
+  const onError = useCallback((error: WalletError) => {
+    // Log but don't crash - autoConnect failures are common and recoverable
+    console.warn('⚠️ Wallet error (non-fatal):', error.name, error.message);
+
+    // If it's an autoConnect failure, the user can manually connect later
+    // No need to show an alert or disrupt the user experience
+  }, []);
+
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
+      <WalletProvider
+        wallets={wallets}
+        autoConnect
+        onError={onError}
+      >
         <WalletModalProvider>
           {children}
         </WalletModalProvider>
