@@ -434,8 +434,10 @@ export default function BattleArenaPage() {
 
         // ⭐ Enhanced logging
         const solAmount = onChainState.solCollected / 1e9;
-        const category = onChainState.solCollected === 0 ? 'NEW' :
-          onChainState.battleStatus === BattleStatus.InBattle ? 'IN BATTLE' : 'QUALIFIED';
+        const category =
+          onChainState.battleStatus === BattleStatus.Listed ? 'LISTED (excluded)' :
+            onChainState.battleStatus === BattleStatus.InBattle ? 'IN BATTLE' :
+              onChainState.solCollected === 0 ? 'NEW' : 'QUALIFIED';
         console.log(`✅ ${token.symbol}: solCollected=${solAmount.toFixed(4)} SOL, battleStatus=${BattleStatus[onChainState.battleStatus]} → ${category}`);
       }
 
@@ -467,7 +469,11 @@ export default function BattleArenaPage() {
   );
 
   // ⭐ NEW: Token che NON hanno MAI ricevuto un buy (solCollected === 0)
-  const newTokens = userTokens.filter(t => t.solCollected === 0);
+  // MA escludere i token Listed (hanno già vinto, liquidità ritirata per Raydium)
+  const newTokens = userTokens.filter(t =>
+    t.solCollected === 0 &&
+    t.battleStatus !== BattleStatus.Listed
+  );
 
   const getTabTokens = () => {
     switch (activeTab) {
