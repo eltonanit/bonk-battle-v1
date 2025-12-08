@@ -18,6 +18,7 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
+import { VictoryModal } from '@/components/battle/VictoryModal';
 
 // =================================================================
 // TIER TARGETS FROM SMART CONTRACT (SOL-based!)
@@ -124,6 +125,20 @@ export default function BattleDetailPage() {
     );
   }
 
+  // Victory modal states
+  const [showVictoryModal, setShowVictoryModal] = useState(false);
+  const [victoryData, setVictoryData] = useState<{
+    winnerMint: string;
+    winnerSymbol: string;
+    winnerImage: string;
+    loserSymbol?: string;
+    loserImage?: string;
+    solCollected: number;
+    volumeSol: number;
+    poolId?: string;
+    raydiumUrl?: string;
+  } | null>(null);
+
   // Battle animation states
   const [attackA, setAttackA] = useState(false);
   const [attackB, setAttackB] = useState(false);
@@ -218,6 +233,76 @@ export default function BattleDetailPage() {
 
   const progressA = getProgress(stateA);
   const progressB = getProgress(stateB);
+
+  // Check for victory condition
+  useEffect(() => {
+    if (!stateA || !stateB) return;
+
+    const checkForVictory = () => {
+      // Check if token A won
+      if (progressA.sol >= 100 && progressA.vol >= 100) {
+        setVictoryData({
+          winnerMint: tokenAMint!.toString(),
+          winnerSymbol: stateA.symbol || 'TOKEN',
+          winnerImage: getTokenImage(stateA),
+          loserSymbol: stateB?.symbol,
+          loserImage: stateB ? getTokenImage(stateB) : undefined,
+          solCollected: progressA.solCollected,
+          volumeSol: progressA.volumeSol,
+        });
+        setShowVictoryModal(true);
+        return;
+      }
+
+      // Check if token B won
+      if (progressB.sol >= 100 && progressB.vol >= 100) {
+        setVictoryData({
+          winnerMint: effectiveTokenBMint!.toString(),
+          winnerSymbol: stateB!.symbol || 'TOKEN',
+          winnerImage: getTokenImage(stateB),
+          loserSymbol: stateA.symbol,
+          loserImage: getTokenImage(stateA),
+          solCollected: progressB.solCollected,
+          volumeSol: progressB.volumeSol,
+        });
+        setShowVictoryModal(true);
+      }
+    };
+
+    checkForVictory();
+  }, [progressA.sol, progressA.vol, progressB.sol, progressB.vol, stateA, stateB, tokenAMint, effectiveTokenBMint]);
+
+  // Handle claim victory
+  const handleClaimVictory = async () => {
+    if (!victoryData) return;
+
+    try {
+      const response = await fetch('/api/battles/auto-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenMint: victoryData.winnerMint }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.poolId) {
+        setVictoryData(prev => prev ? {
+          ...prev,
+          poolId: result.poolId,
+          raydiumUrl: result.raydiumUrl,
+        } : null);
+
+        // Refetch states
+        refetchA();
+        refetchB();
+      } else {
+        console.error('Claim victory failed:', result.error);
+        alert(`Failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Claim victory error:', error);
+    }
+  };
 
   // Calculate scores (objectives reached)
   const scoreA = (progressA.sol >= 100 ? 1 : 0) + (progressA.vol >= 100 ? 1 : 0);
@@ -679,6 +764,23 @@ export default function BattleDetailPage() {
       </div>
       
       <MobileBottomNav />
+
+      {/* Victory Modal */}
+      {showVictoryModal && victoryData && (
+        <VictoryModal
+          winnerSymbol={victoryData.winnerSymbol}
+          winnerImage={victoryData.winnerImage}
+          winnerMint={victoryData.winnerMint}
+          loserSymbol={victoryData.loserSymbol}
+          loserImage={victoryData.loserImage}
+          solCollected={victoryData.solCollected}
+          volumeSol={victoryData.volumeSol}
+          poolId={victoryData.poolId}
+          raydiumUrl={victoryData.raydiumUrl}
+          onClaimVictory={handleClaimVictory}
+          onClose={() => setShowVictoryModal(false)}
+        />
+      )}
     </div>
   );
 }

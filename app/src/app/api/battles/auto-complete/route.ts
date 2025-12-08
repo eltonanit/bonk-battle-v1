@@ -663,6 +663,50 @@ async function executeFullPipeline(
 
   console.log('✅ Winner record saved with full data');
 
+  // ═══════════════════════════════════════════════════════════════
+  // ADD BATTLE WIN POINTS (+10,000)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Get winner's creator wallet
+  const { data: tokenData } = await supabase
+    .from('tokens')
+    .select('creator_wallet')
+    .eq('mint', tokenMint)
+    .single();
+
+  if (tokenData?.creator_wallet) {
+    // Add 10,000 points for battle win
+    const { error: pointsError } = await supabase
+      .from('user_points')
+      .upsert({
+        wallet_address: tokenData.creator_wallet,
+        points: 10000,
+        action_type: 'battle_win',
+        token_mint: tokenMint,
+        created_at: new Date().toISOString(),
+      });
+
+    if (pointsError) {
+      console.warn('⚠️ Failed to add points:', pointsError.message);
+    }
+
+    // Also update total points
+    const { data: currentPoints } = await supabase
+      .from('user_stonks')
+      .select('total_stonks')
+      .eq('wallet_address', tokenData.creator_wallet)
+      .single();
+
+    await supabase
+      .from('user_stonks')
+      .upsert({
+        wallet_address: tokenData.creator_wallet,
+        total_stonks: (currentPoints?.total_stonks || 0) + 10000,
+      }, { onConflict: 'wallet_address' });
+
+    console.log('🎮 +10,000 points awarded to:', tokenData.creator_wallet.slice(0, 8) + '...');
+  }
+
   console.log('\n═══════════════════════════════════════════════════════════════');
   console.log('🎉 AUTO-COMPLETE PIPELINE SUCCESS!');
   console.log('Pool ID:', poolResult.poolId);
