@@ -11,6 +11,7 @@ import { sellToken } from '@/lib/solana/sell-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
 import { supabase } from '@/lib/supabase';
+import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 
 // ============================================================
 // 🎯 VICTORY TARGETS (SOL-BASED - TEST TIER)
@@ -365,6 +366,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
 
       console.log('✅ Buy successful:', result);
 
+      // 🎯 Add points for buy
+      addPointsForBuyToken(
+        publicKey.toString(),
+        mint.toString(),
+        tokenState?.symbol,
+        tokenState?.image
+      ).catch(err => console.error('Points error:', err));
+
       // ⚔️ Check if token just qualified after buy
       // Wait for webhook to sync
       setTimeout(async () => {
@@ -421,6 +430,15 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       );
 
       console.log('✅ Graduation buy successful:', result);
+
+      // 🎯 Add points for graduation buy
+      addPointsForBuyToken(
+        publicKey.toString(),
+        mint.toString(),
+        tokenState?.symbol,
+        tokenState?.image
+      ).catch(err => console.error('Points error:', err));
+
       setShowGraduationPopup(false);
       setSuccessMessage(`🏆 Graduation complete! Bought ${exactAmount} SOL`);
       setIsVictoryPopup(true);
@@ -532,6 +550,15 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       );
 
       console.log('✅ Sell successful:', result);
+
+      // 🎯 Add points for sell
+      addPointsForSellToken(
+        publicKey.toString(),
+        mint.toString(),
+        tokenState?.symbol,
+        tokenState?.image
+      ).catch(err => console.error('Points error:', err));
+
       setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${tokenState?.symbol || 'tokens'}`);
       setIsVictoryPopup(false);
       setShowSuccess(true);

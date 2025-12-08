@@ -8,6 +8,8 @@ import { buyToken } from '@/lib/solana/buy-token';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { Lightbulb, X } from 'lucide-react';
 import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
+import { PointsNotification } from '@/components/shared/PointsNotification';
+import { addPointsForBuyToken, POINTS_VALUES } from '@/lib/points';
 
 interface QualificationPopupProps {
     mint: PublicKey;
@@ -29,6 +31,9 @@ export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified,
 
     // ⚔️ BATTLE READY POPUP STATE
     const [showBattleReady, setShowBattleReady] = useState(false);
+
+    // 🎯 POINTS NOTIFICATION STATE
+    const [showPointsNotification, setShowPointsNotification] = useState(false);
 
     // ⚠️ FIX: Calculate minimum SOL needed for $10 USD
     const minUSD = 10;
@@ -106,9 +111,28 @@ export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified,
 
             console.log('✅ Qualification buy successful!', result);
 
-            // ⚔️ Show Battle Ready popup instead of simple success
-            console.log('⚔️ Showing Battle Ready popup!');
-            setShowBattleReady(true);
+            // 🎯 Add points for buying token
+            try {
+                const pointsResult = await addPointsForBuyToken(
+                    publicKey.toBase58(),
+                    mint.toString(),
+                    tokenSymbol,
+                    tokenImage
+                );
+
+                if (pointsResult.success) {
+                    console.log(`🎯 Added ${pointsResult.pointsAdded} points for buying token`);
+                    setShowPointsNotification(true);
+                }
+            } catch (err) {
+                console.warn('⚠️ Error adding points:', err);
+            }
+
+            // ⚔️ Show Battle Ready popup after points notification
+            setTimeout(() => {
+                console.log('⚔️ Showing Battle Ready popup!');
+                setShowBattleReady(true);
+            }, 1500); // Wait for points notification
 
             // ⚠️ DON'T call onQualified() here - it will unmount this component!
             // onQualified() will be called when BattleReadyPopup closes
@@ -133,18 +157,37 @@ export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified,
     // If showing Battle Ready popup, render only that
     if (showBattleReady) {
         return (
-            <BattleReadyPopup
-                show={true}
-                onClose={handleBattleReadyClose}
-                tokenImage={tokenImage || ''}
-                tokenSymbol={tokenSymbol || 'TOKEN'}
-                tokenMint={mint.toString()}
-            />
+            <>
+                {/* Points Notification - shows on top */}
+                <PointsNotification
+                    show={showPointsNotification}
+                    points={POINTS_VALUES.buy_token}
+                    message="You bought a coin"
+                    tokenImage={tokenImage}
+                    onClose={() => setShowPointsNotification(false)}
+                />
+                <BattleReadyPopup
+                    show={true}
+                    onClose={handleBattleReadyClose}
+                    tokenImage={tokenImage || ''}
+                    tokenSymbol={tokenSymbol || 'TOKEN'}
+                    tokenMint={mint.toString()}
+                />
+            </>
         );
     }
 
     return (
-        <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
+        <>
+            {/* Points Notification */}
+            <PointsNotification
+                show={showPointsNotification}
+                points={POINTS_VALUES.buy_token}
+                message="You bought a coin"
+                tokenImage={tokenImage}
+                onClose={() => setShowPointsNotification(false)}
+            />
+            <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
             {/* ⭐ Responsive container: più piccolo su mobile, centrato su desktop */}
             <div className="w-full max-w-[420px] md:max-w-md">
                 {/* Main Card con bordo bianco - ridotto padding */}
@@ -262,5 +305,6 @@ export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified,
                 </div>
             </div>
         </div>
+        </>
     );
 }

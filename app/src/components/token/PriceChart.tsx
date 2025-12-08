@@ -19,13 +19,20 @@ const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens (for MC calculation)
 
 /**
  * Calculate INITIAL Market Cap (at token creation, 0 SOL collected)
- * Formula: (VIRTUAL_SOL_INIT / BONDING_CURVE_SUPPLY) × TOTAL_SUPPLY × solPriceUsd
  */
 function calculateInitialMarketCap(solPriceUsd: number): number {
   const pricePerToken = Number(VIRTUAL_SOL_INIT_LAMPORTS) / Number(BONDING_CURVE_SUPPLY_WITH_DECIMALS);
   const mcLamports = pricePerToken * Number(TOTAL_SUPPLY_WITH_DECIMALS);
   const mcUsd = (mcLamports / 1e9) * solPriceUsd;
   return mcUsd;
+}
+
+/**
+ * Calculate MAXIMUM Market Cap (when TARGET_SOL is reached - 6 SOL for TEST tier)
+ */
+function calculateMaxMarketCap(solPriceUsd: number): number {
+  const initialMC = calculateInitialMarketCap(solPriceUsd);
+  return initialMC * 3.5; // ~$1000-1200 for TEST tier
 }
 
 interface PriceChartProps {
@@ -37,7 +44,7 @@ interface PriceChartProps {
     createdAt: number;
     name: string;
     symbol: string;
-    marketCapUsd?: number; // Real MC from bonding curve
+    marketCapUsd?: number;
   };
 }
 
@@ -85,7 +92,7 @@ function formatPrice(value: number): string {
   return `$${value.toFixed(4)}`;
 }
 
-// Left toolbar icons (pump.fun style) - REDUCED
+// Left toolbar icons (pump.fun style)
 const TOOLBAR_ICONS = [
   { icon: Plus, name: 'cursor', tooltip: 'Cursor' },
   { icon: PenLine, name: 'line', tooltip: 'Trend Line' },
@@ -114,10 +121,9 @@ export function PriceChart({ token }: PriceChartProps) {
   const { solPriceUsd } = usePriceOracle();
   const currentSolPrice = solPriceUsd || 230;
 
-  // ⭐ Calculate INITIAL MC dynamically based on current SOL price
+  // Calculate MC values dynamically based on current SOL price
   const initialMarketCap = calculateInitialMarketCap(currentSolPrice);
-
-  // Real market cap from props (current state) or use initial
+  const maxMarketCap = calculateMaxMarketCap(currentSolPrice);
   const realMarketCap = token.marketCapUsd || initialMarketCap;
 
   // Fetch trades from database
@@ -173,7 +179,7 @@ export function PriceChart({ token }: PriceChartProps) {
     };
   }, [token.mint]);
 
-  // Aggregate trades into candles - use REAL MC, start from initial MC
+  // Aggregate trades into candles
   const aggregateToCandles = useCallback((
     trades: Trade[],
     intervalSeconds: number,
@@ -181,10 +187,11 @@ export function PriceChart({ token }: PriceChartProps) {
     currentMC: number,
     initialMC: number
   ) => {
+    const now = Math.floor(Date.now() / 1000);
+    const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+
     if (trades.length === 0) {
-      // No trades - show single candle at current MC
-      const now = Math.floor(Date.now() / 1000);
-      const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
+      // No trades - show candle at current MC
       return [{
         time: candleTime as UTCTimestamp,
         open: currentMC,
@@ -196,31 +203,38 @@ export function PriceChart({ token }: PriceChartProps) {
 
     const candles: Map<number, { open: number; high: number; low: number; close: number; volume: number }> = new Map();
 
-    trades.forEach(trade => {
-      const timestamp = Math.floor(new Date(trade.block_time).getTime() / 1000);
-      const candleTime = Math.floor(timestamp / intervalSeconds) * intervalSeconds;
-
+    // Calculate MC for each trade - floor at initial MC
+    const tradeMCs = trades.map(trade => {
       const tokenPriceSol = parseFloat(trade.token_price_sol);
-      let value = displayMode === 'mcap'
+      let mc = displayMode === 'mcap'
         ? priceToMarketCap(tokenPriceSol, currencyMode === 'usd' ? solPrice : 1)
         : tokenPriceSol * (currencyMode === 'usd' ? solPrice : 1);
 
-      // Ensure value is at least the initial MC
-      value = Math.max(value, initialMC * 0.5);
+      // ⭐ Floor: never show MC below initial MC (prevents candles starting from $0)
+      return Math.max(mc, initialMC);
+    });
 
+    trades.forEach((trade, index) => {
+      const timestamp = Math.floor(new Date(trade.block_time).getTime() / 1000);
+      const tradeCandleTime = Math.floor(timestamp / intervalSeconds) * intervalSeconds;
+      const value = tradeMCs[index];
       const volume = Number(trade.sol_amount) / 1e9;
 
-      const existing = candles.get(candleTime);
+      const existing = candles.get(tradeCandleTime);
       if (existing) {
         existing.high = Math.max(existing.high, value);
         existing.low = Math.min(existing.low, value);
         existing.close = value;
         existing.volume += volume;
       } else {
-        candles.set(candleTime, {
-          open: value,
-          high: value,
-          low: value,
+        // For the first candle, open from initial MC or previous close
+        const prevCandle = Array.from(candles.values()).pop();
+        const openValue = prevCandle ? prevCandle.close : initialMC;
+
+        candles.set(tradeCandleTime, {
+          open: openValue,
+          high: Math.max(value, openValue),
+          low: Math.min(value, openValue),
           close: value,
           volume,
         });
@@ -274,7 +288,8 @@ export function PriceChart({ token }: PriceChartProps) {
       },
       rightPriceScale: {
         borderColor: '#1f2937',
-        scaleMargins: { top: 0.1, bottom: 0.15 },
+        autoScale: false,
+        scaleMargins: { top: 0.05, bottom: 0.05 },
       },
       localization: {
         priceFormatter: (price: number) => {
@@ -287,13 +302,13 @@ export function PriceChart({ token }: PriceChartProps) {
         borderColor: '#1f2937',
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 8, // ⭐ Smaller candles
-        minBarSpacing: 4,
+        barSpacing: 6,
+        minBarSpacing: 3,
       },
       handleScroll: { vertTouchDrag: false },
     });
 
-    // V4 API - Candlestick with thinner bars
+    // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
@@ -303,11 +318,11 @@ export function PriceChart({ token }: PriceChartProps) {
       wickDownColor: '#ef4444',
     });
 
-    // V4 API - Volume histogram
+    // Volume histogram
     const volumeSeries = chart.addHistogramSeries({
       color: '#3b82f6',
       priceFormat: { type: 'volume' },
-      priceScaleId: '',
+      priceScaleId: 'volume',
     });
 
     volumeSeries.priceScale().applyOptions({
@@ -336,16 +351,25 @@ export function PriceChart({ token }: PriceChartProps) {
     };
   }, []);
 
-  // Update chart data
+  // Update chart data with proper Y-axis range
   useEffect(() => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+    if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current) return;
 
     const tf = TIMEFRAMES.find(t => t.key === timeframe);
     if (!tf) return;
 
     const candles = aggregateToCandles(trades, tf.seconds, currentSolPrice, realMarketCap, initialMarketCap);
-
     candleSeriesRef.current.setData(candles);
+
+    // Set Y-axis range from $0 to maxMarketCap
+    candleSeriesRef.current.applyOptions({
+      autoscaleInfoProvider: () => ({
+        priceRange: {
+          minValue: 0,
+          maxValue: maxMarketCap,
+        },
+      }),
+    });
 
     // Volume data
     const volumeData = trades.reduce((acc, trade) => {
@@ -371,37 +395,27 @@ export function PriceChart({ token }: PriceChartProps) {
       volumeSeriesRef.current.setData(volumeData.sort((a, b) => a.time - b.time));
     }
 
-    chartRef.current?.timeScale().fitContent();
-  }, [trades, timeframe, aggregateToCandles, currentSolPrice, realMarketCap, initialMarketCap]);
+    chartRef.current.timeScale().fitContent();
+  }, [trades, timeframe, aggregateToCandles, currentSolPrice, realMarketCap, initialMarketCap, maxMarketCap]);
 
-  // ⭐ Stats - use REAL MC from bonding curve
+  // Stats calculations
   const currentMC = realMarketCap;
-
-  // Calculate ATH from trades (if any trades pushed MC higher)
   const tradesMC = trades.length > 0
-    ? trades.map(t => priceToMarketCap(parseFloat(t.token_price_sol), currentSolPrice))
+    ? trades.map(t => Math.max(priceToMarketCap(parseFloat(t.token_price_sol), currentSolPrice), initialMarketCap))
     : [];
-  const athMC = tradesMC.length > 0 ? Math.max(...tradesMC, realMarketCap) : realMarketCap;
-  const athProgress = athMC > 0 ? (currentMC / athMC) * 100 : 100;
-
-  // Price change (first trade to current MC)
-  const firstTradeMC = tradesMC.length > 0 ? tradesMC[0] : realMarketCap;
+  const firstTradeMC = tradesMC.length > 0 ? tradesMC[0] : initialMarketCap;
   const priceChange = firstTradeMC > 0 ? ((currentMC - firstTradeMC) / firstTradeMC) * 100 : 0;
   const priceChangeUsd = currentMC - firstTradeMC;
 
-  // Volume
   const totalVolumeSol = trades.reduce((sum, t) => sum + Number(t.sol_amount) / 1e9, 0);
   const totalVolumeUsd = totalVolumeSol * currentSolPrice;
-
-  // Current token price from MC
   const pricePerTokenUsd = currentMC / TOTAL_SUPPLY;
 
-  // Period changes
   const getChangeForPeriod = (seconds: number): number => {
     const cutoff = Date.now() - (seconds * 1000);
     const recentTrades = trades.filter(t => new Date(t.block_time).getTime() >= cutoff);
     if (recentTrades.length === 0) return 0;
-    const oldMC = priceToMarketCap(parseFloat(recentTrades[0].token_price_sol), currentSolPrice);
+    const oldMC = Math.max(priceToMarketCap(parseFloat(recentTrades[0].token_price_sol), currentSolPrice), initialMarketCap);
     return oldMC > 0 ? ((currentMC - oldMC) / oldMC) * 100 : 0;
   };
 
@@ -413,36 +427,18 @@ export function PriceChart({ token }: PriceChartProps) {
     <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-gray-800">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
-            <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-bold text-white">{formatMarketCap(currentMC)}</span>
-              {trades.length > 0 && (
-                <>
-                  <span className={`text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
-                  </span>
-                  <span className="text-gray-500 text-sm">24hr</span>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-2">
-              <div className="w-32 h-2 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-gradient-to-r from-green-500 to-cyan-400 rounded-full"
-                  style={{ width: `${Math.min(athProgress, 100)}%` }}
-                />
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-gray-500">ATH</div>
-                <div className="text-sm font-bold text-white">
-                  {athMC > realMarketCap ? formatMarketCap(athMC) : 'N/A'}
-                </div>
-              </div>
-            </div>
+        <div>
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-bold text-white">{formatMarketCap(currentMC)}</span>
+            {trades.length > 0 && (
+              <>
+                <span className={`text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
+                </span>
+                <span className="text-gray-500 text-sm">24hr</span>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -466,7 +462,6 @@ export function PriceChart({ token }: PriceChartProps) {
 
           <div className="h-4 w-px bg-gray-700" />
 
-          {/* Trade Display (placeholder) */}
           <button className="text-gray-400 hover:text-white text-xs flex items-center gap-1">
             <BarChart3 className="w-3 h-3" />
             Trade Display
@@ -512,11 +507,10 @@ export function PriceChart({ token }: PriceChartProps) {
             <button
               key={name}
               onClick={() => setActiveTool(name)}
-              className={`p-1.5 rounded transition-colors ${
-                activeTool === name
+              className={`p-1.5 rounded transition-colors ${activeTool === name
                   ? 'bg-blue-500/20 text-blue-400'
                   : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-              }`}
+                }`}
               title={tooltip}
             >
               <Icon className="w-4 h-4" />

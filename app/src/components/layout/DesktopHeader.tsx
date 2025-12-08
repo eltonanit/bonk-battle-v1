@@ -6,16 +6,19 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { usePathname } from 'next/navigation';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
+import { PlusIcon } from '@/components/icons/PlusIcon';
 
 export function DesktopHeader() {
   const { connected, publicKey, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
+  const pathname = usePathname();
   const { unreadCount } = useNotifications();
   const { feedUnreadCount } = useFollowers();
   const { profile } = useProfile();
@@ -23,6 +26,9 @@ export function DesktopHeader() {
 
   // Track se già registrato in questa sessione
   const hasRegistered = useRef<string | null>(null);
+
+  // Check if on points page
+  const isOnPointsPage = pathname === '/points';
 
   // Auto-registra utente quando si connette il wallet
   useEffect(() => {
@@ -108,14 +114,15 @@ export function DesktopHeader() {
                   )}
                 </Link>
 
-                {/* Points Icon (Airdrop) */}
+                {/* ⭐ Points Icon - NEW Plus Icon with orange background when active */}
                 <Link
                   href="/points"
-                  className="relative p-2 bg-bonk-dark/95 backdrop-blur-xl rounded-lg hover:bg-white/10 transition-colors"
+                  className={`relative p-2 backdrop-blur-xl rounded-lg transition-colors ${isOnPointsPage
+                      ? 'bg-orange-500/20 text-orange-400'
+                      : 'bg-bonk-dark/95 hover:bg-white/10 text-white/70'
+                    }`}
                 >
-                  <svg className="w-5 h-5 text-white/70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <PlusIcon className={`w-5 h-5 ${isOnPointsPage ? 'text-orange-400' : 'text-white/70'}`} />
                 </Link>
 
                 {/* Notifiche (Campanello) */}
@@ -180,9 +187,8 @@ export function DesktopHeader() {
 
                   {/* Arrow Down Triangle - Arancione chiaro */}
                   <svg
-                    className={`w-4 h-4 text-bonk-orange-light transition-transform flex-shrink-0 ${
-                      showDropdown ? 'rotate-180' : ''
-                    }`}
+                    className={`w-4 h-4 text-bonk-orange-light transition-transform flex-shrink-0 ${showDropdown ? 'rotate-180' : ''
+                      }`}
                     fill="currentColor"
                     viewBox="0 0 20 20"
                   >
