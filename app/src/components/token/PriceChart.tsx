@@ -12,14 +12,11 @@ import {
 // ============================================
 // BONDING CURVE CONSTANTS (match smart contract)
 // ============================================
-const VIRTUAL_SOL_INIT_LAMPORTS = 2_050_000_000; // 2.05 SOL in lamports
-const BONDING_CURVE_SUPPLY_WITH_DECIMALS = 793_100_000_000_000_000n; // 793.1M * 10^9
-const TOTAL_SUPPLY_WITH_DECIMALS = 1_000_000_000_000_000_000n; // 1B * 10^9
-const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens (for MC calculation)
+const VIRTUAL_SOL_INIT_LAMPORTS = 2_050_000_000;
+const BONDING_CURVE_SUPPLY_WITH_DECIMALS = 793_100_000_000_000_000n;
+const TOTAL_SUPPLY_WITH_DECIMALS = 1_000_000_000_000_000_000n;
+const TOTAL_SUPPLY = 1_000_000_000;
 
-/**
- * Calculate INITIAL Market Cap (at token creation, 0 SOL collected)
- */
 function calculateInitialMarketCap(solPriceUsd: number): number {
   const pricePerToken = Number(VIRTUAL_SOL_INIT_LAMPORTS) / Number(BONDING_CURVE_SUPPLY_WITH_DECIMALS);
   const mcLamports = pricePerToken * Number(TOTAL_SUPPLY_WITH_DECIMALS);
@@ -27,12 +24,9 @@ function calculateInitialMarketCap(solPriceUsd: number): number {
   return mcUsd;
 }
 
-/**
- * Calculate MAXIMUM Market Cap (when TARGET_SOL is reached - 6 SOL for TEST tier)
- */
 function calculateMaxMarketCap(solPriceUsd: number): number {
   const initialMC = calculateInitialMarketCap(solPriceUsd);
-  return initialMC * 3.5; // ~$1000-1200 for TEST tier
+  return initialMC * 3.5;
 }
 
 interface PriceChartProps {
@@ -65,12 +59,10 @@ interface Trade {
   token_price_sol: string;
 }
 
-// Convert token price to Market Cap USD
 function priceToMarketCap(tokenPriceSol: number, solPriceUsd: number): number {
   return tokenPriceSol * TOTAL_SUPPLY * solPriceUsd;
 }
 
-// Format large numbers (e.g., $3.8K, $16.1K)
 function formatMarketCap(value: number): string {
   if (value >= 1_000_000) {
     return `$${(value / 1_000_000).toFixed(2)}M`;
@@ -80,7 +72,6 @@ function formatMarketCap(value: number): string {
   return `$${value.toFixed(0)}`;
 }
 
-// Format price in USD
 function formatPrice(value: number): string {
   if (value < 0.00000001) {
     return `$${value.toExponential(2)}`;
@@ -92,7 +83,7 @@ function formatPrice(value: number): string {
   return `$${value.toFixed(4)}`;
 }
 
-// Left toolbar icons (pump.fun style)
+// Left toolbar icons - reduced for mobile
 const TOOLBAR_ICONS = [
   { icon: Plus, name: 'cursor', tooltip: 'Cursor' },
   { icon: PenLine, name: 'line', tooltip: 'Trend Line' },
@@ -117,16 +108,13 @@ export function PriceChart({ token }: PriceChartProps) {
   const [currencyMode, setCurrencyMode] = useState<'usd' | 'sol'>('usd');
   const [activeTool, setActiveTool] = useState<string>('cursor');
 
-  // Get SOL price from oracle
   const { solPriceUsd } = usePriceOracle();
   const currentSolPrice = solPriceUsd || 230;
 
-  // Calculate MC values dynamically based on current SOL price
   const initialMarketCap = calculateInitialMarketCap(currentSolPrice);
   const maxMarketCap = calculateMaxMarketCap(currentSolPrice);
   const realMarketCap = token.marketCapUsd || initialMarketCap;
 
-  // Fetch trades from database
   const fetchTrades = useCallback(async () => {
     if (!token.mint) {
       setLoading(false);
@@ -153,7 +141,6 @@ export function PriceChart({ token }: PriceChartProps) {
     fetchTrades();
   }, [fetchTrades]);
 
-  // Real-time subscription
   useEffect(() => {
     if (!token.mint) return;
 
@@ -179,7 +166,6 @@ export function PriceChart({ token }: PriceChartProps) {
     };
   }, [token.mint]);
 
-  // Aggregate trades into candles
   const aggregateToCandles = useCallback((
     trades: Trade[],
     intervalSeconds: number,
@@ -191,7 +177,6 @@ export function PriceChart({ token }: PriceChartProps) {
     const candleTime = Math.floor(now / intervalSeconds) * intervalSeconds;
 
     if (trades.length === 0) {
-      // No trades - show candle at current MC
       return [{
         time: candleTime as UTCTimestamp,
         open: currentMC,
@@ -203,14 +188,12 @@ export function PriceChart({ token }: PriceChartProps) {
 
     const candles: Map<number, { open: number; high: number; low: number; close: number; volume: number }> = new Map();
 
-    // Calculate MC for each trade - floor at initial MC
     const tradeMCs = trades.map(trade => {
       const tokenPriceSol = parseFloat(trade.token_price_sol);
       let mc = displayMode === 'mcap'
         ? priceToMarketCap(tokenPriceSol, currencyMode === 'usd' ? solPrice : 1)
         : tokenPriceSol * (currencyMode === 'usd' ? solPrice : 1);
 
-      // ⭐ Floor: never show MC below initial MC (prevents candles starting from $0)
       return Math.max(mc, initialMC);
     });
 
@@ -227,7 +210,6 @@ export function PriceChart({ token }: PriceChartProps) {
         existing.close = value;
         existing.volume += volume;
       } else {
-        // For the first candle, open from initial MC or previous close
         const prevCandle = Array.from(candles.values()).pop();
         const openValue = prevCandle ? prevCandle.close : initialMC;
 
@@ -241,7 +223,6 @@ export function PriceChart({ token }: PriceChartProps) {
       }
     });
 
-    // Fill gaps with previous close
     const sortedTimes = Array.from(candles.keys()).sort((a, b) => a - b);
     if (sortedTimes.length > 1) {
       const minTime = sortedTimes[0];
@@ -268,7 +249,6 @@ export function PriceChart({ token }: PriceChartProps) {
       }));
   }, [displayMode, currencyMode]);
 
-  // Initialize chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -302,13 +282,12 @@ export function PriceChart({ token }: PriceChartProps) {
         borderColor: '#1f2937',
         timeVisible: true,
         secondsVisible: false,
-        barSpacing: 6,
-        minBarSpacing: 3,
+        barSpacing: 20,
+        minBarSpacing: 10,
       },
       handleScroll: { vertTouchDrag: false },
     });
 
-    // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
@@ -318,7 +297,6 @@ export function PriceChart({ token }: PriceChartProps) {
       wickDownColor: '#ef4444',
     });
 
-    // Volume histogram
     const volumeSeries = chart.addHistogramSeries({
       color: '#3b82f6',
       priceFormat: { type: 'volume' },
@@ -351,7 +329,6 @@ export function PriceChart({ token }: PriceChartProps) {
     };
   }, []);
 
-  // Update chart data with proper Y-axis range
   useEffect(() => {
     if (!candleSeriesRef.current || !volumeSeriesRef.current || !chartRef.current) return;
 
@@ -361,7 +338,6 @@ export function PriceChart({ token }: PriceChartProps) {
     const candles = aggregateToCandles(trades, tf.seconds, currentSolPrice, realMarketCap, initialMarketCap);
     candleSeriesRef.current.setData(candles);
 
-    // Set Y-axis range from $0 to maxMarketCap
     candleSeriesRef.current.applyOptions({
       autoscaleInfoProvider: () => ({
         priceRange: {
@@ -371,7 +347,6 @@ export function PriceChart({ token }: PriceChartProps) {
       }),
     });
 
-    // Volume data
     const volumeData = trades.reduce((acc, trade) => {
       const timestamp = Math.floor(new Date(trade.block_time).getTime() / 1000);
       const candleTime = Math.floor(timestamp / tf.seconds) * tf.seconds;
@@ -398,7 +373,6 @@ export function PriceChart({ token }: PriceChartProps) {
     chartRef.current.timeScale().fitContent();
   }, [trades, timeframe, aggregateToCandles, currentSolPrice, realMarketCap, initialMarketCap, maxMarketCap]);
 
-  // Stats calculations
   const currentMC = realMarketCap;
   const tradesMC = trades.length > 0
     ? trades.map(t => Math.max(priceToMarketCap(parseFloat(t.token_price_sol), currentSolPrice), initialMarketCap))
@@ -425,28 +399,24 @@ export function PriceChart({ token }: PriceChartProps) {
 
   return (
     <div className="bg-[#0a0a0a] border border-gray-800 rounded-xl overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-800">
-        <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-white">{formatMarketCap(currentMC)}</span>
-            {trades.length > 0 && (
-              <>
-                <span className={`text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
-                </span>
-                <span className="text-gray-500 text-sm">24hr</span>
-              </>
-            )}
-          </div>
+      {/* Header - Responsive */}
+      <div className="p-3 sm:p-4 border-b border-gray-800">
+        <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Market Cap</div>
+        <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
+          <span className="text-2xl sm:text-3xl font-bold text-white">{formatMarketCap(currentMC)}</span>
+          {trades.length > 0 && (
+            <span className={`text-xs sm:text-sm font-medium ${priceChangeUsd >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {priceChangeUsd >= 0 ? '+' : ''}{formatMarketCap(Math.abs(priceChangeUsd))} ({priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%)
+              <span className="text-gray-500 ml-1">24hr</span>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 text-sm">
-        <div className="flex items-center gap-4">
-          {/* Timeframes */}
+      {/* Toolbar - Mobile Responsive */}
+      <div className="border-b border-gray-800">
+        {/* Row 1: Timeframes */}
+        <div className="flex items-center justify-between px-2 sm:px-4 py-2">
           <div className="flex items-center gap-1">
             {TIMEFRAMES.map(tf => (
               <button
@@ -460,49 +430,32 @@ export function PriceChart({ token }: PriceChartProps) {
             ))}
           </div>
 
-          <div className="h-4 w-px bg-gray-700" />
-
-          <button className="text-gray-400 hover:text-white text-xs flex items-center gap-1">
-            <BarChart3 className="w-3 h-3" />
-            Trade Display
-          </button>
-
-          <button className="text-gray-400 hover:text-white text-xs">
-            Hide All Bubbles
-          </button>
-
-          <div className="h-4 w-px bg-gray-700" />
-
-          {/* Price/MCap Toggle */}
-          <button
-            onClick={() => setDisplayMode(displayMode === 'mcap' ? 'price' : 'mcap')}
-            className="flex items-center gap-1 text-gray-400 hover:text-white"
-          >
-            <span className={displayMode === 'price' ? 'text-white' : ''}>Price</span>
-            <span>/</span>
-            <span className={displayMode === 'mcap' ? 'text-green-500' : ''}>MCap</span>
-          </button>
-
-          {/* USD/SOL Toggle */}
-          <button
-            onClick={() => setCurrencyMode(currencyMode === 'usd' ? 'sol' : 'usd')}
-            className="flex items-center gap-1 text-gray-400 hover:text-white"
-          >
-            <span className={currencyMode === 'usd' ? 'text-green-500' : ''}>USD</span>
-            <span>/</span>
-            <span className={currencyMode === 'sol' ? 'text-white' : ''}>SOL</span>
-          </button>
-        </div>
-
-        <div className="text-gray-500 text-xs">
-          {token.symbol}/SOL Market Cap (USD) · 1 · Pump
+          {/* Toggles - visible on all screens */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDisplayMode(displayMode === 'mcap' ? 'price' : 'mcap')}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              <span className={displayMode === 'price' ? 'text-white' : ''}>P</span>
+              <span>/</span>
+              <span className={displayMode === 'mcap' ? 'text-green-500' : ''}>MC</span>
+            </button>
+            <button
+              onClick={() => setCurrencyMode(currencyMode === 'usd' ? 'sol' : 'usd')}
+              className="text-xs text-gray-400 hover:text-white"
+            >
+              <span className={currencyMode === 'usd' ? 'text-green-500' : ''}>$</span>
+              <span>/</span>
+              <span className={currencyMode === 'sol' ? 'text-white' : ''}>◎</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Chart Area with Left Toolbar */}
+      {/* Chart Area */}
       <div className="flex">
-        {/* Left Toolbar */}
-        <div className="w-10 bg-[#0a0a0a] border-r border-gray-800 flex flex-col items-center py-2 gap-0.5 overflow-hidden">
+        {/* Left Toolbar - Hidden on mobile */}
+        <div className="hidden sm:flex w-10 bg-[#0a0a0a] border-r border-gray-800 flex-col items-center py-2 gap-0.5 overflow-hidden">
           {TOOLBAR_ICONS.map(({ icon: Icon, name, tooltip }) => (
             <button
               key={name}
@@ -522,63 +475,62 @@ export function PriceChart({ token }: PriceChartProps) {
         <div className="flex-1 relative min-w-0">
           {/* Volume indicator */}
           <div className="absolute top-2 left-2 z-10 text-xs">
-            <span className="text-gray-500">Volume</span>
-            <span className="text-green-400 ml-2">{totalVolumeSol.toFixed(2)}</span>
+            <span className="text-gray-500">Vol</span>
+            <span className="text-green-400 ml-1">{totalVolumeSol.toFixed(2)}</span>
           </div>
 
-          <div className="relative h-72">
+          <div className="relative h-56 sm:h-72">
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
-                <div className="text-gray-400">Loading chart data...</div>
+                <div className="text-gray-400 text-sm">Loading...</div>
               </div>
             )}
             {!loading && trades.length === 0 && (
               <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/80 z-10">
                 <div className="text-center">
-                  <div className="text-6xl mb-4 opacity-30">👻</div>
-                  <div className="text-gray-400 text-lg">No data here</div>
+                  <div className="text-4xl sm:text-6xl mb-2 sm:mb-4 opacity-30">👻</div>
+                  <div className="text-gray-400 text-sm sm:text-lg">No data here</div>
                 </div>
               </div>
             )}
             <div ref={chartContainerRef} className="w-full h-full" />
           </div>
 
-          {/* Bottom time info */}
-          <div className="absolute bottom-2 right-2 z-10 flex items-center gap-3 text-xs text-gray-500">
-            <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} UTC</span>
-            <span>%</span>
-            <span className="text-blue-400">log</span>
-            <span className="text-blue-400">auto</span>
+          {/* Bottom time info - Simplified on mobile */}
+          <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 z-10 flex items-center gap-2 text-[10px] sm:text-xs text-gray-500">
+            <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+            <span className="hidden sm:inline">UTC</span>
           </div>
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-5 border-t border-gray-800">
-        <div className="p-3 text-center border-r border-gray-800">
-          <div className="text-xs text-gray-500 mb-1">Vol 24h</div>
-          <div className="text-white font-medium">{formatMarketCap(totalVolumeUsd)}</div>
+      {/* Stats Bar - Responsive Grid */}
+      <div className="grid grid-cols-3 sm:grid-cols-5 border-t border-gray-800">
+        <div className="p-2 sm:p-3 text-center border-r border-gray-800">
+          <div className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Vol 24h</div>
+          <div className="text-white font-medium text-xs sm:text-sm">{formatMarketCap(totalVolumeUsd)}</div>
         </div>
-        <div className="p-3 text-center border-r border-gray-800">
-          <div className="text-xs text-gray-500 mb-1">Price</div>
-          <div className="text-white font-medium">{formatPrice(pricePerTokenUsd)}</div>
+        <div className="p-2 sm:p-3 text-center border-r border-gray-800">
+          <div className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">Price</div>
+          <div className="text-white font-medium text-xs sm:text-sm">{formatPrice(pricePerTokenUsd)}</div>
         </div>
-        <div className="p-3 text-center border-r border-gray-800">
-          <div className="text-xs text-gray-500 mb-1">5m</div>
-          <div className={`font-medium ${change5m >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {change5m >= 0 ? '+' : ''}{change5m.toFixed(2)}%
+        <div className="p-2 sm:p-3 text-center sm:border-r border-gray-800">
+          <div className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">5m</div>
+          <div className={`font-medium text-xs sm:text-sm ${change5m >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {change5m >= 0 ? '+' : ''}{change5m.toFixed(1)}%
           </div>
         </div>
-        <div className="p-3 text-center border-r border-gray-800">
-          <div className="text-xs text-gray-500 mb-1">1h</div>
-          <div className={`font-medium ${change1h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {change1h >= 0 ? '+' : ''}{change1h.toFixed(2)}%
+        {/* Hidden on mobile, visible on sm+ */}
+        <div className="hidden sm:block p-2 sm:p-3 text-center border-r border-gray-800">
+          <div className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">1h</div>
+          <div className={`font-medium text-xs sm:text-sm ${change1h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {change1h >= 0 ? '+' : ''}{change1h.toFixed(1)}%
           </div>
         </div>
-        <div className="p-3 text-center">
-          <div className="text-xs text-gray-500 mb-1">6h</div>
-          <div className={`font-medium ${change6h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {change6h >= 0 ? '+' : ''}{change6h.toFixed(2)}%
+        <div className="hidden sm:block p-2 sm:p-3 text-center">
+          <div className="text-[10px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1">6h</div>
+          <div className={`font-medium text-xs sm:text-sm ${change6h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+            {change6h >= 0 ? '+' : ''}{change6h.toFixed(1)}%
           </div>
         </div>
       </div>
