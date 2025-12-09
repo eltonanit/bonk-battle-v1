@@ -457,3 +457,25 @@
   scrollbar-width: thin;
   scrollbar-color: #374151 transparent;
 }
+
+/* ════════════════════════════════════════════════════════════ */
+/* MOBILE TRADING DRAWER - Responsive visibility */
+/* ════════════════════════════════════════════════════════════ */
+
+/* Hide MobileTradingDrawer on desktop (>= 850px) */
+@media (min-width: 850px) {
+  .tablet-trading\:hidden {
+    display: none !important;
+  }
+}
+
+/* Show TradingPanel only on desktop (>= 850px) */
+.tablet-trading\:block {
+  display: none !important;
+}
+
+@media (min-width: 850px) {
+  .tablet-trading\:block {
+    display: block !important;
+  }
+}

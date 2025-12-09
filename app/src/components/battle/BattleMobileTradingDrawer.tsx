@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * MobileTradingDrawer - Bottom sheet trading panel for mobile/tablet
+ * BattleMobileTradingDrawer - Bottom sheet trading panel for battle pages
  *
  * - Fixed "Buy" button at bottom of screen
- * - Opens drawer with Buy/Sell tabs
+ * - Opens drawer with Token selector + Buy/Sell tabs
  * - Only visible on screens < 810px
  */
 
@@ -19,23 +19,28 @@ import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessP
 import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 import Image from 'next/image';
 
-interface TokenState {
+interface TokenData {
+  mint: PublicKey;
   symbol: string;
   image: string;
-  solCollected: number;
-  totalTradeVolume: number;
-  virtualSolReserves: number;
-  realSolReserves: number;
   battleStatus?: number;
 }
 
-interface MobileTradingDrawerProps {
-  mint: PublicKey;
-  tokenState?: TokenState;
+interface BattleMobileTradingDrawerProps {
+  tokenA: TokenData;
+  tokenB?: TokenData;
+  selectedToken: 'A' | 'B';
+  onSelectToken: (token: 'A' | 'B') => void;
   onSuccess?: () => void;
 }
 
-export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradingDrawerProps) {
+export function BattleMobileTradingDrawer({
+  tokenA,
+  tokenB,
+  selectedToken,
+  onSelectToken,
+  onSuccess,
+}: BattleMobileTradingDrawerProps) {
   const { publicKey, signTransaction } = useWallet();
   const { setVisible: setWalletModalVisible } = useWalletModal();
   const { connection } = useConnection();
@@ -45,14 +50,15 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { balance, balanceFormatted } = useUserTokenBalance(mint);
+  // Current token based on selection
+  const currentToken = selectedToken === 'A' ? tokenA : (tokenB || tokenA);
+  const currentMint = currentToken.mint;
+
+  const { balance, balanceFormatted } = useUserTokenBalance(currentMint);
   const [solBalance, setSolBalance] = useState<number | null>(null);
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-
-  const tokenSymbol = tokenState?.symbol || 'TOKEN';
-  const tokenImage = tokenState?.image || '/BONK-LOGO.svg';
 
   // Fetch SOL balance
   useEffect(() => {
@@ -83,6 +89,11 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
     };
   }, [isOpen]);
 
+  // Reset amount when token changes
+  useEffect(() => {
+    setAmount('');
+  }, [selectedToken]);
+
   // ============================================================
   // HANDLERS
   // ============================================================
@@ -108,21 +119,21 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
     try {
       await buyToken(
         publicKey,
-        mint,
+        currentMint,
         solAmount,
         signTransaction,
         0,
-        tokenState?.battleStatus
+        currentToken.battleStatus
       );
 
       addPointsForBuyToken(
         publicKey.toString(),
-        mint.toString(),
-        tokenState?.symbol,
-        tokenState?.image
+        currentMint.toString(),
+        currentToken.symbol,
+        currentToken.image
       ).catch(console.error);
 
-      setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
+      setSuccessMessage(`Bought ${currentToken.symbol} for ${solAmount} SOL`);
       setShowSuccess(true);
       setAmount('');
       setIsOpen(false);
@@ -157,16 +168,16 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
 
     setLoading(true);
     try {
-      await sellToken(publicKey, mint, tokenAmountRaw, signTransaction);
+      await sellToken(publicKey, currentMint, tokenAmountRaw, signTransaction);
 
       addPointsForSellToken(
         publicKey.toString(),
-        mint.toString(),
-        tokenState?.symbol,
-        tokenState?.image
+        currentMint.toString(),
+        currentToken.symbol,
+        currentToken.image
       ).catch(console.error);
 
-      setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${tokenSymbol}`);
+      setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${currentToken.symbol}`);
       setShowSuccess(true);
       setAmount('');
       setIsOpen(false);
@@ -256,6 +267,60 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
           <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
         </div>
 
+        {/* ════════════════════════════════════════════════════════════ */}
+        {/* TOKEN SELECTOR TAB */}
+        {/* ════════════════════════════════════════════════════════════ */}
+        <div className="px-4 pb-3">
+          <div className="flex items-center justify-center gap-2 bg-white/5 rounded-xl p-1">
+            {/* Token A */}
+            <button
+              onClick={() => onSelectToken('A')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${
+                selectedToken === 'A'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <div className="w-9 h-9 rounded-full overflow-hidden">
+                <Image
+                  src={tokenA.image || '/BONK-LOGO.svg'}
+                  alt={tokenA.symbol}
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+              <span className="font-semibold text-sm">{tokenA.symbol}</span>
+            </button>
+
+            {/* Token B */}
+            {tokenB && (
+              <button
+                onClick={() => onSelectToken('B')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${
+                  selectedToken === 'B'
+                    ? 'text-white'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                style={selectedToken === 'B' ? { backgroundColor: '#FF5A8E' } : {}}
+              >
+                <div className="w-9 h-9 rounded-full overflow-hidden">
+                  <Image
+                    src={tokenB.image || '/BONK-LOGO.svg'}
+                    alt={tokenB.symbol}
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                    unoptimized
+                  />
+                </div>
+                <span className="font-semibold text-sm">{tokenB.symbol}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Header with Buy/Sell tabs and close */}
         <div className="flex items-center justify-between px-4 pb-4">
           <div className="flex items-center gap-3">
@@ -305,7 +370,7 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
           {/* Balance display */}
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-400">
-              {mode === 'buy' ? 'balance:' : `${tokenSymbol} balance:`}
+              {mode === 'buy' ? 'balance:' : `${currentToken.symbol} balance:`}
             </span>
             <span className="text-white font-medium">
               {mode === 'buy'
@@ -328,7 +393,7 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
               <span className="text-gray-300 font-medium">
-                {mode === 'buy' ? 'SOL' : tokenSymbol}
+                {mode === 'buy' ? 'SOL' : currentToken.symbol}
               </span>
               {mode === 'buy' ? (
                 <div className="w-8 h-8 rounded-full overflow-hidden">
@@ -344,8 +409,8 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
               ) : (
                 <div className="w-8 h-8 rounded-full overflow-hidden">
                   <Image
-                    src={tokenImage}
-                    alt={tokenSymbol}
+                    src={currentToken.image || '/BONK-LOGO.svg'}
+                    alt={currentToken.symbol}
                     width={32}
                     height={32}
                     className="w-full h-full object-cover"
@@ -446,8 +511,8 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
             {loading
               ? 'Processing...'
               : mode === 'buy'
-                ? `Buy ${tokenSymbol}`
-                : `Sell ${tokenSymbol}`
+                ? `Buy ${currentToken.symbol}`
+                : `Sell ${currentToken.symbol}`
             }
           </button>
 

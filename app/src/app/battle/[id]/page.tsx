@@ -19,6 +19,7 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 import { VictoryModal } from '@/components/battle/VictoryModal';
+import { BattleMobileTradingDrawer } from '@/components/battle/BattleMobileTradingDrawer';
 
 // =================================================================
 // TIER TARGETS FROM SMART CONTRACT (SOL-based!)
@@ -644,6 +645,8 @@ export default function BattleDetailPage() {
 
             {/* RIGHT COLUMN - Trading */}
             <div className="lg:col-span-4 space-y-6">
+              {/* Trading Panel - Hidden on mobile/tablet (<810px), shown on desktop */}
+              <div className="hidden tablet-trading:block">
               {currentMint && currentState && (
                 <TradingPanel
                   mint={currentMint}
@@ -662,6 +665,7 @@ export default function BattleDetailPage() {
                   }}
                 />
               )}
+              </div>
 
               {/* Quick Stats */}
               <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
@@ -760,6 +764,30 @@ export default function BattleDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Trading Drawer - Only visible < 810px */}
+      {tokenAMint && stateA && (
+        <BattleMobileTradingDrawer
+          tokenA={{
+            mint: tokenAMint,
+            symbol: stateA.symbol || 'TOKEN A',
+            image: getTokenImage(stateA),
+            battleStatus: stateA.battleStatus,
+          }}
+          tokenB={effectiveTokenBMint && stateB ? {
+            mint: effectiveTokenBMint,
+            symbol: stateB.symbol || 'TOKEN B',
+            image: getTokenImage(stateB),
+            battleStatus: stateB.battleStatus,
+          } : undefined}
+          selectedToken={selectedToken}
+          onSelectToken={setSelectedToken}
+          onSuccess={() => {
+            refetchA();
+            refetchB();
+          }}
+        />
+      )}
 
       <MobileBottomNav />
 
