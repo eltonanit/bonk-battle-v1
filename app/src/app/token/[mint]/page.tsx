@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useParams } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -131,63 +131,118 @@ export default function TokenDetailPage() {
   }, [state]);
 
   // ⭐ Check if token is a winner with Raydium pool
+  // Use a ref to track if we've already confirmed winner status (prevents infinite polling)
+  const winnerConfirmedRef = useRef(false);
+
   useEffect(() => {
+    let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
+
     async function checkWinnerStatus() {
       if (!mintAddress || !isValidMint) return;
 
+      // If already confirmed as winner, skip the check
+      if (winnerConfirmedRef.current) {
+        return;
+      }
+
       try {
-        // Check winners table
-        const { data: winner, error: winnerError } = await supabase
-          .from('winners')
-          .select('*')
+        // First check tokens table (faster, more reliable)
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('tokens')
+          .select('battle_status, raydium_pool_id, sol_collected, total_trade_volume')
           .eq('mint', mintAddress)
-          .single();
+          .maybeSingle();
 
-        if (winner && !winnerError) {
-          console.log('🏆 Winner data found:', winner);
-          setIsWinner(true);
-          setWinnerData(winner);
+        if (tokenError) {
+          console.warn('Token query error:', tokenError);
+          return;
+        }
 
-          // Fetch real-time pool data if pool_id exists
-          if (winner.pool_id) {
-            try {
-              const res = await fetch(`/api/raydium/pool-info?poolId=${winner.pool_id}`);
-              const pool = await res.json();
-              if (pool.success) {
-                setPoolData(pool);
-              }
-            } catch (poolErr) {
-              console.log('Pool data fetch error (non-critical):', poolErr);
-            }
-          }
-        } else {
-          // Also check if battle_status indicates winner (Listed = 4, PoolCreated = 5)
-          const { data: tokenData } = await supabase
-            .from('tokens')
-            .select('battle_status, raydium_pool_id')
-            .eq('mint', mintAddress)
-            .single();
+        if (tokenData && (tokenData.battle_status === 4 || tokenData.battle_status === 5)) {
+          console.log('🏆 Token is a winner (from tokens table)');
 
-          if (tokenData && (tokenData.battle_status === 4 || tokenData.battle_status === 5)) {
-            console.log('🏆 Token is a winner (from tokens table)');
+          if (isMounted) {
             setIsWinner(true);
+            winnerConfirmedRef.current = true; // Stop future polling
+
             setWinnerData({
               pool_id: tokenData.raydium_pool_id,
-              raydium_url: `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`
+              raydium_url: `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`,
+              final_sol_collected: tokenData.sol_collected,
+              final_volume_sol: tokenData.total_trade_volume
             });
+
+            // Clear interval since we found the winner
+            if (intervalId) {
+              clearInterval(intervalId);
+              intervalId = null;
+            }
+          }
+
+          // Try to get additional winner data using direct fetch (bypasses Supabase client issues)
+          try {
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+            const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+            const response = await fetch(
+              `${supabaseUrl}/rest/v1/winners?select=*&mint=eq.${mintAddress}`,
+              {
+                headers: {
+                  'apikey': supabaseKey || '',
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                }
+              }
+            );
+
+            if (response.ok) {
+              const winners = await response.json();
+              const winner = winners?.[0]; // Get first result from array
+
+              if (winner && isMounted) {
+                console.log('🏆 Winner data from winners table:', winner);
+                setWinnerData((prevData: Record<string, unknown> | null) => ({
+                  ...prevData,
+                  ...winner
+                }));
+
+                // Fetch pool data if available
+                if (winner.pool_id) {
+                  const poolRes = await fetch(`/api/raydium/pool-info?poolId=${winner.pool_id}`);
+                  const pool = await poolRes.json();
+                  if (pool.success && isMounted) {
+                    setPoolData(pool);
+                  }
+                }
+              }
+            } else {
+              console.warn('Winners fetch response not ok:', response.status);
+            }
+          } catch (winnerErr) {
+            // Optional data - log but don't fail
+            console.warn('Winners fetch error (non-critical):', winnerErr);
           }
         }
       } catch (err) {
-        // Not a winner or error - that's ok
-        console.log('Token winner check:', err);
+        // Not a winner or error - that's ok, don't spam console
+        console.log('Token winner check error:', err);
       }
     }
 
     checkWinnerStatus();
 
-    // Refresh pool data every 10 seconds
-    const interval = setInterval(checkWinnerStatus, 10000);
-    return () => clearInterval(interval);
+    // Only poll if not already confirmed as winner - every 30 seconds (not 10)
+    if (!winnerConfirmedRef.current) {
+      intervalId = setInterval(checkWinnerStatus, 30000);
+    }
+
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [mintAddress, isValidMint]);
 
   // ═══════════════════════════════════════════════════════════════
