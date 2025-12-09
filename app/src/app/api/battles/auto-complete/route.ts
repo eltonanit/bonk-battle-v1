@@ -18,6 +18,10 @@
  * - Uses 99.5% tolerance for SOL target (matches smart contract!)
  * - Continues to pool creation even if withdraw already done
  * - Better error handling for idempotent operations
+ * 
+ * ⭐ FIX V3:
+ * - Fixed token amount parsing: use string directly with BN to avoid JS integer overflow
+ * - parseInt() loses precision on numbers > 9007199254740991 (Number.MAX_SAFE_INTEGER)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -389,9 +393,13 @@ async function createRaydiumPool(
     }
 
     const tokenBalance = await connection.getTokenAccountBalance(keeperTokenAccount);
-    const tokenAmount = parseInt(tokenBalance.value.amount);
 
-    if (tokenAmount === 0) {
+    // ⭐ FIX V3: Keep token amount as STRING to avoid JS integer overflow!
+    // parseInt() loses precision on numbers > 9007199254740991 (Number.MAX_SAFE_INTEGER)
+    // Token amounts can be 18+ digits, so we must use string with BN
+    const tokenAmountRaw = tokenBalance.value.amount;
+
+    if (tokenAmountRaw === '0' || !tokenAmountRaw) {
       return { success: false, error: 'Keeper has 0 tokens - check if pool already created or withdraw failed' };
     }
 
@@ -407,10 +415,12 @@ async function createRaydiumPool(
     }
 
     console.log('SOL for pool:', actualSolAmount.toFixed(2));
-    console.log('Tokens for pool:', (tokenAmount / 1e9).toFixed(0), 'M');
+    console.log('Tokens for pool (raw):', tokenAmountRaw);
+    console.log('Tokens for pool (formatted):', (BigInt(tokenAmountRaw) / BigInt(1e9)).toString(), 'tokens');
 
     const solAmountBN = new BN(Math.floor(actualSolAmount * 1e9));
-    const tokenAmountBN = new BN(tokenAmount);
+    // ⭐ FIX V3: Pass string directly to BN - this preserves full precision!
+    const tokenAmountBN = new BN(tokenAmountRaw);
 
     const mintA = {
       address: solFirst ? SOL_MINT.toString() : mint.toString(),
@@ -426,6 +436,9 @@ async function createRaydiumPool(
 
     const mintAAmount = solFirst ? solAmountBN : tokenAmountBN;
     const mintBAmount = solFirst ? tokenAmountBN : solAmountBN;
+
+    console.log('mintA:', mintA.address.slice(0, 8) + '...', 'amount:', mintAAmount.toString());
+    console.log('mintB:', mintB.address.slice(0, 8) + '...', 'amount:', mintBAmount.toString());
 
     // Get fee configs
     const feeConfigs = await raydium.api.getCpmmConfigs();

@@ -1,5 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
-// ✅ CON POPUP BATTLE READY - Mostra quando token si qualifica
+// ✅ FIXED: Balance display and sell amount formatting
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -16,25 +16,21 @@ import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 // ============================================================
 // 🎯 VICTORY TARGETS (SOL-BASED - TEST TIER)
 // ============================================================
-const TARGET_SOL = 6.0;           // Target for graduation
-const VICTORY_VOLUME_SOL = 6.6;   // Volume requirement (110%)
-const TRADING_FEE = 0.02;         // 2% fee
-
-// Legacy USD targets (for display only)
+const TARGET_SOL = 6.0;
+const VICTORY_VOLUME_SOL = 6.6;
+const TRADING_FEE = 0.02;
 const VICTORY_MC_USD = 5500;
 const VICTORY_VOLUME_USD = 100;
-
-// Auto-disable threshold (97%)
 const AUTO_DISABLE_THRESHOLD = 97;
 
 interface TokenState {
   symbol: string;
   image: string;
-  solCollected: number;      // in lamports
-  totalTradeVolume: number;  // in lamports
-  virtualSolReserves: number; // in lamports
-  realSolReserves: number;   // in lamports
-  battleStatus?: number;     // ⭐ 0=Created, 1=Qualified, 2=InBattle, 3=VictoryPending, 4=Listed
+  solCollected: number;
+  totalTradeVolume: number;
+  virtualSolReserves: number;
+  realSolReserves: number;
+  battleStatus?: number;
 }
 
 interface TradingPanelProps {
@@ -214,17 +210,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { balance, balanceFormatted } = useUserTokenBalance(mint);
+  const { balance, balanceFormatted, refetch: refetchBalance } = useUserTokenBalance(mint);
   const [solBalance, setSolBalance] = useState<number | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isVictoryPopup, setIsVictoryPopup] = useState(false);
 
-  // 🚀 GRADUATION POPUP STATE
   const [showGraduationPopup, setShowGraduationPopup] = useState(false);
   const [graduationLoading, setGraduationLoading] = useState(false);
-
-  // ⚔️ BATTLE READY POPUP STATE
   const [showBattleReady, setShowBattleReady] = useState(false);
 
   // Fetch SOL balance
@@ -296,21 +289,13 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   // ============================================================
   const checkQualification = useCallback(async (statusBeforeBuy: number | undefined) => {
     try {
-      console.log('⚔️ Checking qualification. Status before buy:', statusBeforeBuy);
-
-      // Fetch current status from Supabase
       const { data } = await supabase
         .from('tokens')
         .select('battle_status')
         .eq('mint', mint.toString())
         .single();
 
-      console.log('⚔️ Current status from DB:', data?.battle_status);
-
-      // Check if status changed from 0 (Created) to 1 (Qualified)
       if (data && data.battle_status === 1 && statusBeforeBuy === 0) {
-        // Token just qualified! Show popup
-        console.log('⚔️ Token just qualified! Showing Battle Ready popup');
         setShowBattleReady(true);
         return true;
       }
@@ -349,9 +334,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    // ⚔️ SAVE STATUS BEFORE BUY
     const statusBeforeBuy = tokenState?.battleStatus;
-    console.log('⚔️ Status BEFORE buy:', statusBeforeBuy);
 
     setLoading(true);
     try {
@@ -366,25 +349,26 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
 
       console.log('✅ Buy successful:', result);
 
-      // 🎯 Add points for buy
       addPointsForBuyToken(
         publicKey.toString(),
         mint.toString(),
         tokenState?.symbol,
         tokenState?.image
-      ).catch(err => console.error('Points error:', err));
+      ).catch(console.error);
 
-      // ⚔️ Check if token just qualified after buy
-      // Wait for webhook to sync
+      // ⭐ REFRESH BALANCE AFTER BUY
+      setTimeout(() => {
+        refetchBalance();
+      }, 2000);
+
       setTimeout(async () => {
         const qualified = await checkQualification(statusBeforeBuy);
         if (!qualified) {
-          // Normal success popup
           setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
           setIsVictoryPopup(false);
           setShowSuccess(true);
         }
-      }, 2500); // 2.5 seconds for webhook sync
+      }, 2500);
 
       setAmount('');
       if (onSuccess) onSuccess();
@@ -396,7 +380,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         errorMessage.includes('WouldExceedGraduation') ||
         errorMessage.includes('0x1786') ||
         errorMessage.includes('6022')) {
-        console.log('🚀 Showing graduation popup');
         setShowGraduationPopup(true);
         return;
       }
@@ -418,8 +401,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
 
     setGraduationLoading(true);
     try {
-      console.log(`🚀 Graduation buy: ${exactAmount} SOL`);
-
       const result = await buyToken(
         publicKey,
         mint,
@@ -431,13 +412,15 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
 
       console.log('✅ Graduation buy successful:', result);
 
-      // 🎯 Add points for graduation buy
       addPointsForBuyToken(
         publicKey.toString(),
         mint.toString(),
         tokenState?.symbol,
         tokenState?.image
-      ).catch(err => console.error('Points error:', err));
+      ).catch(console.error);
+
+      // ⭐ REFRESH BALANCE
+      setTimeout(() => refetchBalance(), 2000);
 
       setShowGraduationPopup(false);
       setSuccessMessage(`🏆 Graduation complete! Bought ${exactAmount} SOL`);
@@ -468,20 +451,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     }
   };
 
-  // ============================================================
-  // 🏆 VICTORY CHECK FROM POPUP
-  // ============================================================
   const handleVictoryFromPopup = async () => {
     setGraduationLoading(true);
     try {
-      console.log('🏆 Triggering victory check from graduation popup');
       await triggerVictoryCheck();
-
       setShowGraduationPopup(false);
       setSuccessMessage('🏆 Victory conditions checked! See results above.');
       setIsVictoryPopup(true);
       setShowSuccess(true);
-
       if (onSuccess) onSuccess();
     } catch (err) {
       console.error('Victory check error:', err);
@@ -491,9 +468,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     }
   };
 
-  // ============================================================
-  // 🏆 VICTORY CHECK TRIGGER
-  // ============================================================
   const triggerVictoryCheck = async () => {
     try {
       console.log('🏆 Triggering victory check for:', mint.toString());
@@ -506,7 +480,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       console.log('🏆 Victory check result:', data);
 
       if (data.victory) {
-        setSuccessMessage(`🏆 VICTORY! ${tokenState?.symbol || 'Token'} won the battle! Preparing for DEX listing...`);
+        setSuccessMessage(`🏆 VICTORY! ${tokenState?.symbol || 'Token'} won the battle!`);
       } else if (data.success) {
         setSuccessMessage(`⚔️ Battle continues - checking victory conditions...`);
       } else {
@@ -533,10 +507,12 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
+    // ⭐ FIX: Convert display amount to raw amount (multiply by 1e9)
     const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
+    // ⭐ FIX: Compare raw amounts correctly
     if (balance === null || tokenAmountRaw > balance) {
-      alert('Insufficient token balance');
+      alert(`Insufficient token balance. You have ${balanceFormatted?.toLocaleString() ?? 0} ${tokenState?.symbol || 'tokens'}`);
       return;
     }
 
@@ -551,15 +527,17 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
 
       console.log('✅ Sell successful:', result);
 
-      // 🎯 Add points for sell
       addPointsForSellToken(
         publicKey.toString(),
         mint.toString(),
         tokenState?.symbol,
         tokenState?.image
-      ).catch(err => console.error('Points error:', err));
+      ).catch(console.error);
 
-      setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${tokenState?.symbol || 'tokens'}`);
+      // ⭐ REFRESH BALANCE AFTER SELL
+      setTimeout(() => refetchBalance(), 2000);
+
+      setSuccessMessage(`Sold ${tokenAmount.toLocaleString()} ${tokenState?.symbol || 'tokens'}`);
       setIsVictoryPopup(false);
       setShowSuccess(true);
       setAmount('');
@@ -583,7 +561,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, []);
 
   // ============================================================
-  // 🎮 PERCENTAGE BUTTONS
+  // 🎮 PERCENTAGE BUTTONS - FIXED
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
@@ -592,13 +570,20 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       const value = Math.max(0, maxUsable * (percent / 100));
       setAmount(value.toFixed(4));
     } else {
-      if (!balanceFormatted) return;
+      // ⭐ FIX: Use balanceFormatted (already divided by 1e9)
+      if (balanceFormatted === null || balanceFormatted === 0) return;
       const value = balanceFormatted * (percent / 100);
-      setAmount(value.toFixed(6));
+      // ⭐ FIX: No decimals for whole token amounts, max 2 for partial
+      setAmount(Math.floor(value).toString());
     }
   };
 
   const tokenSymbol = tokenState?.symbol || 'TOKEN';
+
+  // ⭐ FIX: Format balance for display with commas
+  const displayBalance = balanceFormatted !== null
+    ? Math.floor(balanceFormatted).toLocaleString()
+    : '0';
 
   return (
     <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
@@ -711,14 +696,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       </div>
 
       {/* ============================================================ */}
-      {/* BALANCE DISPLAY */}
+      {/* BALANCE DISPLAY - FIXED */}
       {/* ============================================================ */}
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm text-gray-400">Balance:</span>
         <span className="text-sm font-bold text-white">
           {mode === 'buy'
             ? `${solBalance?.toFixed(4) ?? '0.0000'} SOL`
-            : `${balanceFormatted?.toFixed(2) ?? '0.00'} ${tokenSymbol}`
+            : `${displayBalance} ${tokenSymbol}`
           }
         </span>
       </div>
@@ -778,10 +763,10 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         ))}
       </div>
 
-      {/* USD Estimate */}
-      {solPriceUsd > 0 && amount && (
+      {/* USD Estimate - only for buy */}
+      {solPriceUsd > 0 && amount && mode === 'buy' && (
         <div className="text-center text-xs text-gray-500 mb-3">
-          ≈ ${(parseFloat(amount || '0') * (mode === 'buy' ? solPriceUsd : (solPriceUsd * 0.00001))).toFixed(2)} USD
+          ≈ ${(parseFloat(amount || '0') * solPriceUsd).toFixed(2)} USD
         </div>
       )}
 
