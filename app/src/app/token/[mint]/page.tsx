@@ -21,6 +21,7 @@ import { PriceChart } from '@/components/token/PriceChart';
 import { BondingCurveCard } from '@/components/token/BondingCurveCard';
 import { QualificationPopup } from '@/components/token/QualificationPopup';
 import { TradesList } from '@/components/token/TradesList';
+import { MobileTradingDrawer } from '@/components/token/MobileTradingDrawer';
 
 /**
  * Validates if a string is a valid Solana public key
@@ -519,26 +520,28 @@ export default function TokenDetailPage() {
 
             {/* RIGHT COLUMN (Sidebar) - 4 cols */}
             <div className="lg:col-span-4 space-y-6">
-              {/* Trading Panel - Hide if winner (trading on Raydium now) */}
-              {!isWinner ? (
-                <TradingPanel mint={mint} onSuccess={refetch} />
-              ) : (
-                <div className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-500/50 rounded-xl p-6 text-center">
-                  <div className="text-4xl mb-3">🎉</div>
-                  <h3 className="text-xl font-bold text-yellow-400 mb-2">Trading on Raydium!</h3>
-                  <p className="text-gray-400 text-sm mb-4">
-                    This token graduated and is now available on Raydium DEX
-                  </p>
-                  <a
-                    href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-blue-400 hover:to-purple-400 transition-all"
-                  >
-                    Trade on Raydium →
-                  </a>
-                </div>
-              )}
+              {/* Trading Panel - Hidden on mobile/tablet (<810px), shown on desktop */}
+              <div className="hidden tablet-trading:block">
+                {!isWinner ? (
+                  <TradingPanel mint={mint} onSuccess={refetch} />
+                ) : (
+                  <div className="bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-500/50 rounded-xl p-6 text-center">
+                    <div className="text-4xl mb-3">🎉</div>
+                    <h3 className="text-xl font-bold text-yellow-400 mb-2">Trading on Raydium!</h3>
+                    <p className="text-gray-400 text-sm mb-4">
+                      This token graduated and is now available on Raydium DEX
+                    </p>
+                    <a
+                      href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-blue-400 hover:to-purple-400 transition-all"
+                    >
+                      Trade on Raydium →
+                    </a>
+                  </div>
+                )}
+              </div>
 
               {/* User Position (Placeholder) */}
               <div className="bg-bonk-card border border-bonk-border rounded-xl p-4">
@@ -628,6 +631,24 @@ export default function TokenDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Trading Drawer - Only visible < 810px */}
+      {!isWinner && (
+        <MobileTradingDrawer
+          mint={mint}
+          tokenState={{
+            symbol: state.symbol || 'TOKEN',
+            image: state.image || '',
+            solCollected: state.realSolReserves,
+            totalTradeVolume: state.totalTradeVolume,
+            virtualSolReserves: state.virtualSolReserves,
+            realSolReserves: state.realSolReserves,
+            battleStatus: state.battleStatus,
+          }}
+          onSuccess={refetch}
+        />
+      )}
+
       <MobileBottomNav />
     </div>
   );
