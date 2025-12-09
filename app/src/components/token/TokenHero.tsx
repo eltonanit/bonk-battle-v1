@@ -41,23 +41,26 @@ function ShareModal({ isOpen, onClose, tokenMint, tokenSymbol }: { isOpen: boole
 
         <div className="space-y-3">
           <button
+            onClick={shareOnX}
+            className="w-full flex flex-col items-center justify-center py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-lg transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              <span>Share on X</span>
+            </div>
+            <span className="text-black text-xs font-bold mt-1 animate-zoom-subtle">GET +500 POINTS</span>
+          </button>
+
+          <button
             onClick={copyLink}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-500 hover:bg-emerald-600 text-black font-bold rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors border border-white/20"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
             </svg>
             {copied ? 'Copied!' : 'Copy link'}
-          </button>
-
-          <button
-            onClick={shareOnX}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition-colors border border-white/20"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            Share on X
           </button>
         </div>
       </div>
@@ -79,6 +82,15 @@ interface CreatorProfile {
   avatar_url: string | null;
 }
 
+// Battle Status enum values
+enum BattleStatus {
+  Created = 0,
+  Qualified = 1,
+  InBattle = 2,
+  VictoryPending = 3,
+  Listed = 4,
+}
+
 interface TokenHeroProps {
   token: {
     name: string;
@@ -91,22 +103,25 @@ interface TokenHeroProps {
   };
   preloadedMetadata?: Metadata;
   battleId?: string;
+  battleStatus?: number; // ⭐ NEW: Battle status for status button
 }
 
 const EMOJI_FALLBACKS = ['🚀', '💎', '🐸', '🐕', '🦊', '😎', '🌙', '🎯', '🦍', '🐂'];
 
-export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps) {
+export function TokenHero({ token, preloadedMetadata, battleId, battleStatus }: TokenHeroProps) {
   const { metadata: fetchedMetadata } = useTokenMetadata(token.mint);
   const [imageError, setImageError] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [creatorProfile, setCreatorProfile] = useState<CreatorProfile | null>(null);
   const [avatarError, setAvatarError] = useState(false);
+  const [ctCopied, setCtCopied] = useState(false);
 
   // Use preloaded metadata if available, otherwise use fetched metadata
   const metadata = preloadedMetadata || fetchedMetadata;
 
   const displayName = metadata?.name || token.name || 'Unknown';
-  const displaySymbol = metadata?.symbol || token.symbol || 'UNK';
+  const rawSymbol = metadata?.symbol || token.symbol || 'UNK';
+  const displaySymbol = rawSymbol.slice(0, 5); // Max 5 characters
   const imageUrl = metadata?.image || '';
 
   // Get creator wallet address
@@ -139,9 +154,18 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
     0;
   const fallbackEmoji = EMOJI_FALLBACKS[emojiIndex];
 
-  // Display name: username if available, otherwise shortened address
-  const creatorDisplayName = creatorProfile?.username
-    || (creatorWallet ? `${creatorWallet.slice(0, 4)}...${creatorWallet.slice(-4)}` : 'Unknown');
+  // ⭐ NEW: Short address for creator (only first 4 chars)
+  const creatorShort = creatorWallet ? creatorWallet.slice(0, 4) : null;
+
+  // ⭐ NEW: Contract address shortened
+  const ctShort = `${token.mint.slice(0, 4)}...${token.mint.slice(-4)}`;
+
+  // ⭐ NEW: Copy CT address
+  const copyCtAddress = async () => {
+    await navigator.clipboard.writeText(token.mint);
+    setCtCopied(true);
+    setTimeout(() => setCtCopied(false), 2000);
+  };
 
   // Time since creation
   let createdDisplay = 'Just now';
@@ -154,7 +178,6 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
     else createdDisplay = `${Math.floor(diff / 86400)}d ago`;
   }
 
-
   return (
     <>
       <ShareModal
@@ -163,6 +186,52 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
         tokenMint={token.mint}
         tokenSymbol={displaySymbol}
       />
+
+      {/* Animation styles */}
+      <style jsx>{`
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+        @keyframes ping-slow {
+          0% { transform: scale(1); opacity: 1; }
+          75%, 100% { transform: scale(1.5); opacity: 0; }
+        }
+        .animate-ping-slow {
+          animation: ping-slow 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        @keyframes pulse-subtle {
+          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
+          50% { opacity: 0.95; box-shadow: 0 0 12px 2px rgba(16, 185, 129, 0.3); }
+        }
+        .animate-pulse-subtle {
+          animation: pulse-subtle 2.5s ease-in-out infinite;
+        }
+        @keyframes glow {
+          0%, 100% { text-shadow: 0 0 4px rgba(250, 204, 21, 0.4); }
+          50% { text-shadow: 0 0 12px rgba(250, 204, 21, 0.8), 0 0 20px rgba(250, 204, 21, 0.4); }
+        }
+        .animate-glow {
+          animation: glow 2s ease-in-out infinite;
+        }
+        @keyframes zoom-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+        }
+        .animate-zoom-pulse {
+          animation: zoom-pulse 2s ease-in-out infinite;
+        }
+        @keyframes zoom-subtle {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.03); }
+        }
+        .animate-zoom-subtle {
+          animation: zoom-subtle 2.5s ease-in-out infinite;
+        }
+      `}</style>
 
       <div className="bg-bonk-card border border-bonk-border rounded-xl p-4 mb-4">
         <div className="flex items-start gap-4">
@@ -190,93 +259,120 @@ export function TokenHero({ token, preloadedMetadata, battleId }: TokenHeroProps
                 <span>{fallbackEmoji}</span>
               )}
             </div>
-            {/* MC under photo - DYNAMIC */}
-            <div className="mt-2 text-center">
-              <div className="text-[10px] text-gray-400 uppercase tracking-wide">Market Cap</div>
-              <div className="text-lg font-bold text-white">
-                {token.marketCapUsd !== undefined && token.marketCapUsd !== null
-                  ? `$${token.marketCapUsd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-                  : '...'
-                }
-              </div>
-            </div>
+
+            {/* ⭐ CT Address under photo (clickable to copy) */}
+            <button
+              onClick={copyCtAddress}
+              className="mt-2 flex items-center gap-1.5 group cursor-pointer hover:opacity-80 transition-opacity"
+              title="Click to copy contract address"
+            >
+              <span className="text-[10px] text-gray-500 uppercase">CT:</span>
+              {ctCopied ? (
+                <span className="text-xs text-green-400 font-mono">Copied!</span>
+              ) : (
+                <>
+                  <span className="text-xs font-mono text-gray-400 group-hover:text-white transition-colors">{ctShort}</span>
+                  <svg className="w-3 h-3 text-gray-500 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+            {/* ⭐ Time under CT */}
+            <span className="mt-1 text-[10px] text-gray-500">{createdDisplay}</span>
           </div>
 
           {/* Token Info */}
           <div className="flex-1 min-w-0">
-            {/* Top row: Name + Ticker + Share button */}
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Token Name */}
-                <h1 className="text-xl font-bold text-white">{displayName}</h1>
-                {/* Ticker badge */}
-                <span className="px-2 py-0.5 bg-bonk-border rounded text-sm text-gray-300 font-medium">
-                  ${displaySymbol}
-                </span>
-                {/* In Battle button */}
-                {battleId && (
-                  <Link
-                    href={`/battle/${battleId}`}
-                    className="px-2 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors"
-                  >
-                    ⚔️ In battle
-                  </Link>
-                )}
+            {/* Top row: Symbol + Share button */}
+            <div className="flex items-start justify-between mb-1">
+              <div className="flex flex-col">
+                {/* ⭐ Token Symbol (max 5 chars) - smaller on mobile */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-lg sm:text-xl font-bold text-white">${displaySymbol}</h1>
+                </div>
+                {/* ⭐ "by" section under symbol */}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[10px] text-gray-500">by</span>
+                  {creatorWallet ? (
+                    <Link
+                      href={`/profile/${creatorWallet}`}
+                      className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    >
+                      <div className="w-3.5 h-3.5 rounded-full overflow-hidden flex-shrink-0 border border-orange-400/50">
+                        <Image
+                          src={
+                            creatorProfile?.avatar_url && !avatarError
+                              ? creatorProfile.avatar_url
+                              : '/profilo.png'
+                          }
+                          alt="creator"
+                          width={14}
+                          height={14}
+                          className="w-full h-full object-cover"
+                          onError={() => setAvatarError(true)}
+                          unoptimized
+                        />
+                      </div>
+                      <span className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium">
+                        {creatorShort}
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="text-[10px] text-gray-500">Unknown</span>
+                  )}
+                </div>
               </div>
 
               {/* Share button - top right, responsive */}
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors flex-shrink-0 ml-2"
-                title="Share"
-              >
-                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                {/* Text visible only on desktop (>600px) */}
-                <span className="hidden sm:inline text-sm font-medium text-emerald-400">Share</span>
-              </button>
-            </div>
-
-            {/* Created by row: avatar + username/address + time ago */}
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <span className="text-gray-500">Created by</span>
-
-              {/* Creator avatar + name (clickable) */}
-              {creatorWallet ? (
-                <Link
-                  href={`/profile/${creatorWallet}`}
-                  className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+              <div className="flex flex-col gap-2 flex-shrink-0 ml-2">
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 transition-all"
+                  title="Share to earn +500 points"
                 >
-                  {/* Avatar */}
-                  <div className="w-5 h-5 rounded-full overflow-hidden bg-bonk-border flex items-center justify-center">
-                    {creatorProfile?.avatar_url && !avatarError ? (
-                      <Image
-                        src={creatorProfile.avatar_url}
-                        alt={creatorDisplayName}
-                        width={20}
-                        height={20}
-                        className="w-full h-full object-cover"
-                        onError={() => setAvatarError(true)}
-                      />
-                    ) : (
-                      <span className="text-[10px] text-gray-400">
-                        {creatorDisplayName.charAt(0).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  {/* Username or address */}
-                  <span className="text-emerald-400 hover:text-emerald-300 font-medium">
-                    {creatorDisplayName}
-                  </span>
-                </Link>
-              ) : (
-                <span className="text-gray-500">Unknown</span>
-              )}
+                  <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  <span className="text-xs sm:text-sm font-bold text-emerald-400 animate-zoom-pulse">+500 pts</span>
+                </button>
 
-              {/* Time ago */}
-              <span className="text-gray-500">•</span>
-              <span className="text-gray-400">{createdDisplay}</span>
+                {/* ⭐ Status Buttons - responsive */}
+                {battleStatus === BattleStatus.Created && (
+                  <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-green-500/20 text-green-400 text-xs sm:text-sm font-medium">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-green-400"></span>
+                    <span>New</span>
+                  </div>
+                )}
+
+                {battleStatus === BattleStatus.Qualified && (
+                  <Link
+                    href="/battlestart?tab=qualify"
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-xs sm:text-sm font-medium transition-colors"
+                  >
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-yellow-400"></span>
+                    <span>Qualified</span>
+                  </Link>
+                )}
+
+                {(battleStatus === BattleStatus.InBattle || battleStatus === BattleStatus.VictoryPending) && battleId && (
+                  <Link
+                    href={`/battle/${battleId}`}
+                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs sm:text-sm font-medium transition-colors animate-pulse-slow"
+                  >
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-400 animate-ping-slow"></span>
+                    <span>In Battle</span>
+                  </Link>
+                )}
+
+                {battleStatus === BattleStatus.Listed && (
+                  <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-purple-500/20 text-purple-400 text-xs sm:text-sm font-medium">
+                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-purple-400"></span>
+                    <span>Champion</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

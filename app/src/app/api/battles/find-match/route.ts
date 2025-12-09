@@ -2,6 +2,8 @@
  * BONK BATTLE - Find Match API
  * POST /api/battles/find-match - Auto-find opponent and start battle
  * GET /api/battles/find-match - Get matchmaking queue
+ * 
+ * ✅ Updated: Returns image data for BattleStartedModal
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -79,7 +81,12 @@ export async function POST(request: NextRequest) {
         success: true,
         found: false,
         message: 'No opponents available. Your token is in the queue.',
-        myToken: { mint: tokenMint, name: myTokenData.name, symbol: myTokenData.symbol },
+        myToken: {
+          mint: tokenMint,
+          name: myTokenData.name,
+          symbol: myTokenData.symbol,
+          image: myTokenData.image || '',
+        },
       });
     }
 
@@ -122,14 +129,25 @@ export async function POST(request: NextRequest) {
           supabase.from('tokens').update({ battle_status: 2, opponent_mint: tokenMint }).eq('mint', opponent.mint),
         ]);
 
+        // ✅ UPDATED: Return image data for BattleStartedModal
         return NextResponse.json({
           success: true,
           found: true,
           message: 'Battle started!',
           battle: {
             signature: result.signature,
-            tokenA: { mint: tokenMint, name: myTokenData.name, symbol: myTokenData.symbol },
-            tokenB: { mint: opponent.mint, name: opponent.name, symbol: opponent.symbol },
+            tokenA: {
+              mint: tokenMint,
+              name: myTokenData.name,
+              symbol: myTokenData.symbol,
+              image: myTokenData.image || '',
+            },
+            tokenB: {
+              mint: opponent.mint,
+              name: opponent.name,
+              symbol: opponent.symbol,
+              image: opponent.image || '',
+            },
           },
         });
 
@@ -162,7 +180,7 @@ export async function GET(request: NextRequest) {
     if (mint) {
       const { data: token } = await supabase
         .from('tokens')
-        .select('mint, name, symbol, battle_status, opponent_mint')
+        .select('mint, name, symbol, image, battle_status, opponent_mint')
         .eq('mint', mint)
         .single();
 

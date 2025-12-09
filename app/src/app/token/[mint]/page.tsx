@@ -448,6 +448,7 @@ export default function TokenDetailPage() {
                     ? `${mintAddress}-${state.opponentMint.toString()}`
                     : undefined
                 }
+                battleStatus={state.battleStatus}
               />
 
               {/* Chart Section */}

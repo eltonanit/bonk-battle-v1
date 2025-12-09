@@ -4,9 +4,7 @@
  * BONK BATTLE - Battle Arena Page
  * 
  * ✅ V3 FIX: Filtering basato su solCollected (non battleStatus)
- * - NEW: token con solCollected === 0 (mai ricevuto un buy)
- * - QUALIFY: token con solCollected > 0 (ha ricevuto almeno un buy)
- * - ON BATTLE: token con battleStatus === InBattle
+ * ✅ V4: BattleStartedModal invece di TransactionSuccessPopup
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -21,7 +19,9 @@ import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
 import { getBattleStatePDA } from '@/lib/solana/pdas';
 import Image from 'next/image';
 import Link from 'next/link';
-import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
+
+// ⭐ NEW: BattleStartedModal instead of TransactionSuccessPopup
+import { BattleStartedModal } from '@/components/battle/BattleStartedModal';
 
 // Layout components
 import { Header } from '@/components/layout/Header';
@@ -44,11 +44,21 @@ interface UserToken {
   opponentMint: string | null;
   opponentSymbol: string | null;
   opponentImage: string | null;
-  solCollected: number;  // ⭐ In lamports
+  solCollected: number;
   userBalance: bigint;
 }
 
 type TabType = 'on-battle' | 'qualify' | 'new';
+
+// ⭐ NEW: Battle data for modal
+interface BattleModalData {
+  tokenAMint: string;
+  tokenASymbol: string;
+  tokenAImage: string;
+  tokenBMint: string;
+  tokenBSymbol: string;
+  tokenBImage: string;
+}
 
 // ============================================================================
 // HELPER: Fetch Battle Status On-Chain
@@ -68,32 +78,17 @@ async function fetchBattleStatusOnChain(
 
     const data = accountInfo.data;
 
-    // Parse TokenBattleState struct
-    // 8 bytes: discriminator
-    // 32 bytes: mint
-    // 8 bytes: sol_collected
-    // 8 bytes: tokens_sold
-    // 8 bytes: total_trade_volume
-    // 1 byte: is_active
-    // 1 byte: battle_status (enum index)
-    // 32 bytes: opponent_mint
+    let offset = 8 + 32;
 
-    let offset = 8 + 32; // Skip discriminator + mint
-
-    // Parse sol_collected (u64 little-endian) - in LAMPORTS
     let solCollected = 0n;
     for (let i = 0; i < 8; i++) {
       solCollected |= BigInt(data[offset + i]) << BigInt(i * 8);
     }
     offset += 8;
 
-    // Skip tokens_sold, total_trade_volume
     offset += 8 + 8;
-
-    // Skip is_active
     offset += 1;
 
-    // Parse battle_status (1 byte)
     const battleStatusIndex = data[offset];
     const battleStatusMap: Record<number, BattleStatus> = {
       0: BattleStatus.Created,
@@ -105,7 +100,6 @@ async function fetchBattleStatusOnChain(
     const battleStatus = battleStatusMap[battleStatusIndex] ?? BattleStatus.Created;
     offset += 1;
 
-    // Parse opponent_mint (32 bytes)
     const opponentMintBytes = data.slice(offset, offset + 32);
     const opponentMint = new PublicKey(opponentMintBytes);
     const isDefaultPubkey = opponentMint.equals(PublicKey.default);
@@ -113,7 +107,7 @@ async function fetchBattleStatusOnChain(
     return {
       battleStatus,
       opponentMint: isDefaultPubkey ? null : opponentMint,
-      solCollected: Number(solCollected),  // Lamports as number
+      solCollected: Number(solCollected),
     };
   } catch (err) {
     console.error(`Error fetching on-chain status for ${mint.toString()}:`, err);
@@ -125,7 +119,6 @@ async function fetchBattleStatusOnChain(
 // TOKEN LIST ITEM COMPONENTS
 // ============================================================================
 
-// On Battle - Token in battaglia
 function OnBattleItem({ token }: { token: UserToken }) {
   const battleId = token.opponentMint
     ? `${token.mint}-${token.opponentMint}`
@@ -170,7 +163,6 @@ function OnBattleItem({ token }: { token: UserToken }) {
   );
 }
 
-// Qualify - Token qualificato con timer
 function QualifyItem({ token, onFindOpponent }: {
   token: UserToken;
   onFindOpponent: (mint: string) => Promise<boolean>;
@@ -251,7 +243,6 @@ function QualifyItem({ token, onFindOpponent }: {
     });
   };
 
-  // ⭐ Show SOL collected for debugging
   const solAmount = token.solCollected / 1e9;
 
   return (
@@ -269,7 +260,6 @@ function QualifyItem({ token, onFindOpponent }: {
         <div>
           <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
           <span className="text-xs text-white/50">{token.name || token.mint.slice(0, 8)}</span>
-          {/* ⭐ Show SOL collected */}
           <span className="text-xs text-green-400 block">{solAmount.toFixed(4)} SOL collected</span>
         </div>
       </Link>
@@ -296,7 +286,6 @@ function QualifyItem({ token, onFindOpponent }: {
   );
 }
 
-// New - Token nuovo (0 buys)
 function NewItem({ token }: { token: UserToken }) {
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
@@ -313,7 +302,6 @@ function NewItem({ token }: { token: UserToken }) {
         <div>
           <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
           <span className="text-xs text-white/50">{token.name || token.mint.slice(0, 8)}</span>
-          {/* ⭐ Indicate no buys yet */}
           <span className="text-xs text-gray-500 block">No buys yet</span>
         </div>
       </Link>
@@ -339,11 +327,13 @@ export default function BattleArenaPage() {
   const [activeTab, setActiveTab] = useState<TabType>('on-battle');
   const [userTokens, setUserTokens] = useState<UserToken[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+
+  // ⭐ NEW: Battle modal state (instead of success popup)
+  const [showBattleModal, setShowBattleModal] = useState(false);
+  const [battleModalData, setBattleModalData] = useState<BattleModalData | null>(null);
 
   // ==========================================================================
-  // FETCH USER TOKENS (with ON-CHAIN status)
+  // FETCH USER TOKENS
   // ==========================================================================
 
   const fetchUserTokens = useCallback(async () => {
@@ -357,11 +347,9 @@ export default function BattleArenaPage() {
       setLoading(true);
       const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
-      // 1. Fetch token metadata from Supabase
       const allBonkTokens = await fetchTokensFromSupabase();
       console.log(`📊 Found ${allBonkTokens.length} tokens from Supabase`);
 
-      // 2. Get user's token balances
       const tokenAccounts = await connection.getTokenAccountsByOwner(publicKey, {
         programId: TOKEN_PROGRAM_ID,
       });
@@ -379,7 +367,6 @@ export default function BattleArenaPage() {
         }
       }
 
-      // 3. Build user tokens list with ON-CHAIN battle status
       const tokens: UserToken[] = [];
       const addedMints = new Set<string>();
 
@@ -388,12 +375,10 @@ export default function BattleArenaPage() {
         const userBalance = userBalances.get(mintStr) || 0n;
         const isCreator = token.creator?.toString() === publicKey.toString();
 
-        // Include if user owns tokens OR is the creator
         if (userBalance === 0n && !isCreator) continue;
         if (addedMints.has(mintStr)) continue;
         addedMints.add(mintStr);
 
-        // ⭐ FETCH BATTLE STATUS ON-CHAIN (not from Supabase!)
         const onChainState = await fetchBattleStatusOnChain(
           connection,
           new PublicKey(mintStr)
@@ -404,7 +389,6 @@ export default function BattleArenaPage() {
           continue;
         }
 
-        // Find opponent info if in battle
         let opponentData: { mint: string; symbol: string; image: string } | null = null;
         if (onChainState.opponentMint) {
           const opponent = allBonkTokens.find(
@@ -428,11 +412,10 @@ export default function BattleArenaPage() {
           opponentMint: opponentData?.mint || null,
           opponentSymbol: opponentData?.symbol || null,
           opponentImage: opponentData?.image || null,
-          solCollected: onChainState.solCollected,  // ⭐ In lamports!
+          solCollected: onChainState.solCollected,
           userBalance,
         });
 
-        // ⭐ Enhanced logging
         const solAmount = onChainState.solCollected / 1e9;
         const category =
           onChainState.battleStatus === BattleStatus.Listed ? 'LISTED (excluded)' :
@@ -454,22 +437,18 @@ export default function BattleArenaPage() {
   }, [fetchUserTokens]);
 
   // ==========================================================================
-  // ⭐ V3 FIX: FILTER TOKENS BY TAB (based on solCollected!)
+  // FILTER TOKENS BY TAB
   // ==========================================================================
 
-  // ON BATTLE: Token in battaglia attiva (battleStatus === InBattle)
   const onBattleTokens = userTokens.filter(t => t.battleStatus === BattleStatus.InBattle);
 
-  // ⭐ QUALIFIED: Token con almeno un buy (solCollected > 0) ma NON in battaglia/listed
   const qualifiedTokens = userTokens.filter(t =>
-    t.solCollected > 0 &&  // ⭐ Ha ricevuto almeno un buy
+    t.solCollected > 0 &&
     t.battleStatus !== BattleStatus.InBattle &&
     t.battleStatus !== BattleStatus.VictoryPending &&
     t.battleStatus !== BattleStatus.Listed
   );
 
-  // ⭐ NEW: Token che NON hanno MAI ricevuto un buy (solCollected === 0)
-  // MA escludere i token Listed (hanno già vinto, liquidità ritirata per Raydium)
   const newTokens = userTokens.filter(t =>
     t.solCollected === 0 &&
     t.battleStatus !== BattleStatus.Listed
@@ -484,7 +463,7 @@ export default function BattleArenaPage() {
   };
 
   // ==========================================================================
-  // FIND OPPONENT HANDLER
+  // ⭐ UPDATED: FIND OPPONENT HANDLER - Shows BattleStartedModal
   // ==========================================================================
 
   const handleFindOpponent = useCallback(async (tokenMint: string): Promise<boolean> => {
@@ -503,11 +482,22 @@ export default function BattleArenaPage() {
       }
 
       if (data.found && data.battle) {
-        setSuccessMessage(`Battle started vs ${data.battle.tokenB.symbol}!`);
-        setShowSuccess(true);
+        // ⭐ NEW: Show BattleStartedModal instead of success popup!
+        setBattleModalData({
+          tokenAMint: data.battle.tokenA.mint,
+          tokenASymbol: data.battle.tokenA.symbol,
+          tokenAImage: data.battle.tokenA.image || '',
+          tokenBMint: data.battle.tokenB.mint,
+          tokenBSymbol: data.battle.tokenB.symbol,
+          tokenBImage: data.battle.tokenB.image || '',
+        });
+        setShowBattleModal(true);
+
+        // Refresh tokens after a delay
         setTimeout(() => {
           fetchUserTokens();
         }, 2000);
+
         return true;
       }
 
@@ -518,9 +508,14 @@ export default function BattleArenaPage() {
     }
   }, [fetchUserTokens]);
 
-  const handleSuccessClose = useCallback(() => {
-    setShowSuccess(false);
-  }, []);
+  // ⭐ NEW: Handle modal close
+  const handleBattleModalClose = useCallback(() => {
+    setShowBattleModal(false);
+    setBattleModalData(null);
+    // Switch to "On Battle" tab to show the active battle
+    setActiveTab('on-battle');
+    fetchUserTokens();
+  }, [fetchUserTokens]);
 
   // ==========================================================================
   // RENDER
@@ -528,7 +523,7 @@ export default function BattleArenaPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
-      {/* Tickers SOPRA Header - SOLO mobile/tablet */}
+      {/* Tickers */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
         <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
           <FOMOTicker />
@@ -538,14 +533,19 @@ export default function BattleArenaPage() {
         </div>
       </div>
 
-      {/* Success Popup */}
-      <TransactionSuccessPopup
-        show={showSuccess}
-        message="Battle Started!"
-        subMessage={successMessage}
-        onClose={handleSuccessClose}
-        autoCloseMs={2500}
-      />
+      {/* ⭐ NEW: Battle Started Modal */}
+      {showBattleModal && battleModalData && (
+        <BattleStartedModal
+          tokenAMint={battleModalData.tokenAMint}
+          tokenASymbol={battleModalData.tokenASymbol}
+          tokenAImage={battleModalData.tokenAImage}
+          tokenBMint={battleModalData.tokenBMint}
+          tokenBSymbol={battleModalData.tokenBSymbol}
+          tokenBImage={battleModalData.tokenBImage}
+          onClose={handleBattleModalClose}
+          autoCloseDelay={10000}
+        />
+      )}
 
       {/* Layout Components */}
       <Sidebar />
