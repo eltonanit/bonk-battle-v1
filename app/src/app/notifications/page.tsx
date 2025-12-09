@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -10,6 +10,7 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { supabase } from '@/lib/supabase';
 
 // Type-safe notification interface
 interface Notification {
@@ -65,10 +66,86 @@ export default function NotificationsPage() {
     const router = useRouter();
     const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
 
+    // ⭐ NEW: Cache for token images fetched from database
+    const [tokenImages, setTokenImages] = useState<Record<string, string>>({});
+    const [imagesFetched, setImagesFetched] = useState(false);
+
+    // ⭐ NEW: Fetch missing token images from database
+    useEffect(() => {
+        if (loading || imagesFetched || notifications.length === 0) return;
+
+        async function fetchMissingImages() {
+            // Find notifications with token_mint but no token_image
+            const mintsToFetch: string[] = [];
+
+            for (const notif of notifications) {
+                const n = notif as Notification;
+                if (n.type === 'points' && n.data?.token_mint && !n.data?.token_image) {
+                    if (!mintsToFetch.includes(n.data.token_mint)) {
+                        mintsToFetch.push(n.data.token_mint);
+                    }
+                }
+            }
+
+            if (mintsToFetch.length === 0) {
+                setImagesFetched(true);
+                return;
+            }
+
+            console.log('📸 Fetching missing images for:', mintsToFetch.length, 'tokens');
+
+            try {
+                // Fetch from tokens table - use correct column name 'image'
+                const { data: tokens, error } = await supabase
+                    .from('tokens')
+                    .select('mint, image, uri')
+                    .in('mint', mintsToFetch);
+
+                if (error) {
+                    console.error('Error fetching token images:', error.message, error.code, error.details);
+                    setImagesFetched(true);
+                    return;
+                }
+
+                // Build image map - try multiple sources
+                const imageMap: Record<string, string> = {};
+                for (const token of tokens || []) {
+                    let imageUrl: string | null = null;
+
+                    // 1. Direct 'image' field
+                    if (token.image) {
+                        imageUrl = token.image;
+                    }
+                    // 2. Parse from URI if it's JSON
+                    else if (token.uri && token.uri.startsWith('{')) {
+                        try {
+                            const metadata = JSON.parse(token.uri);
+                            imageUrl = metadata.image || metadata.IMAGE || null;
+                        } catch {
+                            // Not valid JSON
+                        }
+                    }
+
+                    if (imageUrl && token.mint) {
+                        imageMap[token.mint] = imageUrl;
+                    }
+                }
+
+                console.log('✅ Fetched images for', Object.keys(imageMap).length, 'tokens');
+                setTokenImages(imageMap);
+            } catch (err) {
+                console.error('Exception fetching token images:', err);
+            }
+
+            setImagesFetched(true);
+        }
+
+        fetchMissingImages();
+    }, [notifications, loading, imagesFetched]);
+
     // Mark all as read when leaving the page
     useEffect(() => {
         return () => {
-            // Cleanup: mark all as read when component unmounts
             markAllAsRead();
         };
     }, [markAllAsRead]);
@@ -76,19 +153,15 @@ export default function NotificationsPage() {
     function handleNotificationClick(notification: Notification) {
         markAsRead(notification.id);
 
-        // Navigate based on notification type
         if (notification.type === 'new_follower' && notification.data?.follower_wallet) {
-            // Could navigate to follower's profile if we had that page
             return;
         }
 
-        // For points notifications, navigate to token page if available
         if (notification.type === 'points' && notification.data?.token_mint) {
             router.push(`/token/${notification.data.token_mint}`);
             return;
         }
 
-        // Navigate to token page
         if (notification.token_launch_id &&
             notification.token_launch_id !== 'TEST_TOKEN' &&
             notification.token_launch_id !== 'TEST') {
@@ -96,23 +169,34 @@ export default function NotificationsPage() {
         }
     }
 
+    // ⭐ NEW: Get token image from notification data OR from fetched cache
+    function getTokenImage(notif: Notification): string | null {
+        // First check notification data
+        if (notif.data?.token_image) {
+            return notif.data.token_image;
+        }
+
+        // Then check fetched cache
+        if (notif.data?.token_mint && tokenImages[notif.data.token_mint]) {
+            return tokenImages[notif.data.token_mint];
+        }
+
+        return null;
+    }
+
     // Render notification based on type
     function renderNotification(notif: Notification, isLast: boolean) {
-        // Detect follower notifications by title or type
         const isFollower = notif.type === 'new_follower' ||
             notif.title?.toLowerCase().includes('follower') ||
             notif.message?.includes('started following you');
         const isPoints = notif.type === 'points';
 
-        // For follower notifications: show profile pic + first 4 chars + "started following you"
+        // For follower notifications
         if (isFollower) {
-            // Extract wallet from message (e.g., "Fu8S...shmZ started following you")
-            // or from data.follower_wallet
             let walletShort = '';
             if (notif.data?.follower_wallet) {
                 walletShort = (notif.data.follower_wallet as string).slice(0, 4);
             } else if (notif.message) {
-                // Extract first part before "started" or "..."
                 const match = notif.message.match(/^([A-Za-z0-9]{4})/);
                 if (match) {
                     walletShort = match[1];
@@ -126,14 +210,11 @@ export default function NotificationsPage() {
                     className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
                 >
                     <div className="flex items-center gap-3">
-                        {/* Profile Photo */}
                         <img
                             src="/profilo.png"
                             alt={walletShort}
                             className="w-10 h-10 rounded-full object-cover flex-shrink-0"
                         />
-
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                             <p className="text-white text-sm">
                                 <span className="font-semibold">{walletShort}</span>
@@ -143,8 +224,6 @@ export default function NotificationsPage() {
                                 {formatTimeAgo(notif.created_at)}
                             </p>
                         </div>
-
-                        {/* Unread indicator */}
                         {!notif.read && (
                             <div className="w-2 h-2 bg-cyan-500 rounded-full flex-shrink-0" />
                         )}
@@ -153,14 +232,14 @@ export default function NotificationsPage() {
             );
         }
 
-        // ⭐ For points notifications - NEW DESIGN
+        // For points notifications
         if (isPoints) {
             const points = notif.data?.points || 0;
             const action = notif.data?.action || '';
-            const tokenImage = notif.data?.token_image;
-            const tokenMint = notif.data?.token_mint;
 
-            // Get message from action or use notif.message
+            // ⭐ NEW: Use helper function to get image
+            const tokenImage = getTokenImage(notif);
+
             const displayMessage = POINTS_MESSAGES[action] || notif.message;
 
             return (
@@ -170,26 +249,20 @@ export default function NotificationsPage() {
                     className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
                 >
                     <div className="flex items-center gap-3">
-                        {/* ⭐ Green Plus Icon */}
                         <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
                             <PlusIcon className="w-5 h-5 text-emerald-500" />
                         </div>
-
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
-                            {/* ⭐ Points in large green text */}
                             <p className="text-emerald-500 text-lg font-bold">
                                 +{points.toLocaleString()} pts
                             </p>
-                            {/* Message */}
                             <p className="text-gray-400 text-sm mt-0.5">{displayMessage}</p>
-                            {/* Time */}
                             <p className="text-gray-500 text-xs mt-1">
                                 {formatTimeAgo(notif.created_at)}
                             </p>
                         </div>
 
-                        {/* ⭐ Token Image (if available) */}
+                        {/* ⭐ Token Image - shows from data OR from fetched cache */}
                         {tokenImage && (
                             <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700">
                                 <Image
@@ -203,7 +276,6 @@ export default function NotificationsPage() {
                             </div>
                         )}
 
-                        {/* Unread indicator */}
                         {!notif.read && (
                             <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
                         )}
@@ -212,7 +284,7 @@ export default function NotificationsPage() {
             );
         }
 
-        // Default notification (token alerts, etc.)
+        // Default notification
         return (
             <div
                 key={notif.id}
@@ -220,14 +292,11 @@ export default function NotificationsPage() {
                 className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
             >
                 <div className="flex items-center gap-3">
-                    {/* Bell Icon */}
                     <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
                         <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                         </svg>
                     </div>
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
                         <p className="text-white text-sm font-semibold">{notif.title}</p>
                         <p className="text-gray-400 text-sm mt-0.5">{notif.message}</p>
@@ -238,8 +307,6 @@ export default function NotificationsPage() {
                             )}
                         </div>
                     </div>
-
-                    {/* Unread indicator */}
                     {!notif.read && (
                         <div className="w-2 h-2 bg-cyan-500 rounded-full flex-shrink-0" />
                     )}
