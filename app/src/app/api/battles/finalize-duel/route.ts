@@ -1,14 +1,15 @@
 /**
- * BONK BATTLE - Finalize Duel API
- * POST /api/battles/finalize-duel
+ * BONK BATTLE - Finalize Duel (CRON 2)
+ * GET /api/battles/finalize-duel
  * 
- * Finalizes a battle after victory is achieved:
- * - Winner gets 50% of loser's liquidity (minus platform fee)
- * - Winner status -> Listed (ready for Raydium)
- * - Loser status -> Qualified (can battle again)
+ * Scans VictoryPending tokens and finalizes the duel.
+ * Transfers spoils from loser to winner.
+ * Updates: VictoryPending → Listed
+ * 
+ * Run every 2 minutes via Vercel Cron
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import {
     Connection,
     PublicKey,
@@ -18,31 +19,20 @@ import {
     SystemProgram,
     sendAndConfirmTransaction,
 } from '@solana/web3.js';
+import { createClient } from '@supabase/supabase-js';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
 const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
 const TREASURY_WALLET = new PublicKey('5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf');
 
-// Load keeper keypair
-function getKeeperKeypair(): Keypair {
-    const privateKeyString = process.env.KEEPER_PRIVATE_KEY;
-    if (!privateKeyString) {
-        throw new Error('KEEPER_PRIVATE_KEY not configured');
-    }
-    const privateKeyArray = JSON.parse(privateKeyString);
-    return Keypair.fromSecretKey(new Uint8Array(privateKeyArray));
-}
-
-// Anchor discriminator for finalize_duel
-// sha256("global:finalize_duel")[0..8]
-const FINALIZE_DUEL_DISCRIMINATOR = Buffer.from([57, 165, 69, 195, 50, 206, 212, 134]);
-
-function getBattleStatePDA(mint: PublicKey): [PublicKey, number] {
-    return PublicKey.findProgramAddressSync(
-        [Buffer.from('battle_state'), mint.toBuffer()],
-        PROGRAM_ID
-    );
-}
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Battle status enum
 const BattleStatus = {
@@ -54,250 +44,253 @@ const BattleStatus = {
     PoolCreated: 5,
 };
 
-export async function POST(request: NextRequest) {
-    try {
-        const body = await request.json();
-        const { winnerMint, loserMint } = body;
+// V1 Struct offsets
+const V1_OFFSET_BATTLE_STATUS = 65;
+const V1_OFFSET_OPPONENT_MINT = 66;
 
-        if (!winnerMint || !loserMint) {
-            return NextResponse.json({
-                error: 'Missing winnerMint or loserMint'
-            }, { status: 400 });
-        }
+// Anchor discriminator for finalize_duel
+const FINALIZE_DUEL_DISCRIMINATOR = Buffer.from([57, 165, 69, 195, 50, 206, 212, 134]);
 
-        let winner: PublicKey;
-        let loser: PublicKey;
-        try {
-            winner = new PublicKey(winnerMint);
-            loser = new PublicKey(loserMint);
-        } catch {
-            return NextResponse.json({ error: 'Invalid mint address' }, { status: 400 });
-        }
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
 
-        console.log('\n👑 FINALIZE DUEL - WINNER TAKES ALL!');
-        console.log('Winner:', winnerMint);
-        console.log('Loser:', loserMint);
+function getKeeperKeypair(): Keypair {
+    const privateKeyString = process.env.KEEPER_PRIVATE_KEY;
+    if (!privateKeyString) throw new Error('KEEPER_PRIVATE_KEY not configured');
+    return Keypair.fromSecretKey(new Uint8Array(JSON.parse(privateKeyString)));
+}
 
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-        const keeperKeypair = getKeeperKeypair();
+function getBattleStatePDA(mint: PublicKey): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+        [Buffer.from('battle_state'), mint.toBuffer()],
+        PROGRAM_ID
+    );
+}
 
-        const [winnerStatePDA] = getBattleStatePDA(winner);
-        const [loserStatePDA] = getBattleStatePDA(loser);
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-        console.log('Winner State PDA:', winnerStatePDA.toString());
-        console.log('Loser State PDA:', loserStatePDA.toString());
-        console.log('Keeper:', keeperKeypair.publicKey.toString());
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN FUNCTION
+// ═══════════════════════════════════════════════════════════════════════════
 
-        // Verify winner has VictoryPending status
-        const winnerAccount = await connection.getAccountInfo(winnerStatePDA);
-        if (!winnerAccount) {
-            return NextResponse.json({
-                error: 'Winner battle state not found'
-            }, { status: 404 });
-        }
+async function finalizeDuelForToken(
+    connection: Connection,
+    keeper: Keypair,
+    winnerMint: PublicKey,
+    loserMint: PublicKey,
+    winnerSymbol: string,
+    loserSymbol: string
+): Promise<{ success: boolean; signature?: string; error?: string }> {
 
-        // Offset 65 = 8 (discriminator) + 32 (mint) + 8 (sol_collected) + 8 (tokens_sold) + 8 (total_trade_volume) + 1 (is_active)
-        const winnerStatus = winnerAccount.data[65];
-        if (winnerStatus !== BattleStatus.VictoryPending) {
-            return NextResponse.json({
-                error: 'Winner does not have VictoryPending status',
-                currentStatus: winnerStatus,
-                statusName: ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][winnerStatus]
-            }, { status: 400 });
-        }
+    const [winnerStatePDA] = getBattleStatePDA(winnerMint);
+    const [loserStatePDA] = getBattleStatePDA(loserMint);
 
-        // Verify loser has InBattle status
-        const loserAccount = await connection.getAccountInfo(loserStatePDA);
-        if (!loserAccount) {
-            return NextResponse.json({
-                error: 'Loser battle state not found'
-            }, { status: 404 });
-        }
-
-        const loserStatus = loserAccount.data[65];
-        if (loserStatus !== BattleStatus.InBattle) {
-            return NextResponse.json({
-                error: 'Loser does not have InBattle status',
-                currentStatus: loserStatus,
-                statusName: ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][loserStatus]
-            }, { status: 400 });
-        }
-
-        // Read current liquidity for logging
-        // Offset 40 = 8 (discriminator) + 32 (mint) → sol_collected
-        const winnerSolBefore = Number(winnerAccount.data.readBigUInt64LE(40)) / 1e9;
-        const loserSolBefore = Number(loserAccount.data.readBigUInt64LE(40)) / 1e9;
-
-        console.log('Winner SOL before:', winnerSolBefore.toFixed(3));
-        console.log('Loser SOL before:', loserSolBefore.toFixed(3));
-        console.log('Spoils (50% of loser):', (loserSolBefore / 2).toFixed(3), 'SOL');
-
-        // Build finalize_duel instruction
-        // Accounts from contract:
-        // 1. winner_state (mut)
-        // 2. loser_state (mut)
-        // 3. treasury_wallet (mut)
-        // 4. keeper_authority (signer, mut)
-        // 5. system_program
-        const keys = [
+    const instruction = new TransactionInstruction({
+        keys: [
             { pubkey: winnerStatePDA, isSigner: false, isWritable: true },
             { pubkey: loserStatePDA, isSigner: false, isWritable: true },
             { pubkey: TREASURY_WALLET, isSigner: false, isWritable: true },
-            { pubkey: keeperKeypair.publicKey, isSigner: true, isWritable: true },
+            { pubkey: keeper.publicKey, isSigner: true, isWritable: true },
             { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-        ];
+        ],
+        programId: PROGRAM_ID,
+        data: FINALIZE_DUEL_DISCRIMINATOR,
+    });
 
-        const instruction = new TransactionInstruction({
-            keys,
-            programId: PROGRAM_ID,
-            data: FINALIZE_DUEL_DISCRIMINATOR,
-        });
-
-        // Build and send transaction
+    try {
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-
         const transaction = new Transaction({
-            feePayer: keeperKeypair.publicKey,
+            feePayer: keeper.publicKey,
             blockhash,
             lastValidBlockHeight,
         }).add(instruction);
 
-        console.log('📤 Sending finalize_duel transaction...');
+        const signature = await sendAndConfirmTransaction(
+            connection,
+            transaction,
+            [keeper],
+            { commitment: 'confirmed' }
+        );
 
-        try {
-            const signature = await sendAndConfirmTransaction(
-                connection,
-                transaction,
-                [keeperKeypair],
-                { commitment: 'confirmed' }
-            );
+        console.log(`⚔️ Duel finalized! ${winnerSymbol} defeated ${loserSymbol}`);
+        console.log(`   Signature: ${signature}`);
 
-            console.log('✅ Transaction confirmed:', signature);
-            console.log('🔗 https://solscan.io/tx/' + signature + '?cluster=devnet');
+        // Update WINNER in database: VictoryPending → Listed
+        await supabase.from('tokens').update({
+            battle_status: BattleStatus.Listed,
+            listing_timestamp: new Date().toISOString(),
+        }).eq('mint', winnerMint.toString());
 
-            // ⭐ AUTO-CALL WITHDRAW FOR LISTING
-            console.log('🚀 Auto-triggering withdraw_for_listing...');
-            let withdrawResult = null;
-            try {
-                const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-                const withdrawResponse = await fetch(
-                    `${baseUrl}/api/battles/withdraw-for-listing`,
-                    {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tokenMint: winnerMint }),
-                    }
-                );
-                withdrawResult = await withdrawResponse.json();
-                console.log('✅ Withdraw result:', withdrawResult);
-            } catch (withdrawError) {
-                console.warn('⚠️ Auto-withdraw failed (non-critical):', withdrawError);
-            }
+        // Update LOSER in database: → Qualified (can battle again)
+        await supabase.from('tokens').update({
+            battle_status: BattleStatus.Qualified,
+            opponent_mint: null,
+            battle_end_timestamp: new Date().toISOString(),
+        }).eq('mint', loserMint.toString());
 
-            // Re-read states to get final values
-            const updatedWinner = await connection.getAccountInfo(winnerStatePDA);
-            const updatedLoser = await connection.getAccountInfo(loserStatePDA);
+        // Update battles table
+        await supabase.from('battles').update({
+            status: 'completed',
+            winner_mint: winnerMint.toString(),
+            ended_at: new Date().toISOString(),
+        }).or(`token_a_mint.eq.${winnerMint.toString()},token_b_mint.eq.${winnerMint.toString()}`);
 
-            if (!updatedWinner || !updatedLoser) {
-                return NextResponse.json({
-                    success: true,
-                    message: 'Duel finalized but could not read final states',
-                    signature,
-                    solscanUrl: `https://solscan.io/tx/${signature}?cluster=devnet`,
-                });
-            }
+        // Log activity - Battle Won
+        await supabase.from('activity_feed').insert({
+            wallet: 'system',
+            action_type: 'battle_win',
+            token_mint: winnerMint.toString(),
+            token_symbol: winnerSymbol,
+            opponent_mint: loserMint.toString(),
+            opponent_symbol: loserSymbol,
+            metadata: { signature }
+        });
 
-            const winnerFinalStatus = updatedWinner.data[65];
-            const loserFinalStatus = updatedLoser.data[65];
-            const winnerSolAfter = Number(updatedWinner.data.readBigUInt64LE(40)) / 1e9;
-            const loserSolAfter = Number(updatedLoser.data.readBigUInt64LE(40)) / 1e9;
+        return { success: true, signature };
 
+    } catch (error: any) {
+        console.error(`❌ Finalize duel failed:`, error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// API HANDLER
+// ═══════════════════════════════════════════════════════════════════════════
+
+export async function GET() {
+    const startTime = Date.now();
+    console.log('\n⚔️ ═══════════════════════════════════════════════════════');
+    console.log('CRON 2: FINALIZE DUEL');
+    console.log('═══════════════════════════════════════════════════════\n');
+
+    try {
+        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const keeper = getKeeperKeypair();
+
+        // Get all VictoryPending tokens from database
+        const { data: victoryPendingTokens, error } = await supabase
+            .from('tokens')
+            .select('mint, symbol, opponent_mint')
+            .eq('battle_status', BattleStatus.VictoryPending);
+
+        if (error || !victoryPendingTokens?.length) {
+            console.log('📭 No VictoryPending tokens found');
             return NextResponse.json({
                 success: true,
-                message: '🎉 DUEL FINALIZED! Winner takes the spoils!',
-                signature,
-                solscanUrl: `https://solscan.io/tx/${signature}?cluster=devnet`,
-                winner: {
-                    mint: winnerMint,
-                    newStatus: ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][winnerFinalStatus],
-                    solBefore: winnerSolBefore,
-                    solAfter: winnerSolAfter,
-                },
-                loser: {
-                    mint: loserMint,
-                    newStatus: ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][loserFinalStatus],
-                    solBefore: loserSolBefore,
-                    solAfter: loserSolAfter,
-                },
-                spoilsTransferred: loserSolBefore / 2,
-                withdrawForListing: withdrawResult,
-                nextStep: withdrawResult?.success
-                    ? 'Winner withdrew - ready for Raydium pool creation'
-                    : 'Winner is now Listed - call withdraw_for_listing to proceed to Raydium'
+                message: 'No VictoryPending tokens to finalize',
+                processed: 0,
+                duration: Date.now() - startTime
             });
-
-        } catch (txError: any) {
-            console.error('Transaction error:', txError);
-
-            const errorMessage = txError.message || String(txError);
-            const logs = txError.logs || [];
-
-            // Parse specific errors
-            if (errorMessage.includes('NoVictoryAchieved')) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'Winner has not achieved victory yet',
-                    logs
-                }, { status: 400 });
-            }
-
-            if (errorMessage.includes('NotOpponents')) {
-                return NextResponse.json({
-                    success: false,
-                    error: 'These tokens are not opponents in battle',
-                    logs
-                }, { status: 400 });
-            }
-
-            return NextResponse.json({
-                success: false,
-                error: 'Transaction failed',
-                details: errorMessage,
-                logs
-            }, { status: 500 });
         }
 
-    } catch (error) {
-        console.error('Finalize duel API error:', error);
+        console.log(`📊 Processing ${victoryPendingTokens.length} VictoryPending token(s)...`);
+
+        const results: Array<{
+            winner: string;
+            loser: string;
+            success: boolean;
+            error?: string;
+        }> = [];
+
+        for (const token of victoryPendingTokens) {
+            try {
+                const winnerMint = new PublicKey(token.mint);
+
+                // Get opponent from chain (more reliable than DB)
+                const [battleStatePDA] = getBattleStatePDA(winnerMint);
+                const account = await connection.getAccountInfo(battleStatePDA);
+
+                if (!account) {
+                    console.warn(`⚠️ No battle state for ${token.symbol}`);
+                    continue;
+                }
+
+                // Validate chain status
+                const chainStatus = account.data[V1_OFFSET_BATTLE_STATUS];
+                if (chainStatus !== BattleStatus.VictoryPending) {
+                    console.log(`⏭️ ${token.symbol}: chain status ${chainStatus} (not VictoryPending)`);
+                    await supabase.from('tokens').update({ battle_status: chainStatus }).eq('mint', token.mint);
+                    continue;
+                }
+
+                // Get opponent mint from chain
+                const opponentBytes = account.data.slice(V1_OFFSET_OPPONENT_MINT, V1_OFFSET_OPPONENT_MINT + 32);
+                const loserMint = new PublicKey(opponentBytes);
+
+                if (loserMint.equals(PublicKey.default)) {
+                    console.warn(`⚠️ ${token.symbol}: No opponent found`);
+                    continue;
+                }
+
+                // Get loser symbol from DB
+                const { data: loserData } = await supabase
+                    .from('tokens')
+                    .select('symbol')
+                    .eq('mint', loserMint.toString())
+                    .single();
+
+                const loserSymbol = loserData?.symbol || 'UNKNOWN';
+
+                console.log(`⚔️ Finalizing: ${token.symbol} vs ${loserSymbol}...`);
+
+                const result = await finalizeDuelForToken(
+                    connection,
+                    keeper,
+                    winnerMint,
+                    loserMint,
+                    token.symbol,
+                    loserSymbol
+                );
+
+                results.push({
+                    winner: token.symbol,
+                    loser: loserSymbol,
+                    success: result.success,
+                    error: result.error
+                });
+
+                // Small delay to avoid rate limits
+                await sleep(500);
+
+            } catch (err: any) {
+                console.error(`❌ Error processing ${token.symbol}:`, err.message);
+                results.push({
+                    winner: token.symbol,
+                    loser: 'UNKNOWN',
+                    success: false,
+                    error: err.message
+                });
+            }
+        }
+
+        const successful = results.filter(r => r.success).length;
+        const duration = Date.now() - startTime;
+
+        console.log(`\n✅ Finalize complete: ${successful}/${results.length} duels in ${duration}ms`);
+
         return NextResponse.json({
-            error: 'Internal server error',
-            details: error instanceof Error ? error.message : 'Unknown error',
+            success: true,
+            message: successful > 0 ? `${successful} duel(s) finalized!` : 'No duels finalized',
+            processed: results.length,
+            successful,
+            results,
+            duration
+        });
+
+    } catch (error: any) {
+        console.error('❌ CRON 2 Error:', error);
+        return NextResponse.json({
+            success: false,
+            error: error.message
         }, { status: 500 });
     }
 }
 
-export async function GET(request: NextRequest) {
-    const { searchParams } = new URL(request.url);
-    const winner = searchParams.get('winner');
-    const loser = searchParams.get('loser');
-
-    if (!winner || !loser) {
-        return NextResponse.json({
-            endpoint: 'finalize-duel',
-            usage: 'POST with { winnerMint: "...", loserMint: "..." }',
-            description: 'Finalizes a battle - winner gets 50% of loser liquidity, proceeds to listing',
-            example: {
-                winnerMint: 'GBZf7U9mRzxLfRiZL5hFs7Q397YCvd6C5ckW6kng1Y1',
-                loserMint: 'DaFj1JYrPaGqGQx6xKho1DYEH5qeYJWK1JBm9JKa8tnN'
-            }
-        });
-    }
-
-    // Redirect GET to POST logic
-    const response = await POST(new NextRequest(request.url, {
-        method: 'POST',
-        body: JSON.stringify({ winnerMint: winner, loserMint: loser }),
-    }));
-
-    return response;
-}
+// Vercel Cron config
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;

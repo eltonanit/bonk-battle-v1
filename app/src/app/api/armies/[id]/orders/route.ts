@@ -11,10 +11,10 @@ const supabase = createClient(
 // Get all orders for an army (newest first)
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
 
     const { data: orders, error } = await supabase
       .from('army_orders')
@@ -40,10 +40,10 @@ export async function GET(
 // Body: { capitano_wallet, message, token_mint? }
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { capitano_wallet, message, token_mint } = await request.json();
 
     // Validazioni

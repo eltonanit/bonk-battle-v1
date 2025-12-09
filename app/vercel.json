@@ -1,12 +1,21 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/battles/auto-complete",
+      "path": "/api/battles/check-victory",
       "schedule": "*/2 * * * *"
     },
     {
-      "path": "/api/cron/update-price",
-      "schedule": "0 */12 * * *"
+      "path": "/api/battles/finalize-duel",
+      "schedule": "1-59/2 * * * *"
+    },
+    {
+      "path": "/api/battles/create-pool",
+      "schedule": "*/2 * * * *"
+    },
+    {
+      "path": "/api/keeper/update-oracle",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
