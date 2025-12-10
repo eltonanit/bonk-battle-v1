@@ -5,8 +5,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
+import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { CreatedTicker } from '@/components/global/CreatedTicker';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
 interface Winner {
@@ -152,12 +155,22 @@ export default function WinnersPage() {
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
-      {/* Headers */}
+      {/* ⭐ Tickers SOPRA Header - SOLO mobile/tablet (< lg) */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-[60] pb-0.5 pt-2 bg-bonk-dark">
+        <div className="flex items-center gap-2 px-2 justify-center xs:justify-start">
+          <FOMOTicker />
+          <div className="hidden sm:block">
+            <CreatedTicker />
+          </div>
+        </div>
+      </div>
+
       <DesktopHeader />
+      <Header />
       <Sidebar />
 
       {/* Main Content - with proper desktop margins */}
-      <main className="pt-20 lg:pt-0 lg:ml-56 lg:mt-16 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
+      <main className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16 px-4 lg:px-8 py-6 pb-24 lg:pb-8">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl lg:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 mb-2">
