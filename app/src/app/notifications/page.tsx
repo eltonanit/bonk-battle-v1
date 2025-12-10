@@ -46,6 +46,20 @@ function PlusIcon({ className }: { className?: string }) {
     );
 }
 
+// Trophy Icon Component for victory
+function TrophyIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className={className}
+            fill="currentColor"
+        >
+            <path d="M5 3h14v3c0 2.21-1.79 4-4 4h-1v2h1c1.1 0 2 .9 2 2v1h-4v3c0 1.1-.9 2-2 2s-2-.9-2-2v-3H5v-1c0-1.1.9-2 2-2h1v-2H7c-2.21 0-4-1.79-4-4V3zm2 2v1c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V5H7z" />
+        </svg>
+    );
+}
+
 // Points action to message mapping
 const POINTS_MESSAGES: Record<string, string> = {
     create_token: 'Your new coin created',
@@ -184,6 +198,13 @@ export default function NotificationsPage() {
         return null;
     }
 
+    // ⭐ Check if this is a victory notification (10,000 points)
+    function isVictoryNotification(notif: Notification): boolean {
+        const points = notif.data?.points || 0;
+        const action = notif.data?.action || '';
+        return points >= 10000 || action === 'win_battle';
+    }
+
     // Render notification based on type
     function renderNotification(notif: Notification, isLast: boolean) {
         const isFollower = notif.type === 'new_follower' ||
@@ -236,12 +257,60 @@ export default function NotificationsPage() {
         if (isPoints) {
             const points = notif.data?.points || 0;
             const action = notif.data?.action || '';
+            const isVictory = isVictoryNotification(notif);
 
             // ⭐ NEW: Use helper function to get image
             const tokenImage = getTokenImage(notif);
 
             const displayMessage = POINTS_MESSAGES[action] || notif.message;
 
+            // ⭐ VICTORY STYLE: Yellow/Gold for 10,000+ points
+            if (isVictory) {
+                return (
+                    <div
+                        key={notif.id}
+                        onClick={() => handleNotificationClick(notif)}
+                        className={`py-4 px-3 -mx-3 cursor-pointer hover:bg-yellow-500/10 transition-colors rounded-lg bg-yellow-500/5 ${!isLast ? 'border-b border-yellow-500/20' : ''}`}
+                    >
+                        <div className="flex items-center gap-3">
+                            {/* Gold circle with trophy */}
+                            <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 border border-yellow-500/30">
+                                <span className="text-2xl">🏆</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                {/* Yellow points text */}
+                                <p className="text-yellow-400 text-xl font-black">
+                                    +{points.toLocaleString()} pts
+                                </p>
+                                <p className="text-yellow-200/70 text-sm mt-0.5 font-medium">{displayMessage}</p>
+                                <p className="text-yellow-500/50 text-xs mt-1">
+                                    {formatTimeAgo(notif.created_at)}
+                                </p>
+                            </div>
+
+                            {/* Token Image with gold border */}
+                            {tokenImage && (
+                                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20">
+                                    <Image
+                                        src={tokenImage}
+                                        alt="Token"
+                                        width={56}
+                                        height={56}
+                                        className="w-full h-full object-cover"
+                                        unoptimized
+                                    />
+                                </div>
+                            )}
+
+                            {!notif.read && (
+                                <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0 animate-pulse" />
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+
+            // Regular points notification (green)
             return (
                 <div
                     key={notif.id}

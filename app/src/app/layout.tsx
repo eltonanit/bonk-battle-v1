@@ -5,7 +5,7 @@ import "@/styles/animations.css";
 import { SolanaProvider } from "@/components/providers/SolanaProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { WelcomePopupProvider } from "@/components/points/WelcomePopupProvider";
-import { VictoryProvider } from "@/components/victory/VictoryProvider";
+import { VictoryProviderWrapper } from "@/components/victory/VictoryProviderWrapper";  // ✅ CAMBIATO
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,14 +30,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning className={geistSans.variable + ' ' + geistMono.variable + ' antialiased bg-[#1a1b21] text-white min-h-screen overflow-x-hidden'}>
-        {/* ⭐ React Query Provider - wrappa tutto per caching globale */}
         <QueryProvider>
           <SolanaProvider>
-            <VictoryProvider>
+            <VictoryProviderWrapper>  {/* ✅ CAMBIATO */}
               <WelcomePopupProvider>
                 {children}
               </WelcomePopupProvider>
-            </VictoryProvider>
+            </VictoryProviderWrapper>  {/* ✅ CAMBIATO */}
           </SolanaProvider>
         </QueryProvider>
       </body>

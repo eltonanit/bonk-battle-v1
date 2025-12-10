@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from '@/lib/supabase';
 import { VictoryPopup } from './VictoryPopup';
 import { PointsPopup } from './PointsPopup';
@@ -41,12 +40,11 @@ export function useVictory() {
 
 interface VictoryProviderProps {
   children: ReactNode;
+  userWallet: string | null;
 }
 
-export function VictoryProvider({ children }: VictoryProviderProps) {
+export function VictoryProvider({ children, userWallet }: VictoryProviderProps) {
   const router = useRouter();
-  const { publicKey } = useWallet();
-  const userWallet = publicKey?.toBase58() || null;
 
   // Popup states
   const [showVictoryPopup, setShowVictoryPopup] = useState(false);
