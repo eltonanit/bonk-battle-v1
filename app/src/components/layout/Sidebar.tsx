@@ -3,11 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useVictory } from '@/components/victory/VictoryProvider';
 import Image from 'next/image';
 
 export function Sidebar() {
   const pathname = usePathname();
   const { unreadCount } = useNotifications();
+  const { unreadCount: victoryUnreadCount } = useVictory();
+
+  // Combine notification counts
+  const totalUnreadCount = unreadCount + victoryUnreadCount;
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -69,7 +74,7 @@ export function Sidebar() {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       ),
-      badge: unreadCount
+      badge: totalUnreadCount
     },
     {
       href: '/battlestart',

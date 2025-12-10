@@ -9,6 +9,7 @@ import { usePathname } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
+import { useVictory } from '@/components/victory/VictoryProvider';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 import { PointsIcon } from '@/components/icons/PointsIcon';
 
@@ -19,8 +20,12 @@ export function Header() {
   const { unreadCount } = useNotifications();
   const { feedUnreadCount } = useFollowers();
   const { profile } = useProfile();
+  const { unreadCount: victoryUnreadCount } = useVictory();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // Combine notification counts
+  const totalUnreadCount = unreadCount + victoryUnreadCount;
 
   // Track se già registrato in questa sessione
   const hasRegistered = useRef<string | null>(null);
@@ -294,9 +299,9 @@ export function Header() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
                 {/* Notification Badge */}
-                {unreadCount > 0 && (
+                {totalUnreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                    {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                   </span>
                 )}
               </Link>

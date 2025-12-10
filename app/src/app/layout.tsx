@@ -5,6 +5,7 @@ import "@/styles/animations.css";
 import { SolanaProvider } from "@/components/providers/SolanaProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { WelcomePopupProvider } from "@/components/points/WelcomePopupProvider";
+import { VictoryProvider } from "@/components/victory/VictoryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,9 +33,11 @@ export default function RootLayout({
         {/* ⭐ React Query Provider - wrappa tutto per caching globale */}
         <QueryProvider>
           <SolanaProvider>
-            <WelcomePopupProvider>
-              {children}
-            </WelcomePopupProvider>
+            <VictoryProvider>
+              <WelcomePopupProvider>
+                {children}
+              </WelcomePopupProvider>
+            </VictoryProvider>
           </SolanaProvider>
         </QueryProvider>
       </body>
