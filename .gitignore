@@ -7,3 +7,4 @@ target/
 test-ledger/
 dist/
 .vercel
+.env*.local

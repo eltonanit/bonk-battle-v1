@@ -1,10 +1,15 @@
 /**
- * BONK BATTLE - Create Raydium Pool (CRON 3)
+ * BONK BATTLE - Create Raydium Pool (CRON 3) - FIXED V2
  * GET /api/battles/create-pool
  * 
  * Scans Listed tokens without pool and creates Raydium pool.
  * Withdraws SOL + tokens from contract, then creates CPMM pool.
  * Updates: Listed → PoolCreated
+ * 
+ * ⭐ FIX V2:
+ * - Checks if pool already exists on-chain BEFORE saying "0 tokens"
+ * - Updates database immediately after each step
+ * - Better error recovery and logging
  * 
  * Run every 2 minutes via Vercel Cron
  */
@@ -41,6 +46,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
 const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+const RAYDIUM_CPMM_PROGRAM = new PublicKey('CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW');
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,8 +65,6 @@ const BattleStatus = {
 
 // V1 Struct offsets
 const V1_OFFSET_BATTLE_STATUS = 65;
-const V1_OFFSET_TOTAL_VOLUME = 56;
-const V1_OFFSET_OPPONENT_MINT = 66;
 
 // Anchor discriminator for withdraw_for_listing
 const WITHDRAW_FOR_LISTING_DISCRIMINATOR = Buffer.from([127, 237, 151, 214, 106, 20, 93, 33]);
@@ -93,6 +97,157 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// ⭐ NEW: CHECK IF POOL ALREADY EXISTS ON-CHAIN
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function checkExistingPool(
+    connection: Connection,
+    mint: PublicKey
+): Promise<{ exists: boolean; poolId?: string }> {
+    console.log(`🔍 Checking if pool already exists for ${mint.toString().slice(0, 8)}...`);
+
+    try {
+        // Search for Raydium CPMM pools containing this mint
+        const accounts = await connection.getProgramAccounts(RAYDIUM_CPMM_PROGRAM, {
+            filters: [
+                { memcmp: { offset: 72, bytes: mint.toBase58() } }
+            ],
+            dataSlice: { offset: 0, length: 0 } // We only need to know if it exists
+        });
+
+        if (accounts.length > 0) {
+            const poolId = accounts[0].pubkey.toString();
+            console.log(`✅ Pool already exists on-chain: ${poolId}`);
+            return { exists: true, poolId };
+        }
+
+        // Also check with mint in second position (SOL might be first)
+        const SOL_MINT = new PublicKey('So11111111111111111111111111111111111111112');
+        const accounts2 = await connection.getProgramAccounts(RAYDIUM_CPMM_PROGRAM, {
+            filters: [
+                { memcmp: { offset: 104, bytes: mint.toBase58() } }
+            ],
+            dataSlice: { offset: 0, length: 0 }
+        });
+
+        if (accounts2.length > 0) {
+            const poolId = accounts2[0].pubkey.toString();
+            console.log(`✅ Pool already exists on-chain (mint in position 2): ${poolId}`);
+            return { exists: true, poolId };
+        }
+
+        console.log(`📭 No existing pool found`);
+        return { exists: false };
+
+    } catch (error: any) {
+        console.warn(`⚠️ Error checking existing pool:`, error.message);
+        return { exists: false };
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ NEW: UPDATE DATABASE WITH POOL INFO
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function updateDatabaseWithPool(
+    tokenMint: string,
+    tokenSymbol: string,
+    poolId: string,
+    opponentMint: string | null
+): Promise<boolean> {
+    console.log(`💾 Updating database for ${tokenSymbol}...`);
+
+    const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
+
+    try {
+        // 1. Update token status
+        const { error: tokenError } = await supabase.from('tokens').update({
+            battle_status: BattleStatus.PoolCreated,
+            raydium_pool_id: poolId,
+            raydium_url: raydiumUrl,
+        }).eq('mint', tokenMint);
+
+        if (tokenError) {
+            console.error(`❌ Failed to update token:`, tokenError.message);
+            return false;
+        }
+        console.log(`   ✅ Token status updated to PoolCreated`);
+
+        // 2. Get token data for winners table
+        const { data: tokenData } = await supabase
+            .from('tokens')
+            .select('name, symbol, image, creator_wallet')
+            .eq('mint', tokenMint)
+            .single();
+
+        // 3. Get opponent data if exists
+        let loserData = null;
+        if (opponentMint) {
+            const { data } = await supabase
+                .from('tokens')
+                .select('name, symbol, image_url')
+                .eq('mint', opponentMint)
+                .single();
+            loserData = data;
+        }
+
+        // 4. Insert into winners table
+        const { error: winnersError } = await supabase.from('winners').upsert({
+            mint: tokenMint,
+            name: tokenData?.name || 'Unknown',
+            symbol: tokenData?.symbol || tokenSymbol,
+            image: tokenData?.image || null,
+            loser_mint: opponentMint,
+            loser_name: loserData?.name || 'Unknown',
+            loser_symbol: loserData?.symbol || '???',
+            loser_image: loserData?.image_url || null,
+            pool_id: poolId,
+            raydium_url: raydiumUrl,
+            victory_timestamp: new Date().toISOString(),
+            status: 'pool_created',
+        }, { onConflict: 'mint' });
+
+        if (winnersError) {
+            console.warn(`⚠️ Failed to update winners:`, winnersError.message);
+        } else {
+            console.log(`   ✅ Winners table updated`);
+        }
+
+        // 5. Award points to creator
+        if (tokenData?.creator_wallet) {
+            const { data: currentPoints } = await supabase
+                .from('user_stonks')
+                .select('total_stonks')
+                .eq('wallet_address', tokenData.creator_wallet)
+                .single();
+
+            await supabase.from('user_stonks').upsert({
+                wallet_address: tokenData.creator_wallet,
+                total_stonks: (currentPoints?.total_stonks || 0) + 10000,
+            }, { onConflict: 'wallet_address' });
+
+            console.log(`   🎮 +10,000 points to ${tokenData.creator_wallet.slice(0, 8)}...`);
+        }
+
+        // 6. Log activity
+        await supabase.from('activity_feed').insert({
+            wallet: 'system',
+            action_type: 'pool_created',
+            token_mint: tokenMint,
+            token_symbol: tokenSymbol,
+            metadata: { pool_id: poolId, raydium_url: raydiumUrl }
+        });
+        console.log(`   ✅ Activity logged`);
+
+        return true;
+
+    } catch (error: any) {
+        console.error(`❌ Database update failed:`, error.message);
+        return false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // STEP 1: WITHDRAW FOR LISTING
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -113,7 +268,7 @@ async function withdrawForListing(
     const availableLamports = (battleStateAccount?.lamports || 0) - rent;
 
     if (availableLamports <= 0) {
-        console.log(`ℹ️ Already withdrawn - no SOL beyond rent`);
+        console.log(`   ℹ️ Already withdrawn - no SOL beyond rent`);
         return { success: true, solWithdrawn: 0, alreadyWithdrawn: true };
     }
 
@@ -125,7 +280,7 @@ async function withdrawForListing(
     // Create keeper ATA if needed
     const keeperTokenAccountInfo = await connection.getAccountInfo(keeperTokenAccount);
     if (!keeperTokenAccountInfo) {
-        console.log(`Creating keeper token account...`);
+        console.log(`   Creating keeper token account...`);
         const createATAIx = createAssociatedTokenAccountInstruction(
             keeper.publicKey, keeperTokenAccount, keeper.publicKey, mint, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID
         );
@@ -154,15 +309,17 @@ async function withdrawForListing(
     try {
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         const transaction = new Transaction({ feePayer: keeper.publicKey, blockhash, lastValidBlockHeight }).add(withdrawIx);
-        await sendAndConfirmTransaction(connection, transaction, [keeper], { commitment: 'confirmed' });
+        const signature = await sendAndConfirmTransaction(connection, transaction, [keeper], { commitment: 'confirmed' });
 
-        console.log(`✅ Withdrawn ${solInAccount.toFixed(2)} SOL`);
+        console.log(`   ✅ Withdrawn ${solInAccount.toFixed(2)} SOL (tx: ${signature.slice(0, 8)}...)`);
         return { success: true, solWithdrawn: solInAccount, alreadyWithdrawn: false };
 
     } catch (error: any) {
         if (error.message?.includes('0x1788') || error.message?.includes('NoLiquidityToWithdraw')) {
+            console.log(`   ℹ️ Already withdrawn (NoLiquidityToWithdraw)`);
             return { success: true, solWithdrawn: 0, alreadyWithdrawn: true };
         }
+        console.error(`   ❌ Withdraw failed:`, error.message);
         return { success: false, solWithdrawn: 0, alreadyWithdrawn: false, error: error.message };
     }
 }
@@ -206,7 +363,7 @@ async function createRaydiumPool(
         const tokenAmountRaw = tokenBalance.value.amount;
 
         if (tokenAmountRaw === '0' || !tokenAmountRaw) {
-            return { success: false, error: 'Keeper has 0 tokens - pool may already exist' };
+            return { success: false, error: 'Keeper has 0 tokens' };
         }
 
         const keeperBalance = await connection.getBalance(keeper.publicKey);
@@ -218,7 +375,7 @@ async function createRaydiumPool(
         }
 
         console.log(`   SOL: ${actualSolAmount.toFixed(2)}`);
-        console.log(`   Tokens: ${tokenAmountRaw}`);
+        console.log(`   Tokens: ${(BigInt(tokenAmountRaw) / BigInt(1e9)).toString()}`);
 
         const solAmountBN = new BN(Math.floor(actualSolAmount * 1e9));
         const tokenAmountBN = new BN(tokenAmountRaw);
@@ -236,6 +393,8 @@ async function createRaydiumPool(
 
         const mintAAmount = solFirst ? solAmountBN : tokenAmountBN;
         const mintBAmount = solFirst ? tokenAmountBN : solAmountBN;
+
+        console.log(`   Creating pool: ${mintA.address.slice(0, 8)}... <-> ${mintB.address.slice(0, 8)}...`);
 
         const feeConfigs = await raydium.api.getCpmmConfigs();
         feeConfigs.forEach((config) => {
@@ -256,20 +415,22 @@ async function createRaydiumPool(
             txVersion: TxVersion.V0,
         });
 
+        console.log(`   ⏳ Executing transaction...`);
         const { txId } = await execute({ sendAndConfirm: true });
         const poolId = extInfo.address.poolId.toString();
 
-        console.log(`✅ Pool created! ${poolId}`);
+        console.log(`   ✅ Pool created! ${poolId}`);
+        console.log(`   📝 TX: ${txId}`);
         return { success: true, poolId, signature: txId };
 
     } catch (error: any) {
-        console.error(`❌ Pool creation failed:`, error.message);
+        console.error(`   ❌ Pool creation failed:`, error.message);
         return { success: false, error: error.message };
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// MAIN PROCESS
+// MAIN PROCESS - FIXED V2
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function processListedToken(
@@ -279,95 +440,97 @@ async function processListedToken(
 ): Promise<{ success: boolean; poolId?: string; error?: string }> {
 
     const mint = new PublicKey(token.mint);
+    console.log(`\n🚀 Processing ${token.symbol} (${token.mint.slice(0, 8)}...)...`);
 
-    // Step 1: Withdraw
+    // ⭐ STEP 0: Check if pool already exists on-chain
+    const existingPool = await checkExistingPool(connection, mint);
+    if (existingPool.exists && existingPool.poolId) {
+        console.log(`🎉 Pool already exists! Updating database...`);
+        const dbUpdated = await updateDatabaseWithPool(
+            token.mint,
+            token.symbol,
+            existingPool.poolId,
+            token.opponent_mint
+        );
+        return {
+            success: dbUpdated,
+            poolId: existingPool.poolId,
+            error: dbUpdated ? undefined : 'Database update failed'
+        };
+    }
+
+    // STEP 1: Withdraw
     const withdrawResult = await withdrawForListing(connection, keeper, mint);
     if (!withdrawResult.success) {
         return { success: false, error: `Withdraw failed: ${withdrawResult.error}` };
     }
 
+    // If already withdrawn, check again if pool exists (might have been created)
+    if (withdrawResult.alreadyWithdrawn) {
+        console.log(`   🔍 Re-checking for existing pool after withdraw...`);
+        const recheck = await checkExistingPool(connection, mint);
+        if (recheck.exists && recheck.poolId) {
+            console.log(`   🎉 Pool found on re-check! Updating database...`);
+            const dbUpdated = await updateDatabaseWithPool(
+                token.mint,
+                token.symbol,
+                recheck.poolId,
+                token.opponent_mint
+            );
+            return {
+                success: dbUpdated,
+                poolId: recheck.poolId,
+                error: dbUpdated ? undefined : 'Database update failed'
+            };
+        }
+    }
+
     await sleep(2000);
 
-    // Step 2: Create Pool
+    // STEP 2: Create Pool
     const poolResult = await createRaydiumPool(connection, keeper, mint);
+
     if (!poolResult.success) {
-        // Save error to DB for debugging
-        await supabase.from('tokens').update({
-            raydium_pool_error: poolResult.error
-        }).eq('mint', token.mint);
+        // ⭐ One more check - pool might have been created despite error
+        console.log(`   🔍 Final check for pool after error...`);
+        const finalCheck = await checkExistingPool(connection, mint);
+        if (finalCheck.exists && finalCheck.poolId) {
+            console.log(`   🎉 Pool exists despite error! Updating database...`);
+            const dbUpdated = await updateDatabaseWithPool(
+                token.mint,
+                token.symbol,
+                finalCheck.poolId,
+                token.opponent_mint
+            );
+            return {
+                success: dbUpdated,
+                poolId: finalCheck.poolId,
+                error: dbUpdated ? undefined : 'Database update failed'
+            };
+        }
+
         return { success: false, error: poolResult.error };
     }
 
-    // Success! Update database
-    const raydiumUrl = `https://raydium.io/swap/?inputMint=${token.mint}&outputMint=sol&cluster=devnet`;
+    // STEP 3: Update database
+    const dbUpdated = await updateDatabaseWithPool(
+        token.mint,
+        token.symbol,
+        poolResult.poolId!,
+        token.opponent_mint
+    );
 
-    await supabase.from('tokens').update({
-        battle_status: BattleStatus.PoolCreated,
-        raydium_pool_id: poolResult.poolId,
-        raydium_url: raydiumUrl,
-        raydium_pool_error: null,
-    }).eq('mint', token.mint);
-
-    // Get token data for winners table
-    const { data: tokenData } = await supabase
-        .from('tokens')
-        .select('name, symbol, image_url, creator_wallet')
-        .eq('mint', token.mint)
-        .single();
-
-    // Get opponent data
-    let loserData = null;
-    if (token.opponent_mint) {
-        const { data } = await supabase
-            .from('tokens')
-            .select('name, symbol, image_url')
-            .eq('mint', token.opponent_mint)
-            .single();
-        loserData = data;
+    if (!dbUpdated) {
+        console.error(`   ⚠️ Pool created but database update failed!`);
+        console.error(`   📝 Pool ID: ${poolResult.poolId}`);
+        console.error(`   📝 Please update manually if needed`);
     }
 
-    // Insert into winners table
-    await supabase.from('winners').upsert({
-        mint: token.mint,
-        name: tokenData?.name || 'Unknown',
-        symbol: tokenData?.symbol || token.symbol,
-        image: tokenData?.image_url || null,
-        loser_mint: token.opponent_mint,
-        loser_name: loserData?.name || 'Unknown',
-        loser_symbol: loserData?.symbol || '???',
-        loser_image: loserData?.image_url || null,
-        pool_id: poolResult.poolId,
-        raydium_url: raydiumUrl,
-        victory_timestamp: new Date().toISOString(),
-        status: 'pool_created',
-    }, { onConflict: 'mint' });
-
-    // Award points to creator
-    if (tokenData?.creator_wallet) {
-        const { data: currentPoints } = await supabase
-            .from('user_stonks')
-            .select('total_stonks')
-            .eq('wallet_address', tokenData.creator_wallet)
-            .single();
-
-        await supabase.from('user_stonks').upsert({
-            wallet_address: tokenData.creator_wallet,
-            total_stonks: (currentPoints?.total_stonks || 0) + 10000,
-        }, { onConflict: 'wallet_address' });
-
-        console.log(`🎮 +10,000 points to ${tokenData.creator_wallet.slice(0, 8)}...`);
-    }
-
-    // Log activity
-    await supabase.from('activity_feed').insert({
-        wallet: 'system',
-        action_type: 'pool_created',
-        token_mint: token.mint,
-        token_symbol: token.symbol,
-        metadata: { pool_id: poolResult.poolId, raydium_url: raydiumUrl }
-    });
-
-    return { success: true, poolId: poolResult.poolId };
+    return {
+        success: true,
+        poolId: poolResult.poolId,
+        error: dbUpdated ? undefined : 'Pool created but DB update failed'
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -377,7 +540,7 @@ async function processListedToken(
 export async function GET() {
     const startTime = Date.now();
     console.log('\n🌊 ═══════════════════════════════════════════════════════');
-    console.log('CRON 3: CREATE RAYDIUM POOL');
+    console.log('CRON 3: CREATE RAYDIUM POOL (V2 - with pool existence check)');
     console.log('═══════════════════════════════════════════════════════\n');
 
     try {
@@ -401,7 +564,7 @@ export async function GET() {
             });
         }
 
-        console.log(`📊 Processing ${listedTokens.length} Listed token(s)...`);
+        console.log(`📊 Found ${listedTokens.length} Listed token(s) without pool`);
 
         const results: Array<{
             symbol: string;
@@ -411,11 +574,10 @@ export async function GET() {
         }> = [];
 
         // Process ONE token at a time to avoid timeout
-        // If there are multiple, subsequent cron runs will handle them
         const token = listedTokens[0];
 
         try {
-            // Verify chain status
+            // Verify chain status first
             const [battleStatePDA] = getBattleStatePDA(new PublicKey(token.mint));
             const account = await connection.getAccountInfo(battleStatePDA);
 
@@ -424,13 +586,21 @@ export async function GET() {
                 results.push({ symbol: token.symbol, success: false, error: 'No battle state' });
             } else {
                 const chainStatus = account.data[V1_OFFSET_BATTLE_STATUS];
+                console.log(`📋 ${token.symbol} chain status: ${chainStatus}`);
 
                 if (chainStatus === BattleStatus.PoolCreated) {
-                    console.log(`⏭️ ${token.symbol}: Already PoolCreated on-chain`);
-                    await supabase.from('tokens').update({ battle_status: BattleStatus.PoolCreated }).eq('mint', token.mint);
-                    results.push({ symbol: token.symbol, success: true, error: 'Already created' });
+                    // Already PoolCreated on-chain, just need to sync DB
+                    console.log(`⏭️ ${token.symbol}: Already PoolCreated on-chain, checking for pool...`);
+                    const existingPool = await checkExistingPool(connection, new PublicKey(token.mint));
+                    if (existingPool.exists && existingPool.poolId) {
+                        await updateDatabaseWithPool(token.mint, token.symbol, existingPool.poolId, token.opponent_mint);
+                        results.push({ symbol: token.symbol, success: true, poolId: existingPool.poolId });
+                    } else {
+                        await supabase.from('tokens').update({ battle_status: BattleStatus.PoolCreated }).eq('mint', token.mint);
+                        results.push({ symbol: token.symbol, success: true, error: 'Status synced but no pool found' });
+                    }
                 } else if (chainStatus === BattleStatus.Listed) {
-                    console.log(`🚀 Processing ${token.symbol}...`);
+                    // Normal flow
                     const result = await processListedToken(connection, keeper, token);
                     results.push({
                         symbol: token.symbol,
@@ -459,7 +629,7 @@ export async function GET() {
 
         return NextResponse.json({
             success: true,
-            message: successful > 0 ? `${successful} pool(s) created!` : 'No pools created',
+            message: successful > 0 ? `${successful} pool(s) created!` : 'No new pools created',
             processed: results.length,
             remaining: listedTokens.length - 1,
             successful,
