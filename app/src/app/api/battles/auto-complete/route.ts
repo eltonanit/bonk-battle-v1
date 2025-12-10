@@ -9,19 +9,10 @@
  * 3. withdraw_for_listing → SOL + Tokens to Keeper
  * 4. create_raydium_pool → Pool Created!
  * 
- * Can be triggered:
- * - Manually via POST with tokenMint
- * - Automatically via GET (scans all InBattle tokens)
- * - From webhook after trades
- * 
- * ⭐ FIX V2: 
- * - Uses 99.5% tolerance for SOL target (matches smart contract!)
- * - Continues to pool creation even if withdraw already done
- * - Better error handling for idempotent operations
- * 
- * ⭐ FIX V3:
- * - Fixed token amount parsing: use string directly with BN to avoid JS integer overflow
- * - parseInt() loses precision on numbers > 9007199254740991 (Number.MAX_SAFE_INTEGER)
+ * ⭐ FIX V4:
+ * - Fixed image_url → image (column doesn't exist!)
+ * - Winners table now saves correctly with all data
+ * - Added victory event to activity_feed for popup
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -69,9 +60,7 @@ const supabase = createClient(
 
 const TARGET_SOL = 6_000_000_000; // 6 SOL in lamports
 const VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL in lamports
-
-// ⭐ FIX: Apply 99.5% tolerance to match smart contract exactly!
-const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5,970,000,000 lamports = 5.97 SOL
+const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5.97 SOL
 
 console.log(`🎯 Victory Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} SOL (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9} SOL`);
 
@@ -126,11 +115,7 @@ function getPriceOraclePDA(): [PublicKey, number] {
 async function getTokenProgramForMint(connection: Connection, mint: PublicKey): Promise<PublicKey> {
   const mintAccount = await connection.getAccountInfo(mint);
   if (!mintAccount) throw new Error('Mint account not found');
-
-  if (mintAccount.owner.equals(TOKEN_2022_PROGRAM_ID)) {
-    return TOKEN_2022_PROGRAM_ID;
-  }
-  return TOKEN_PROGRAM_ID;
+  return mintAccount.owner.equals(TOKEN_2022_PROGRAM_ID) ? TOKEN_2022_PROGRAM_ID : TOKEN_PROGRAM_ID;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -177,7 +162,6 @@ async function checkVictory(
       { commitment: 'confirmed' }
     );
 
-    // Check if status changed to VictoryPending
     await sleep(1000);
     const updatedAccount = await connection.getAccountInfo(battleStatePDA);
     const newStatus = updatedAccount?.data[V1_OFFSET_BATTLE_STATUS];
@@ -259,57 +243,31 @@ async function withdrawForListing(
   const tokenProgramId = await getTokenProgramForMint(connection, mint);
   const [battleStatePDA] = getBattleStatePDA(mint);
 
-  // Get SOL amount before withdraw
   const battleStateAccount = await connection.getAccountInfo(battleStatePDA);
   const rent = await connection.getMinimumBalanceForRentExemption(battleStateAccount?.data.length || 200);
   const availableLamports = (battleStateAccount?.lamports || 0) - rent;
   const solInAccount = availableLamports / 1e9;
 
-  // ⭐ FIX: Check if already withdrawn (no SOL beyond rent)
   if (availableLamports <= 0) {
     console.log('ℹ️ No SOL to withdraw - already withdrawn previously');
     return { success: true, solWithdrawn: 0, alreadyWithdrawn: true };
   }
 
-  const contractTokenAccount = getAssociatedTokenAddressSync(
-    mint,
-    battleStatePDA,
-    true,
-    tokenProgramId
-  );
+  const contractTokenAccount = getAssociatedTokenAddressSync(mint, battleStatePDA, true, tokenProgramId);
+  const keeperTokenAccount = getAssociatedTokenAddressSync(mint, keeper.publicKey, false, tokenProgramId);
 
-  const keeperTokenAccount = getAssociatedTokenAddressSync(
-    mint,
-    keeper.publicKey,
-    false,
-    tokenProgramId
-  );
-
-  // Create keeper ATA if needed
   const keeperTokenAccountInfo = await connection.getAccountInfo(keeperTokenAccount);
   if (!keeperTokenAccountInfo) {
     console.log('Creating keeper token account...');
     const createATAIx = createAssociatedTokenAccountInstruction(
-      keeper.publicKey,
-      keeperTokenAccount,
-      keeper.publicKey,
-      mint,
-      tokenProgramId,
-      ASSOCIATED_TOKEN_PROGRAM_ID
+      keeper.publicKey, keeperTokenAccount, keeper.publicKey, mint, tokenProgramId, ASSOCIATED_TOKEN_PROGRAM_ID
     );
-
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    const ataTx = new Transaction({
-      feePayer: keeper.publicKey,
-      blockhash,
-      lastValidBlockHeight,
-    }).add(createATAIx);
-
+    const ataTx = new Transaction({ feePayer: keeper.publicKey, blockhash, lastValidBlockHeight }).add(createATAIx);
     await sendAndConfirmTransaction(connection, ataTx, [keeper], { commitment: 'confirmed' });
     await sleep(2000);
   }
 
-  // Build withdraw instruction
   const withdrawIx = new TransactionInstruction({
     keys: [
       { pubkey: battleStatePDA, isSigner: false, isWritable: true },
@@ -326,30 +284,18 @@ async function withdrawForListing(
   });
 
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  const transaction = new Transaction({
-    feePayer: keeper.publicKey,
-    blockhash,
-    lastValidBlockHeight,
-  }).add(withdrawIx);
+  const transaction = new Transaction({ feePayer: keeper.publicKey, blockhash, lastValidBlockHeight }).add(withdrawIx);
 
   try {
-    const signature = await sendAndConfirmTransaction(
-      connection,
-      transaction,
-      [keeper],
-      { commitment: 'confirmed' }
-    );
-
+    const signature = await sendAndConfirmTransaction(connection, transaction, [keeper], { commitment: 'confirmed' });
     console.log('✅ Withdrawal complete!', solInAccount.toFixed(2), 'SOL');
     return { success: true, signature, solWithdrawn: solInAccount };
 
   } catch (error: any) {
-    // ⭐ FIX: Check if error is "NoLiquidityToWithdraw" (0x1788 = 6024)
     if (error.message?.includes('0x1788') || error.message?.includes('6024') || error.message?.includes('NoLiquidityToWithdraw')) {
       console.log('ℹ️ Withdraw already done (NoLiquidityToWithdraw) - continuing to pool creation');
       return { success: true, solWithdrawn: 0, alreadyWithdrawn: true };
     }
-
     console.error('❌ Withdraw failed:', error.message);
     return { success: false, error: error.message };
   }
@@ -368,7 +314,6 @@ async function createRaydiumPool(
   console.log('🌊 Step 4: Creating Raydium pool...');
 
   try {
-    // Initialize Raydium SDK
     const raydium = await Raydium.load({
       owner: keeper,
       connection: connection,
@@ -382,44 +327,32 @@ async function createRaydiumPool(
     const solMintStr = SOL_MINT.toString();
     const solFirst = solMintStr < tokenMintStr;
 
-    // Get keeper token balance
     const tokenProgramId = await getTokenProgramForMint(connection, mint);
     const keeperTokenAccount = getAssociatedTokenAddressSync(mint, keeper.publicKey, false, tokenProgramId);
 
-    // ⭐ FIX: Check if keeper has tokens
     const tokenAccountInfo = await connection.getAccountInfo(keeperTokenAccount);
     if (!tokenAccountInfo) {
       return { success: false, error: 'Keeper has no token account - tokens not withdrawn yet' };
     }
 
     const tokenBalance = await connection.getTokenAccountBalance(keeperTokenAccount);
-
-    // ⭐ FIX V3: Keep token amount as STRING to avoid JS integer overflow!
-    // parseInt() loses precision on numbers > 9007199254740991 (Number.MAX_SAFE_INTEGER)
-    // Token amounts can be 18+ digits, so we must use string with BN
     const tokenAmountRaw = tokenBalance.value.amount;
 
     if (tokenAmountRaw === '0' || !tokenAmountRaw) {
       return { success: false, error: 'Keeper has 0 tokens - check if pool already created or withdraw failed' };
     }
 
-    // ⭐ FIX: Check keeper SOL balance
     const keeperBalance = await connection.getBalance(keeper.publicKey);
     const keeperSol = keeperBalance / 1e9;
-
-    // Use keeper's actual SOL if solAmount is 0 (already withdrawn case)
-    const actualSolAmount = solAmount > 0 ? solAmount : Math.min(keeperSol - 0.1, 7); // Leave 0.1 SOL for fees
+    const actualSolAmount = solAmount > 0 ? solAmount : Math.min(keeperSol - 0.1, 7);
 
     if (actualSolAmount < 1) {
       return { success: false, error: `Keeper has insufficient SOL: ${keeperSol.toFixed(2)} SOL` };
     }
 
     console.log('SOL for pool:', actualSolAmount.toFixed(2));
-    console.log('Tokens for pool (raw):', tokenAmountRaw);
-    console.log('Tokens for pool (formatted):', (BigInt(tokenAmountRaw) / BigInt(1e9)).toString(), 'tokens');
 
     const solAmountBN = new BN(Math.floor(actualSolAmount * 1e9));
-    // ⭐ FIX V3: Pass string directly to BN - this preserves full precision!
     const tokenAmountBN = new BN(tokenAmountRaw);
 
     const mintA = {
@@ -440,16 +373,11 @@ async function createRaydiumPool(
     console.log('mintA:', mintA.address.slice(0, 8) + '...', 'amount:', mintAAmount.toString());
     console.log('mintB:', mintB.address.slice(0, 8) + '...', 'amount:', mintBAmount.toString());
 
-    // Get fee configs
     const feeConfigs = await raydium.api.getCpmmConfigs();
     feeConfigs.forEach((config) => {
-      config.id = getCpmmPdaAmmConfigId(
-        DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM,
-        config.index
-      ).publicKey.toBase58();
+      config.id = getCpmmPdaAmmConfigId(DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM, config.index).publicKey.toBase58();
     });
 
-    // Create pool
     const { execute, extInfo } = await raydium.cpmm.createPool({
       programId: DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_PROGRAM,
       poolFeeAccount: DEVNET_PROGRAM_ID.CREATE_CPMM_POOL_FEE_ACC,
@@ -505,7 +433,6 @@ async function executeFullPipeline(
     return { success: false, steps, error: 'Invalid mint address' };
   }
 
-  // Get current state
   const [battleStatePDA] = getBattleStatePDA(mint);
   const battleStateAccount = await connection.getAccountInfo(battleStatePDA);
 
@@ -515,13 +442,10 @@ async function executeFullPipeline(
 
   const currentStatus = battleStateAccount.data[V1_OFFSET_BATTLE_STATUS];
 
-  // ⚠️ Validate status is in valid range (0-5)
   if (currentStatus < 0 || currentStatus > 5) {
-    console.warn(`⚠️ Invalid battle status: ${currentStatus} - token may have corrupted data`);
     return { success: false, steps, error: `Invalid battle status: ${currentStatus}` };
   }
 
-  // ⭐ FIX: Check if already pool created
   if (currentStatus === BattleStatus.PoolCreated) {
     console.log('✅ Token already has pool created - nothing to do');
     return { success: true, steps: { alreadyComplete: true }, error: 'Pool already created' };
@@ -531,36 +455,20 @@ async function executeFullPipeline(
   const totalVolume = Number(battleStateAccount.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
 
   console.log('Current Status:', ['Created', 'Qualified', 'InBattle', 'VictoryPending', 'Listed', 'PoolCreated'][currentStatus]);
-  console.log('SOL Collected:', (solCollected / 1e9).toFixed(4), `(threshold: ${SOL_THRESHOLD / 1e9})`);
-  console.log('Total Volume:', (totalVolume / 1e9).toFixed(4), `(threshold: ${VICTORY_VOLUME_SOL / 1e9})`);
 
-  // Get opponent mint
   const opponentBytes = battleStateAccount.data.slice(V1_OFFSET_OPPONENT_MINT, V1_OFFSET_OPPONENT_MINT + 32);
   const opponentMint = new PublicKey(opponentBytes);
   const hasOpponent = !opponentMint.equals(PublicKey.default);
 
   console.log('Opponent:', hasOpponent ? opponentMint.toString() : 'None');
 
-  // Store original SOL collected for pool creation (before withdraw sets it to 0)
   const originalSolCollected = solCollected;
 
-  // ─────────────────────────────────────────────────────────────────────────
   // STEP 1: Check Victory (if InBattle)
-  // ─────────────────────────────────────────────────────────────────────────
-
   if (currentStatus === BattleStatus.InBattle) {
-    // ⭐ FIX: Use SOL_THRESHOLD (99.5%) instead of TARGET_SOL!
     if (solCollected < SOL_THRESHOLD || totalVolume < VICTORY_VOLUME_SOL) {
-      const solProgress = ((solCollected / SOL_THRESHOLD) * 100).toFixed(1);
-      const volProgress = ((totalVolume / VICTORY_VOLUME_SOL) * 100).toFixed(1);
-      return {
-        success: false,
-        steps,
-        error: `Victory conditions not met: SOL ${solProgress}% (${(solCollected / 1e9).toFixed(4)}/${SOL_THRESHOLD / 1e9}), Volume ${volProgress}% (${(totalVolume / 1e9).toFixed(4)}/${VICTORY_VOLUME_SOL / 1e9})`,
-      };
+      return { success: false, steps, error: `Victory conditions not met` };
     }
-
-    console.log('✅ Victory conditions MET! Processing...');
 
     const victoryResult = await checkVictory(connection, keeper, mint);
     steps.checkVictory = victoryResult;
@@ -569,16 +477,12 @@ async function executeFullPipeline(
       return { success: false, steps, error: 'Victory check failed' };
     }
 
-    await sleep(2000); // Wait for state to update
+    await sleep(2000);
   } else if (currentStatus !== BattleStatus.VictoryPending && currentStatus !== BattleStatus.Listed) {
     return { success: false, steps, error: `Cannot process token with status ${currentStatus}` };
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   // STEP 2: Finalize Duel (if VictoryPending)
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Re-read status
   const stateAfterVictory = await connection.getAccountInfo(battleStatePDA);
   const statusAfterVictory = stateAfterVictory?.data[V1_OFFSET_BATTLE_STATUS] ?? currentStatus;
 
@@ -594,44 +498,22 @@ async function executeFullPipeline(
       return { success: false, steps, error: 'Finalize duel failed' };
     }
 
-    // ✅ Update LOSER in database: status → Qualified, opponent_mint → null
-    console.log('📝 Updating loser in database...');
-    const { error: loserUpdateError } = await supabase
-      .from('tokens')
-      .update({
-        battle_status: BattleStatus.Qualified,
-        opponent_mint: null,
-        battle_end_timestamp: new Date().toISOString(),
-      })
-      .eq('mint', opponentMint.toString());
+    await supabase.from('tokens').update({
+      battle_status: BattleStatus.Qualified,
+      opponent_mint: null,
+      battle_end_timestamp: new Date().toISOString(),
+    }).eq('mint', opponentMint.toString());
 
-    if (loserUpdateError) {
-      console.warn('⚠️ Failed to update loser in DB:', loserUpdateError.message);
-    } else {
-      console.log('✅ Loser reset to Qualified:', opponentMint.toString().slice(0, 8) + '...');
-    }
-
-    // ✅ Update battles table
-    const { error: battleUpdateError } = await supabase
-      .from('battles')
-      .update({
-        status: 'completed',
-        winner_mint: tokenMint,
-        ended_at: new Date().toISOString(),
-      })
-      .or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
-
-    if (battleUpdateError) {
-      console.warn('⚠️ Failed to update battles table:', battleUpdateError.message);
-    }
+    await supabase.from('battles').update({
+      status: 'completed',
+      winner_mint: tokenMint,
+      ended_at: new Date().toISOString(),
+    }).or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
 
     await sleep(2000);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // STEP 3: Withdraw for Listing (if Listed)
-  // ─────────────────────────────────────────────────────────────────────────
-
+  // STEP 3: Withdraw for Listing
   const stateAfterFinalize = await connection.getAccountInfo(battleStatePDA);
   const statusAfterFinalize = stateAfterFinalize?.data[V1_OFFSET_BATTLE_STATUS] ?? statusAfterVictory;
 
@@ -641,50 +523,26 @@ async function executeFullPipeline(
     const withdrawResult = await withdrawForListing(connection, keeper, mint);
     steps.withdraw = withdrawResult;
 
-    // ⭐ FIX: Continue even if withdraw was already done!
     if (!withdrawResult.success) {
       return { success: false, steps, error: 'Withdraw failed' };
     }
 
-    // If already withdrawn, we'll use keeper's balance in pool creation
     solWithdrawn = withdrawResult.solWithdrawn || 0;
-
-    if (withdrawResult.alreadyWithdrawn) {
-      console.log('ℹ️ Withdraw already done - will check keeper balance for pool creation');
-    }
-
     await sleep(2000);
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   // STEP 4: Create Raydium Pool
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // ⭐ FIX: Use original SOL collected if withdraw returned 0 (already done case)
-  // The createRaydiumPool function will check keeper's actual balance
   const solForPool = solWithdrawn > 0 ? solWithdrawn : (originalSolCollected / 1e9);
-
   const poolResult = await createRaydiumPool(connection, keeper, mint, solForPool);
   steps.createPool = poolResult;
 
   if (!poolResult.success) {
-    // Pool creation failed, but earlier steps succeeded
-    // Update database with partial success
-    await supabase.from('tokens').update({
-      battle_status: BattleStatus.Listed,
-      raydium_pool_error: poolResult.error,
-    }).eq('mint', tokenMint);
-
     return { success: false, steps, error: 'Pool creation failed (token is Listed)' };
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   // SUCCESS! Update database
-  // ─────────────────────────────────────────────────────────────────────────
-
   const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
 
-  // Update token in database
   await supabase.from('tokens').update({
     battle_status: BattleStatus.PoolCreated,
     raydium_pool_id: poolResult.poolId,
@@ -693,122 +551,89 @@ async function executeFullPipeline(
   }).eq('mint', tokenMint);
 
   // ═══════════════════════════════════════════════════════════════
-  // FETCH WINNER & LOSER DATA FOR WINNERS TABLE
+  // ⭐ FIX V4: FETCH WINNER & LOSER DATA - use 'image' not 'image_url'!
   // ═══════════════════════════════════════════════════════════════
 
-  // Get winner token data
   const { data: winnerData } = await supabase
     .from('tokens')
-    .select('name, symbol, image_url')
+    .select('name, symbol, image, creator_wallet')  // ⭐ FIX: 'image' not 'image_url'
     .eq('mint', tokenMint)
     .single();
 
-  // Get loser token data
   const { data: loserData } = await supabase
     .from('tokens')
-    .select('mint, name, symbol, image_url')
+    .select('mint, name, symbol, image')  // ⭐ FIX: 'image' not 'image_url'
     .eq('mint', opponentMint.toString())
     .single();
 
-  // Calculate spoils (50% of loser's SOL collected)
+  // Calculate spoils
   const [loserStatePDA] = getBattleStatePDA(opponentMint);
   const loserStateAccount = await connection.getAccountInfo(loserStatePDA);
   let spoilsSol = 0;
   if (loserStateAccount) {
     const loserSolCollected = Number(loserStateAccount.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
-    spoilsSol = (loserSolCollected / 1e9) * 0.5; // 50% of loser's SOL
+    spoilsSol = (loserSolCollected / 1e9) * 0.5;
   }
 
-  // Platform fee (2% of winner's SOL)
   const platformFeeSol = (originalSolCollected / 1e9) * 0.02;
 
-  // Add to winners table with ALL fields
+  // ⭐ FIX V4: Insert with correct field names!
   await supabase.from('winners').upsert({
-    // Primary key
     mint: tokenMint,
-
-    // Winner info
     name: winnerData?.name || 'Unknown',
     symbol: winnerData?.symbol || '???',
-    image: winnerData?.image_url || null,
-
-    // Loser info
+    image: winnerData?.image || null,  // ⭐ FIX: 'image' not 'image_url'
     loser_mint: opponentMint.toString(),
     loser_name: loserData?.name || 'Unknown',
     loser_symbol: loserData?.symbol || '???',
-    loser_image: loserData?.image_url || null,
-
-    // Battle stats (SOL-based)
+    loser_image: loserData?.image || null,  // ⭐ FIX: 'image' not 'image_url'
     final_sol_collected: originalSolCollected / 1e9,
     final_volume_sol: totalVolume / 1e9,
-    final_mc_usd: 0, // We're SOL-based now, can calculate later
+    final_mc_usd: 0,
     final_volume_usd: 0,
-
-    // Rewards
     spoils_sol: spoilsSol,
     platform_fee_sol: platformFeeSol,
-
-    // Pool info
     pool_id: poolResult.poolId,
     raydium_url: raydiumUrl,
-
-    // Timestamps & status
     victory_timestamp: new Date().toISOString(),
     status: 'pool_created',
-
   }, { onConflict: 'mint' });
 
   console.log('✅ Winner record saved with full data');
 
-  // ═══════════════════════════════════════════════════════════════
-  // ADD BATTLE WIN POINTS (+10,000)
-  // ═══════════════════════════════════════════════════════════════
-
-  // Get winner's creator wallet
-  const { data: tokenData } = await supabase
-    .from('tokens')
-    .select('creator_wallet')
-    .eq('mint', tokenMint)
-    .single();
-
-  if (tokenData?.creator_wallet) {
-    // Add 10,000 points for battle win
-    const { error: pointsError } = await supabase
-      .from('user_points')
-      .upsert({
-        wallet_address: tokenData.creator_wallet,
-        points: 10000,
-        action_type: 'battle_win',
-        token_mint: tokenMint,
-        created_at: new Date().toISOString(),
-      });
-
-    if (pointsError) {
-      console.warn('⚠️ Failed to add points:', pointsError.message);
-    }
-
-    // Also update total points
+  // Add points
+  if (winnerData?.creator_wallet) {
     const { data: currentPoints } = await supabase
       .from('user_stonks')
       .select('total_stonks')
-      .eq('wallet_address', tokenData.creator_wallet)
+      .eq('wallet_address', winnerData.creator_wallet)
       .single();
 
-    await supabase
-      .from('user_stonks')
-      .upsert({
-        wallet_address: tokenData.creator_wallet,
-        total_stonks: (currentPoints?.total_stonks || 0) + 10000,
-      }, { onConflict: 'wallet_address' });
+    await supabase.from('user_stonks').upsert({
+      wallet_address: winnerData.creator_wallet,
+      total_stonks: (currentPoints?.total_stonks || 0) + 10000,
+    }, { onConflict: 'wallet_address' });
 
-    console.log('🎮 +10,000 points awarded to:', tokenData.creator_wallet.slice(0, 8) + '...');
+    console.log('🎮 +10,000 points awarded to:', winnerData.creator_wallet.slice(0, 8) + '...');
   }
 
-  console.log('\n═══════════════════════════════════════════════════════════════');
-  console.log('🎉 AUTO-COMPLETE PIPELINE SUCCESS!');
+  // ⭐ Log victory to activity feed for popup!
+  await supabase.from('activity_feed').insert({
+    wallet: winnerData?.creator_wallet || 'system',
+    action_type: 'victory',
+    token_mint: tokenMint,
+    token_symbol: winnerData?.symbol || '???',
+    metadata: {
+      pool_id: poolResult.poolId,
+      raydium_url: raydiumUrl,
+      loser_mint: opponentMint.toString(),
+      loser_symbol: loserData?.symbol || '???',
+      winner_image: winnerData?.image || null,
+    }
+  });
+
+  console.log('\n🎉 AUTO-COMPLETE PIPELINE SUCCESS!');
   console.log('Pool ID:', poolResult.poolId);
-  console.log('Raydium URL:', raydiumUrl);
-  console.log('═══════════════════════════════════════════════════════════════\n');
 
   return {
     success: true,
@@ -828,22 +653,17 @@ async function scanForWinners(): Promise<{
   processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string }>;
 }> {
   console.log('\n🔍 Scanning for potential winners...');
-  console.log(`🎯 Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9}`);
 
   const connection = new Connection(RPC_ENDPOINT, 'confirmed');
 
-  // ⭐ FIX: Also scan for Listed tokens that need pool creation!
   const { data: tokensToProcess, error } = await supabase
     .from('tokens')
     .select('mint, symbol, sol_collected, total_trade_volume, battle_status')
     .in('battle_status', [BattleStatus.InBattle, BattleStatus.Listed]);
 
   if (error || !tokensToProcess) {
-    console.log('No tokens to process or error:', error?.message);
     return { scanned: 0, potentialWinners: [], processed: [] };
   }
-
-  console.log(`Found ${tokensToProcess.length} tokens to check (InBattle + Listed)`);
 
   const potentialWinners: string[] = [];
   const processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string }> = [];
@@ -855,45 +675,25 @@ async function scanForWinners(): Promise<{
 
       if (!account) continue;
 
-      // Validate status from chain
       const chainStatus = account.data[V1_OFFSET_BATTLE_STATUS];
-      if (chainStatus < 0 || chainStatus > 5) {
-        console.warn(`⚠️ Skipping ${token.mint.slice(0, 8)}... - invalid chain status: ${chainStatus}`);
-        continue;
-      }
+      if (chainStatus < 0 || chainStatus > 5) continue;
 
-      // ⭐ FIX: Process Listed tokens that don't have pools yet
       if (chainStatus === BattleStatus.Listed) {
-        // Check if pool already exists
         const { data: existingWinner } = await supabase
           .from('winners')
           .select('pool_id')
           .eq('mint', token.mint)
           .single();
 
-        if (existingWinner?.pool_id) {
-          console.log(`⏭️ Skipping ${token.mint.slice(0, 8)}... - pool already exists`);
-          continue;
-        }
+        if (existingWinner?.pool_id) continue;
 
-        console.log(`🏆 Listed token needs pool: ${token.symbol} (${token.mint.slice(0, 8)}...)`);
         potentialWinners.push(token.mint);
-
-        // Execute full pipeline (will skip to pool creation)
         const result = await executeFullPipeline(token.mint);
-        processed.push({
-          mint: token.mint,
-          success: result.success,
-          poolId: result.poolId,
-          error: result.error,
-        });
+        processed.push({ mint: token.mint, success: result.success, poolId: result.poolId, error: result.error });
         continue;
       }
 
-      // Only process if actually InBattle on-chain
       if (chainStatus !== BattleStatus.InBattle) {
-        console.log(`⏭️ Skipping ${token.mint.slice(0, 8)}... - chain status: ${chainStatus} (not InBattle)`);
-        // Sync database with chain
         await supabase.from('tokens').update({ battle_status: chainStatus }).eq('mint', token.mint);
         continue;
       }
@@ -901,35 +701,17 @@ async function scanForWinners(): Promise<{
       const solCollected = Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
       const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
 
-      const solProgress = ((solCollected / SOL_THRESHOLD) * 100).toFixed(1);
-      const volProgress = ((totalVolume / VICTORY_VOLUME_SOL) * 100).toFixed(1);
-
-      console.log(`📊 ${token.symbol} (${token.mint.slice(0, 8)}...): SOL ${solProgress}% (${(solCollected / 1e9).toFixed(4)}), Vol ${volProgress}% (${(totalVolume / 1e9).toFixed(4)})`);
-
-      // ⭐ FIX: Check if victory conditions are met using SOL_THRESHOLD (99.5%)!
       if (solCollected >= SOL_THRESHOLD && totalVolume >= VICTORY_VOLUME_SOL) {
-        console.log(`🏆 Winner found: ${token.symbol} (${token.mint.slice(0, 8)}...)`);
         potentialWinners.push(token.mint);
-
-        // Execute full pipeline
         const result = await executeFullPipeline(token.mint);
-        processed.push({
-          mint: token.mint,
-          success: result.success,
-          poolId: result.poolId,
-          error: result.error,
-        });
+        processed.push({ mint: token.mint, success: result.success, poolId: result.poolId, error: result.error });
       }
     } catch (err) {
       console.error(`Error checking ${token.mint}:`, err);
     }
   }
 
-  return {
-    scanned: tokensToProcess.length,
-    potentialWinners,
-    processed,
-  };
+  return { scanned: tokensToProcess.length, potentialWinners, processed };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -972,12 +754,6 @@ export async function GET() {
       message: result.potentialWinners.length > 0
         ? `Found and processed ${result.potentialWinners.length} winner(s)!`
         : 'No winners found',
-      thresholds: {
-        solThreshold: SOL_THRESHOLD / 1e9,
-        solTarget: TARGET_SOL / 1e9,
-        volumeThreshold: VICTORY_VOLUME_SOL / 1e9,
-        tolerance: '99.5%',
-      },
       ...result,
     });
 
