@@ -77,7 +77,6 @@ export function TokenGridBonk() {
     }
 
     loadTokens();
-    // Rimosso auto-refresh per evitare che le BattleCard spariscano
   }, []);
 
   // ⭐ Fetch real-time pool data for winners
@@ -105,7 +104,6 @@ export function TokenGridBonk() {
     }
 
     fetchPoolData();
-    // Refresh every 15 seconds when on winners tab
     const interval = setInterval(() => {
       if (activeFilter === 'winners') {
         fetchPoolData();
@@ -115,12 +113,33 @@ export function TokenGridBonk() {
     return () => clearInterval(interval);
   }, [winners, activeFilter]);
 
-  // Group tokens into battle pairs (including completed battles)
+  // ⭐ NEW COINS: Only Created (0) and Qualified (1) tokens
+  // Filter out tokens with invalid timestamps (before 2024 or in the future)
+  const MIN_VALID_TIMESTAMP = 1704067200; // Jan 1, 2024
+  const MAX_VALID_TIMESTAMP = Math.floor(Date.now() / 1000) + 86400; // Tomorrow
+
+  const newAndQualifiedTokens = useMemo((): ParsedTokenBattleState[] => {
+    return allTokens
+      .filter(t =>
+        (t.battleStatus === BattleStatus.Created ||
+          t.battleStatus === BattleStatus.Qualified) &&
+        // Filter out invalid timestamps
+        t.creationTimestamp > MIN_VALID_TIMESTAMP &&
+        t.creationTimestamp < MAX_VALID_TIMESTAMP &&
+        // Filter out tokens with missing/invalid metadata
+        t.name && t.name.length >= 2 &&
+        t.symbol && t.symbol.length >= 2 &&
+        !t.name.includes('...') &&
+        !t.symbol.includes('...')
+      )
+      .sort((a, b) => b.creationTimestamp - a.creationTimestamp);
+  }, [allTokens]);
+
+  // Group tokens into battle pairs
   const battlePairs = useMemo((): (BattlePair & { winner?: 'A' | 'B' | null })[] => {
     const pairs: (BattlePair & { winner?: 'A' | 'B' | null })[] = [];
     const processed = new Set<string>();
 
-    // Find tokens that are InBattle, VictoryPending, or Listed (recent winners)
     const battlingTokens = allTokens.filter(t =>
       t.battleStatus === BattleStatus.InBattle ||
       t.battleStatus === BattleStatus.VictoryPending ||
@@ -131,27 +150,22 @@ export function TokenGridBonk() {
       const mintStr = token.mint.toString();
       if (processed.has(mintStr)) continue;
 
-      // Find opponent
       const opponentMint = token.opponentMint?.toString();
       if (!opponentMint || opponentMint === '11111111111111111111111111111111') continue;
 
-      // Opponent può essere in battlingTokens O in allTokens (se è Qualified dopo sconfitta)
       const opponent = allTokens.find(t =>
         t.mint.toString() === opponentMint
       );
 
       if (opponent) {
-        // Determine winner
         let winner: 'A' | 'B' | null = null;
 
-        // Token A won if VictoryPending or Listed
         if (token.battleStatus === BattleStatus.VictoryPending ||
-            token.battleStatus === BattleStatus.Listed) {
+          token.battleStatus === BattleStatus.Listed) {
           winner = 'A';
         }
-        // Token B won if VictoryPending or Listed
         else if (opponent.battleStatus === BattleStatus.VictoryPending ||
-                 opponent.battleStatus === BattleStatus.Listed) {
+          opponent.battleStatus === BattleStatus.Listed) {
           winner = 'B';
         }
 
@@ -161,7 +175,6 @@ export function TokenGridBonk() {
       }
     }
 
-    // Skip the first InBattle pair (shown in EPIC BATTLE section in Tagline)
     const firstInBattleIndex = pairs.findIndex(p =>
       p.tokenA.battleStatus === BattleStatus.InBattle && !p.winner
     );
@@ -172,23 +185,21 @@ export function TokenGridBonk() {
     return pairs;
   }, [allTokens]);
 
-  // Get tokens "About to Win" - InBattle with high progress (SOL-based!)
+  // Get tokens "About to Win"
   const aboutToWinTokens = useMemo((): ParsedTokenBattleState[] => {
     return allTokens
       .filter(t => t.battleStatus === BattleStatus.InBattle)
       .map(token => {
-        // ⭐ SOL-based progress (price independent!)
         const solCollected = lamportsToSol(token.realSolReserves ?? 0);
         const volumeSol = lamportsToSol(token.totalTradeVolume ?? 0);
 
-        // Calculate progress toward victory
         const solProgress = Math.min((solCollected / TARGET_SOL) * 100, 100);
         const volProgress = Math.min((volumeSol / VICTORY_VOLUME_SOL) * 100, 100);
         const avgProgress = (solProgress + volProgress) / 2;
 
         return { token, avgProgress, solProgress, volProgress };
       })
-      .filter(({ avgProgress }) => avgProgress >= 50) // At least 50% progress
+      .filter(({ avgProgress }) => avgProgress >= 50)
       .sort((a, b) => b.avgProgress - a.avgProgress)
       .map(({ token }) => token);
   }, [allTokens]);
@@ -196,61 +207,66 @@ export function TokenGridBonk() {
   const getFilteredTokens = (): ParsedTokenBattleState[] => {
     if (activeFilter === 'battle') return [];
     if (activeFilter === 'aboutToWin') return aboutToWinTokens;
+    if (activeFilter === 'new') return newAndQualifiedTokens; // ⭐ CHANGED: Use filtered list
 
-    // 'new' tab - sort by creation timestamp (newest first)
-    return [...allTokens].sort((a, b) => b.creationTimestamp - a.creationTimestamp);
+    return [];
   };
 
   const filteredTokens = getFilteredTokens();
 
-  // Costanti bonding curve (dal contratto)
-  const TOTAL_SUPPLY = 1_000_000_000; // 1B token
+  const TOTAL_SUPPLY = 1_000_000_000;
 
-  // ⭐ Calculate MC using correct bonding curve formula
   const calculateMarketCapUsd = (token: ParsedTokenBattleState): number => {
     const virtualSol = token.virtualSolReserves ?? 0;
     const virtualToken = token.virtualTokenReserves ?? 0;
 
     if (virtualToken === 0 || !solPriceUsd) return 0;
 
-    // MC = (virtualSolReserves × TOTAL_SUPPLY) / virtualTokenReserves × SOL_PRICE
-    // In lamports: virtualSol is in lamports, virtualToken is in token decimals
     const mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9);
     const mcInUsd = (mcInLamports / 1e9) * solPriceUsd;
 
     return mcInUsd;
   };
 
-  // ⭐ Convert token state to BattleCard format (SOL-based!)
   const toBattleToken = (token: ParsedTokenBattleState) => ({
     mint: token.mint.toString(),
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
     image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token), // Still useful for display
+    marketCapUsd: calculateMarketCapUsd(token),
     solCollected: lamportsToSol(token.realSolReserves ?? 0),
     totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
   });
 
-  // Count for display
   const getCount = () => {
     if (activeFilter === 'battle') return battlePairs.length;
     if (activeFilter === 'aboutToWin') return aboutToWinTokens.length;
     if (activeFilter === 'winners') return winners.length;
+    if (activeFilter === 'new') return newAndQualifiedTokens.length; // ⭐ CHANGED
     return filteredTokens.length;
   };
+
+  // ⭐ Count by status for display
+  const newCount = useMemo(() =>
+    allTokens.filter(t => t.battleStatus === BattleStatus.Created).length,
+    [allTokens]
+  );
+  const qualifiedCount = useMemo(() =>
+    allTokens.filter(t => t.battleStatus === BattleStatus.Qualified).length,
+    [allTokens]
+  );
 
   const isLoading = loading || priceLoading;
 
   return (
     <div className="px-5 lg:px-6 pb-32">
-      {/* Filter Tabs - Order: Battle | New Coins | About to Win */}
+      {/* Filter Tabs */}
       <div className="flex gap-3 mb-6 overflow-x-auto scrollbar-hide">
         <button
           onClick={() => setActiveFilter('battle')}
           className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'battle'
-              ? 'bg-bonk-orange text-white'
-              : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+            ? 'bg-bonk-orange text-white'
+            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
             }`}
         >
           ⚔️ Battle
@@ -259,8 +275,8 @@ export function TokenGridBonk() {
         <button
           onClick={() => setActiveFilter('new')}
           className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'new'
-              ? 'bg-bonk-blue-dark text-white'
-              : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+            ? 'bg-bonk-blue-dark text-white'
+            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
             }`}
         >
           🆕 New Coins
@@ -269,8 +285,8 @@ export function TokenGridBonk() {
         <button
           onClick={() => setActiveFilter('aboutToWin')}
           className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'aboutToWin'
-              ? 'bg-bonk-gold text-black'
-              : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+            ? 'bg-bonk-gold text-black'
+            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
             }`}
         >
           🏆 About to Win
@@ -279,20 +295,22 @@ export function TokenGridBonk() {
         <button
           onClick={() => setActiveFilter('winners')}
           className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'winners'
-              ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black'
-              : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black'
+            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
             }`}
         >
           👑 Winners
         </button>
       </div>
 
-      {/* Count Display */}
+      {/* Count Display - ⭐ UPDATED for new tab */}
       <div className="mb-4 text-sm text-bonk-text">
         {isLoading ? (
           'Loading tokens...'
         ) : activeFilter === 'battle' ? (
           `${battlePairs.length} active battle${battlePairs.length !== 1 ? 's' : ''}`
+        ) : activeFilter === 'new' ? (
+          `${newAndQualifiedTokens.length} tokens (${newCount} new, ${qualifiedCount} qualified)`
         ) : (
           `${getCount()} token${getCount() !== 1 ? 's' : ''} found`
         )}
@@ -313,7 +331,7 @@ export function TokenGridBonk() {
           ))}
         </div>
       ) : activeFilter === 'battle' ? (
-        // BATTLE TAB - Show BattleCards
+        // BATTLE TAB
         battlePairs.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">⚔️</div>
@@ -356,6 +374,7 @@ export function TokenGridBonk() {
               <TokenCardBonk
                 key={token.mint.toString()}
                 tokenState={token}
+                solPriceUsd={solPriceUsd ?? undefined}
               />
             ))}
           </div>
@@ -420,7 +439,7 @@ export function TokenGridBonk() {
                   </div>
                 )}
 
-                {/* Stats - REAL-TIME from pool */}
+                {/* Stats */}
                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                   <div className="bg-black/30 rounded p-2">
                     <div className="text-gray-500">Market Cap</div>
@@ -440,7 +459,7 @@ export function TokenGridBonk() {
                   </div>
                 </div>
 
-                {/* Two Buttons: View Token + Trade on Raydium */}
+                {/* Buttons */}
                 <div className="flex gap-2 mb-2">
                   <a
                     href={`/token/${winner.mint}`}
@@ -469,8 +488,8 @@ export function TokenGridBonk() {
           </div>
         )
       ) : (
-        // NEW COINS TAB
-        filteredTokens.length === 0 ? (
+        // NEW COINS TAB - ⭐ UPDATED: Shows Created + Qualified only
+        newAndQualifiedTokens.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🎮</div>
             <div className="text-xl font-bold text-white mb-2">No tokens found</div>
@@ -486,10 +505,11 @@ export function TokenGridBonk() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredTokens.map((token) => (
+            {newAndQualifiedTokens.map((token) => (
               <TokenCardBonk
                 key={token.mint.toString()}
                 tokenState={token}
+                solPriceUsd={solPriceUsd ?? undefined}
               />
             ))}
           </div>

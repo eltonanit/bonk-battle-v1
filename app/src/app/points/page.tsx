@@ -339,21 +339,17 @@ export default function PointsPage() {
 
         <div className="max-w-[900px] mx-auto px-5 py-8">
           {/* ⭐ Header Row: Points + Position */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
+          <div className="mb-6">
+            <div className="flex items-center gap-4">
               <h1 className="text-3xl font-bold text-white">Points</h1>
-              <Link href="#learn" className="text-emerald-400 hover:text-emerald-300 text-sm">
-                Learn more
-              </Link>
-            </div>
-
-            {/* Position/Rank */}
-            <div className="text-right">
-              <div className="text-gray-400 text-sm">Position</div>
-              <div className="text-3xl font-bold text-white">
-                #{points?.rank || 1}
+              <div className="flex items-center gap-2 bg-emerald-500/20 px-3 py-1 rounded-full">
+                <span className="text-gray-400 text-sm">Position</span>
+                <span className="text-xl font-bold text-emerald-400">#{points?.rank || 1}</span>
               </div>
             </div>
+            <Link href="#learn" className="text-emerald-400 hover:text-emerald-300 text-sm">
+              Learn more
+            </Link>
           </div>
 
           {/* Social Follow Claim Boxes */}
@@ -541,6 +537,46 @@ export default function PointsPage() {
                   </div>
                 </div>
               </div>
+
+              {/* ⭐ BECOME AN EMPEROR - Special Golden Box */}
+              <Link href="/emperor" className="block mb-8">
+                <div className="relative overflow-hidden rounded-xl border-2 border-yellow-500/50 bg-gradient-to-br from-yellow-900/40 via-amber-900/30 to-orange-900/40 p-6 cursor-pointer hover:border-yellow-400 hover:scale-[1.02] transition-all duration-300 shadow-[0_0_40px_rgba(234,179,8,0.3)] hover:shadow-[0_0_60px_rgba(234,179,8,0.5)]">
+                  {/* Animated shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/10 to-transparent animate-shimmer" />
+
+                  {/* Logo particles animation */}
+                  <div className="absolute top-2 right-4 w-8 h-8 animate-bounce">
+                    <Image src="/BONK-LOGO.svg" alt="BONK" width={32} height={32} />
+                  </div>
+                  <div className="absolute top-4 right-16 text-lg animate-pulse delay-100">✨</div>
+                  <div className="absolute bottom-4 left-4 text-lg animate-pulse delay-200">⭐</div>
+
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/30 animate-pulse p-3">
+                        <Image src="/BONK-LOGO.svg" alt="BONK" width={40} height={40} />
+                      </div>
+                      <div>
+                        <div className="text-yellow-400 font-extrabold text-xl uppercase tracking-wide">
+                          Become an Emperor
+                        </div>
+                        <div className="text-yellow-300/80 text-sm">
+                          Join our affiliate program & earn real $$$
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-yellow-400 font-black text-3xl animate-pulse" style={{ textShadow: '0 0 20px rgba(234,179,8,0.5)' }}>
+                        1,000,000 pts
+                      </div>
+                      <div className="text-yellow-500/70 text-xs uppercase tracking-wider">
+                        for creators
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
 
               {/* Mystery Section */}
               <div id="learn" className="bg-[#0d2626] border border-[#1a3a3a] rounded-xl p-6 text-center">

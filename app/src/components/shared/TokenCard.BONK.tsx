@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 
 interface TokenCardBonkProps {
   tokenState: ParsedTokenBattleState;
+  solPriceUsd?: number;
 }
 
 function TimeAgo({ timestamp }: { timestamp: number }) {
@@ -43,9 +44,11 @@ function TimeAgo({ timestamp }: { timestamp: number }) {
 
 // Costanti dalla bonding curve (come nel contratto)
 const TOTAL_SUPPLY = 1_000_000_000; // 1B token (senza decimali per display)
-const SOL_PRICE_USD = 230; // Fallback price, idealmente da oracle
+const DEFAULT_SOL_PRICE = 230; // Fallback price
 
-export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
+export function TokenCardBonk({ tokenState, solPriceUsd }: TokenCardBonkProps) {
+  const effectiveSolPrice = solPriceUsd || DEFAULT_SOL_PRICE;
+
   // ⭐ NO MORE RPC CALLS! Use data passed from parent
   const state = tokenState;
   const mintAddress = state.mint.toString();
@@ -61,7 +64,7 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
     // MC in SOL = (virtualSol / 1e9) × (TOTAL_SUPPLY × 1e9) / virtualToken
     // Semplificato: MC in SOL = virtualSol × TOTAL_SUPPLY / virtualToken
     const mcInSol = (virtualSol * TOTAL_SUPPLY) / virtualToken;
-    const mcInUsd = (mcInSol / 1e9) * SOL_PRICE_USD;
+    const mcInUsd = (mcInSol / 1e9) * effectiveSolPrice;
 
     return mcInUsd;
   };
@@ -76,13 +79,13 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
     image: state.image
   } : null;
 
-  // Status badge configuration
+  // Status badge configuration - ⭐ QUALIFIED is now YELLOW with black text
   const statusConfig: Record<number, { color: string; label: string }> = {
-    [BattleStatus.Created]: { color: 'bg-bonk-green', label: 'NEW' },
-    [BattleStatus.Qualified]: { color: 'bg-bonk-orange-light text-black', label: 'QUALIFIED' },
+    [BattleStatus.Created]: { color: 'bg-bonk-green text-black', label: 'NEW' },
+    [BattleStatus.Qualified]: { color: 'bg-yellow-400 text-black', label: 'QUALIFIED' },
     [BattleStatus.InBattle]: { color: 'bg-bonk-orange-light text-black animate-pulse', label: '⚔️ IN BATTLE' },
     [BattleStatus.VictoryPending]: { color: 'bg-bonk-gold text-black', label: '🏆 VICTORY' },
-    [BattleStatus.Listed]: { color: 'bg-green-500', label: '✅ LISTED' },
+    [BattleStatus.Listed]: { color: 'bg-green-500 text-white', label: '✅ LISTED' },
     [BattleStatus.PoolCreated]: { color: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black', label: '🏆 WINNER' },
   };
 
@@ -126,12 +129,12 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
               </span>
             </div>
 
-            <p className="text-sm text-bonk-orange-light font-bold">
+            <p className="text-sm text-gray-400 font-bold">
               ${metadata ? metadata.symbol : '...'}
             </p>
 
             <div className="flex items-center gap-2 mt-2">
-              <span className={`${status.color} px-2 py-0.5 rounded-md text-[10px] font-bold text-white uppercase`}>
+              <span className={`${status.color} px-2 py-0.5 rounded-md text-[10px] font-bold uppercase`}>
                 {status.label}
               </span>
             </div>
@@ -148,49 +151,13 @@ export function TokenCardBonk({ tokenState }: TokenCardBonkProps) {
           <div className="bg-bonk-dark/50 rounded-lg p-2">
             <div className="text-xs text-gray-400">Volume</div>
             <div className="text-sm font-bold text-white">
-              {(state.totalTradeVolume / 1e9).toFixed(2)} SOL
+              {((state.totalTradeVolume ?? 0) / 1e9).toFixed(2)} SOL
             </div>
           </div>
-        </div>
-
-        {/* MC Info - Always visible */}
-        <div className="mt-3 pt-3 border-t border-bonk-border">
-          <div className="flex justify-between items-center text-xs">
-            <span className="text-gray-500">Initial MC</span>
-            <span className="text-gray-400">~$375</span>
-          </div>
-          {state.battleStatus === BattleStatus.Created && (
-            <div className="mt-2">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>Progress to Qualification ($10)</span>
-                <span>{Math.min((marketCapUsd / 10) * 100, 100).toFixed(0)}%</span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min((marketCapUsd / 10) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
-          {state.battleStatus === BattleStatus.InBattle && (
-            <div className="mt-2">
-              <div className="flex justify-between text-xs text-gray-400 mb-1">
-                <span>Progress to Victory ($1,200)</span>
-                <span>{Math.min((marketCapUsd / 1200) * 100, 100).toFixed(0)}%</span>
-              </div>
-              <div className="w-full bg-gray-700 rounded-full h-2">
-                <div
-                  className="bg-gradient-to-r from-yellow-500 to-orange-500 h-2 rounded-full transition-all"
-                  style={{ width: `${Math.min((marketCapUsd / 1200) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Battle Opponent (only for InBattle status) */}
-        {state.battleStatus === BattleStatus.InBattle && (
+        {state.battleStatus === BattleStatus.InBattle && state.opponentMint && (
           <div className="mt-3 text-xs text-gray-400">
             <span className="font-semibold text-orange-400">Fighting:</span> {state.opponentMint.toString().substring(0, 12)}...
           </div>
