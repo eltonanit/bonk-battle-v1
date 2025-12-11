@@ -2,35 +2,7 @@
 
 /**
  * BattleMobileTradingDrawer - Bottom sheet trading panel for battle pages
- *
- * - Fixed "Buy" button at bottom of screen
- * - Opens drawer with Token selector + Buy/Sell tabs
- * - Only visible on screens < 810px
- * - ✅ FIXED: Now matches TradingPanel behavior for percentage buttons
- * 
- * ⚠️ IMPORTANTE: La pagina battle DEVE passare solCollected in LAMPORTS per ogni token!
- * 
- * Esempio di come chiamare questo componente dalla pagina battle:
- * 
- * <BattleMobileTradingDrawer
- *   tokenA={{
- *     mint: new PublicKey(tokenAState.mint),
- *     symbol: tokenAState.symbol,
- *     image: tokenAState.image,
- *     battleStatus: tokenAState.battleStatus,
- *     solCollected: tokenAState.solCollected,  // ⭐ IN LAMPORTS!
- *   }}
- *   tokenB={{
- *     mint: new PublicKey(tokenBState.mint),
- *     symbol: tokenBState.symbol,
- *     image: tokenBState.image,
- *     battleStatus: tokenBState.battleStatus,
- *     solCollected: tokenBState.solCollected,  // ⭐ IN LAMPORTS!
- *   }}
- *   selectedToken={selectedToken}
- *   onSelectToken={setSelectedToken}
- *   onSuccess={refetchBattle}
- * />
+ * ✅ FIX DEFINITIVO: Calcolo preciso del 100% per portare il token esattamente al target
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -48,7 +20,6 @@ import Image from 'next/image';
 // 🎯 VICTORY TARGETS (must match TradingPanel)
 // ============================================================
 const TARGET_SOL = 6.0;
-const TRADING_FEE = 0.02;
 
 interface TokenData {
   mint: PublicKey;
@@ -93,15 +64,39 @@ export function BattleMobileTradingDrawer({
   const [successMessage, setSuccessMessage] = useState('');
 
   // ============================================================
-  // 🎯 CALCULATE MAX BUYABLE SOL (same as TradingPanel)
+  // 🎯 CALCULATE MAX BUYABLE SOL - FIX DEFINITIVO
   // ============================================================
   const progressData = useMemo(() => {
     // ⭐ solCollected is in LAMPORTS (raw value from blockchain)
     const solCollectedSol = (currentToken.solCollected || 0) / 1e9;
+
+    // Quanto manca per arrivare al target
     const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
-    // ✅ FIX: maxBuyableSol = quanto manca per graduare (NON diviso per fee!)
-    // La fee del 2% viene aggiunta SOPRA questo importo, non sottratta
-    const maxBuyableSol = solRemaining;
+
+    // ✅ FIX DEFINITIVO:
+    // Quando l'utente compra X SOL, il contratto prende 2% di fee
+    // Quindi al pool arriva X * 0.98 SOL
+    // Se vogliamo che al pool arrivino esattamente `solRemaining` SOL,
+    // l'utente deve comprare: solRemaining / 0.98
+    //
+    // MA c'è un problema: se calcoliamo così, a volte superiamo il limite
+    // per errori di arrotondamento.
+    //
+    // SOLUZIONE: Usiamo il 98% del rimanente come massimo sicuro
+    // Questo garantisce che non superiamo MAI il limite
+    let maxBuyableSol: number;
+
+    if (solRemaining <= 0.001) {
+      // Token già graduato
+      maxBuyableSol = 0;
+    } else if (solRemaining < 0.5) {
+      // Vicini al target: usa il 98% del rimanente per evitare overflow
+      maxBuyableSol = solRemaining * 0.98;
+    } else {
+      // Lontani dal target: usa il valore pieno
+      maxBuyableSol = solRemaining;
+    }
+
     const isGraduationLocked = solRemaining <= 0.001;
 
     console.log('📊 BattleMobileDrawer progressData:', {
@@ -155,20 +150,36 @@ export function BattleMobileTradingDrawer({
   }, [selectedToken]);
 
   // ============================================================
-  // 🎮 PERCENTAGE BUTTONS - SAME AS TRADING PANEL
+  // 🎮 PERCENTAGE BUTTONS - FIX DEFINITIVO
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
       if (!solBalance) return;
-      // ⭐ Same logic as TradingPanel
-      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol);
+
+      // ✅ FIX: Calcola il massimo che l'utente può comprare
+      const userMaxSol = solBalance - 0.01; // Lascia 0.01 SOL per le fee
+      const tokenMaxSol = progressData.maxBuyableSol;
+
+      // Prendi il minimo tra i due limiti
+      const maxUsable = Math.min(userMaxSol, tokenMaxSol);
+
+      // Calcola il valore in base alla percentuale
       const value = Math.max(0, maxUsable * (percent / 100));
+
+      // Arrotonda a 4 decimali
       setAmount(value.toFixed(4));
+
+      console.log('📊 handlePercentage:', {
+        percent,
+        solBalance,
+        userMaxSol,
+        tokenMaxSol,
+        maxUsable,
+        value,
+      });
     } else {
-      // ⭐ For sell: use balanceFormatted (already divided by 1e9)
       if (balanceFormatted === null || balanceFormatted === 0) return;
       const value = balanceFormatted * (percent / 100);
-      // ⭐ No decimals for whole token amounts
       setAmount(Math.floor(value).toString());
     }
   };
@@ -212,7 +223,6 @@ export function BattleMobileTradingDrawer({
         currentToken.image
       ).catch(console.error);
 
-      // ⭐ Refresh balance after buy
       setTimeout(() => refetchBalance(), 2000);
 
       setSuccessMessage(`Bought ${currentToken.symbol} for ${solAmount} SOL`);
@@ -241,10 +251,8 @@ export function BattleMobileTradingDrawer({
       return;
     }
 
-    // ⭐ FIX: Convert display amount to raw amount (multiply by 1e9)
     const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
-    // ⭐ FIX: Compare raw amounts correctly
     if (balance === null || tokenAmountRaw > balance) {
       alert(`Insufficient token balance. You have ${balanceFormatted?.toLocaleString() ?? 0} ${currentToken.symbol}`);
       return;
@@ -261,7 +269,6 @@ export function BattleMobileTradingDrawer({
         currentToken.image
       ).catch(console.error);
 
-      // ⭐ Refresh balance after sell
       setTimeout(() => refetchBalance(), 2000);
 
       setSuccessMessage(`Sold ${tokenAmount.toLocaleString()} ${currentToken.symbol}`);
@@ -282,7 +289,6 @@ export function BattleMobileTradingDrawer({
     setShowSuccess(false);
   }, []);
 
-  // ⭐ Format balance for display with commas (same as TradingPanel)
   const displayBalance = balanceFormatted !== null
     ? Math.floor(balanceFormatted).toLocaleString()
     : '0';
@@ -293,7 +299,6 @@ export function BattleMobileTradingDrawer({
 
   return (
     <>
-      {/* Success Popup */}
       <TransactionSuccessPopup
         show={showSuccess}
         message="Transaction Successful"
@@ -302,9 +307,7 @@ export function BattleMobileTradingDrawer({
         autoCloseMs={2500}
       />
 
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* FIXED BUY BUTTON - Only visible on mobile/tablet (<810px) */}
-      {/* ════════════════════════════════════════════════════════════ */}
+      {/* FIXED BUY BUTTON */}
       <div className="fixed bottom-24 left-6 right-6 z-40 tablet-trading:hidden">
         <button
           onClick={() => {
@@ -318,9 +321,7 @@ export function BattleMobileTradingDrawer({
         </button>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════ */}
       {/* DRAWER OVERLAY */}
-      {/* ════════════════════════════════════════════════════════════ */}
       {isOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm tablet-trading:hidden"
@@ -328,12 +329,9 @@ export function BattleMobileTradingDrawer({
         />
       )}
 
-      {/* ════════════════════════════════════════════════════════════ */}
       {/* DRAWER CONTENT */}
-      {/* ════════════════════════════════════════════════════════════ */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#12151c] rounded-t-3xl transition-transform duration-300 ease-out tablet-trading:hidden ${isOpen ? 'translate-y-0' : 'translate-y-full'
-          }`}
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#12151c] rounded-t-3xl transition-transform duration-300 ease-out tablet-trading:hidden ${isOpen ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ maxHeight: '85vh' }}
       >
         {/* Drag handle */}
@@ -341,51 +339,27 @@ export function BattleMobileTradingDrawer({
           <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
         </div>
 
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* TOKEN SELECTOR TAB */}
-        {/* ════════════════════════════════════════════════════════════ */}
+        {/* TOKEN SELECTOR */}
         <div className="px-4 pb-3">
           <div className="flex items-center justify-center gap-2 bg-white/5 rounded-xl p-1">
-            {/* Token A */}
             <button
               onClick={() => onSelectToken('A')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'A'
-                ? 'bg-blue-500 text-white'
-                : 'text-gray-400 hover:text-white'
-                }`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'A' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               <div className="w-9 h-9 rounded-full overflow-hidden">
-                <Image
-                  src={tokenA.image || '/BONK-LOGO.svg'}
-                  alt={tokenA.symbol}
-                  width={36}
-                  height={36}
-                  className="w-full h-full object-cover"
-                  unoptimized
-                />
+                <Image src={tokenA.image || '/BONK-LOGO.svg'} alt={tokenA.symbol} width={36} height={36} className="w-full h-full object-cover" unoptimized />
               </div>
               <span className="font-semibold text-sm">{tokenA.symbol}</span>
             </button>
 
-            {/* Token B */}
             {tokenB && (
               <button
                 onClick={() => onSelectToken('B')}
-                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'B'
-                  ? 'text-white'
-                  : 'text-gray-400 hover:text-white'
-                  }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'B' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
                 style={selectedToken === 'B' ? { backgroundColor: '#FF5A8E' } : {}}
               >
                 <div className="w-9 h-9 rounded-full overflow-hidden">
-                  <Image
-                    src={tokenB.image || '/BONK-LOGO.svg'}
-                    alt={tokenB.symbol}
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
+                  <Image src={tokenB.image || '/BONK-LOGO.svg'} alt={tokenB.symbol} width={36} height={36} className="w-full h-full object-cover" unoptimized />
                 </div>
                 <span className="font-semibold text-sm">{tokenB.symbol}</span>
               </button>
@@ -393,34 +367,25 @@ export function BattleMobileTradingDrawer({
           </div>
         </div>
 
-        {/* Header with Buy/Sell tabs and close */}
+        {/* Buy/Sell tabs */}
         <div className="flex items-center justify-between px-4 pb-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => { setMode('buy'); setAmount(''); }}
-              className={`px-14 py-2 font-medium transition-all ${mode === 'buy'
-                ? 'text-black'
-                : 'text-gray-400 hover:text-white'
-                }`}
+              className={`px-14 py-2 font-medium transition-all ${mode === 'buy' ? 'text-black' : 'text-gray-400 hover:text-white'}`}
               style={mode === 'buy' ? { backgroundColor: '#1FD978' } : {}}
             >
               Buy
             </button>
             <button
               onClick={() => { setMode('sell'); setAmount(''); }}
-              className={`px-14 py-2 font-medium transition-all ${mode === 'sell'
-                ? 'text-white bg-red-500'
-                : 'text-gray-400 hover:text-white'
-                }`}
+              className={`px-14 py-2 font-medium transition-all ${mode === 'sell' ? 'text-white bg-red-500' : 'text-gray-400 hover:text-white'}`}
             >
               Sell
             </button>
           </div>
 
-          <button
-            onClick={() => setIsOpen(false)}
-            className="p-2 text-gray-400 hover:text-white transition-colors"
-          >
+          <button onClick={() => setIsOpen(false)} className="p-2 text-gray-400 hover:text-white transition-colors">
             <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -429,24 +394,26 @@ export function BattleMobileTradingDrawer({
 
         {/* Content */}
         <div className="px-4 pb-6 space-y-4">
-
-          {/* Slippage button */}
           <div className="flex justify-end">
-            <button className="px-3 py-1.5 bg-white/10 rounded-lg text-sm text-gray-300">
-              Set max slippage
-            </button>
+            <button className="px-3 py-1.5 bg-white/10 rounded-lg text-sm text-gray-300">Set max slippage</button>
           </div>
 
-          {/* Balance display - FIXED to match TradingPanel */}
+          {/* Balance */}
           <div className="flex justify-between items-center text-sm">
             <span className="text-gray-400">Balance:</span>
             <span className="text-white font-medium">
-              {mode === 'buy'
-                ? `${solBalance?.toFixed(4) ?? '0.0000'} SOL`
-                : `${displayBalance} ${currentToken.symbol}`
-              }
+              {mode === 'buy' ? `${solBalance?.toFixed(4) ?? '0.0000'} SOL` : `${displayBalance} ${currentToken.symbol}`}
             </span>
           </div>
+
+          {/* ⭐ REMAINING SOL INDICATOR */}
+          {mode === 'buy' && progressData.solRemaining > 0 && progressData.solRemaining < 1 && (
+            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-2 text-center">
+              <span className="text-yellow-300 text-sm">
+                ⚡ Only <span className="font-bold">{progressData.solRemaining.toFixed(4)} SOL</span> to graduate!
+              </span>
+            </div>
+          )}
 
           {/* Amount input */}
           <div className="relative">
@@ -456,111 +423,55 @@ export function BattleMobileTradingDrawer({
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0.00"
               className="w-full bg-[#2a3544] border border-[#3a4554] rounded-xl px-4 py-4 text-white text-lg focus:outline-none focus:border-green-500"
-              step={mode === 'buy' ? '0.01' : '1'}
+              step={mode === 'buy' ? '0.0001' : '1'}
               disabled={loading}
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <span className="text-gray-300 font-medium">
-                {mode === 'buy' ? 'SOL' : currentToken.symbol}
-              </span>
-              {mode === 'buy' ? (
-                <div className="w-8 h-8 rounded-full overflow-hidden">
-                  <Image
-                    src="/solana-icon.png"
-                    alt="SOL"
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
-                </div>
-              ) : (
-                <div className="w-8 h-8 rounded-full overflow-hidden">
-                  <Image
-                    src={currentToken.image || '/BONK-LOGO.svg'}
-                    alt={currentToken.symbol}
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
-                </div>
-              )}
+              <span className="text-gray-300 font-medium">{mode === 'buy' ? 'SOL' : currentToken.symbol}</span>
+              <div className="w-8 h-8 rounded-full overflow-hidden">
+                <Image
+                  src={mode === 'buy' ? '/solana-icon.png' : (currentToken.image || '/BONK-LOGO.svg')}
+                  alt={mode === 'buy' ? 'SOL' : currentToken.symbol}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
             </div>
           </div>
 
-          {/* ============================================================ */}
-          {/* PERCENTAGE BUTTONS - SAME AS TRADING PANEL */}
-          {/* ============================================================ */}
+          {/* PERCENTAGE BUTTONS */}
           <div className="flex gap-2">
-            <button
-              onClick={() => setAmount('')}
-              className="px-4 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm text-gray-400 transition-colors"
-              disabled={loading}
-            >
+            <button onClick={() => setAmount('')} className="px-4 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm text-gray-400 transition-colors" disabled={loading}>
               Reset
             </button>
-
-            {mode === 'buy' ? (
-              // ⭐ PERCENTAGE buttons for buy (same as TradingPanel)
-              <>
-                {[25, 50, 75, 100].map((percent) => (
-                  <button
-                    key={percent}
-                    onClick={() => handlePercentage(percent)}
-                    className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                    disabled={loading || progressData.isGraduationLocked}
-                  >
-                    {percent}%
-                  </button>
-                ))}
-              </>
-            ) : (
-              // ⭐ PERCENTAGE buttons for sell (same as TradingPanel)
-              <>
-                {[25, 50, 75, 100].map((percent) => (
-                  <button
-                    key={percent}
-                    onClick={() => handlePercentage(percent)}
-                    className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                    disabled={loading}
-                  >
-                    {percent}%
-                  </button>
-                ))}
-              </>
-            )}
+            {[25, 50, 75, 100].map((percent) => (
+              <button
+                key={percent}
+                onClick={() => handlePercentage(percent)}
+                className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
+                disabled={loading || (mode === 'buy' && progressData.isGraduationLocked)}
+              >
+                {percent}%
+              </button>
+            ))}
           </div>
 
           {/* Submit button */}
           <button
             onClick={mode === 'buy' ? handleBuy : handleSell}
             disabled={loading || !amount || parseFloat(amount) <= 0}
-            className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy'
-              ? 'bg-green-500 hover:bg-green-600 text-black'
-              : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
+            className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy' ? 'bg-green-500 hover:bg-green-600 text-black' : 'bg-red-500 hover:bg-red-600 text-white'}`}
           >
-            {loading
-              ? 'Processing...'
-              : mode === 'buy'
-                ? `Buy ${currentToken.symbol}`
-                : `Sell ${currentToken.symbol}`
-            }
+            {loading ? 'Processing...' : mode === 'buy' ? `Buy ${currentToken.symbol}` : `Sell ${currentToken.symbol}`}
           </button>
 
-          {/* Connect wallet message */}
-          {!publicKey && (
-            <p className="text-center text-sm text-yellow-500">
-              Connect wallet to trade
-            </p>
-          )}
+          {!publicKey && <p className="text-center text-sm text-yellow-500">Connect wallet to trade</p>}
         </div>
 
-        {/* Bottom safe area for mobile nav */}
         <div className="h-20" />
       </div>
-
     </>
   );
 }

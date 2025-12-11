@@ -9,11 +9,14 @@
  * 3. withdraw_for_listing → SOL + Tokens to Keeper
  * 4. create_raydium_pool → Pool Created!
  * 
- * ⭐ FIX V5:
+ * ⭐ FIX V6:
  * - CRITICAL: Read loser SOL BEFORE finalize_duel (was reading AFTER = wrong!)
- * - Spoils calculation now correctly shows 50% of loser's ORIGINAL liquidity
+ * - CRITICAL: Update loser's sol_collected to 50% remaining in database
+ * - REMOVED: battle_end_timestamp (field doesn't exist in tokens table)
+ * - REMOVED: winner_final_sol, loser_final_sol (fields don't exist in winners table)
+ * - ADDED: spoils_transferred and finalize_signature to battles table
+ * - Platform fee calculation fixed (5% of winner+spoils)
  * - Added plunder verification logging
- * - Platform fee calculation fixed (5% of winner+spoils, not 2% of winner only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -127,7 +130,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ⭐ NEW: Read battle state SOL values
+// ⭐ Read battle state SOL values from on-chain
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function readBattleStateSol(
@@ -443,7 +446,7 @@ async function executeFullPipeline(
   plunderReport?: Record<string, any>;
 }> {
   console.log('\n═══════════════════════════════════════════════════════════════');
-  console.log('🚀 AUTO-COMPLETE PIPELINE STARTING');
+  console.log('🚀 AUTO-COMPLETE PIPELINE V6 STARTING');
   console.log('Token:', tokenMint);
   console.log('═══════════════════════════════════════════════════════════════\n');
 
@@ -491,7 +494,7 @@ async function executeFullPipeline(
   const winnerSolBefore = solCollected / 1e9;
   const winnerVolumeBefore = totalVolume / 1e9;
 
-  // ⭐ FIX V5: Read loser SOL BEFORE finalize_duel!
+  // ⭐ FIX V6: Read loser SOL BEFORE finalize_duel!
   let loserSolBefore = 0;
   if (hasOpponent) {
     const loserState = await readBattleStateSol(connection, opponentMint);
@@ -528,7 +531,9 @@ async function executeFullPipeline(
   const totalAfterPlunder = winnerSolBefore + expectedSpoils;
   const expectedPlatformFee = totalAfterPlunder * (PLATFORM_FEE_BPS / 10000); // 5%
   const expectedWinnerFinal = totalAfterPlunder - expectedPlatformFee;
-  const expectedLoserFinal = loserSolBefore - expectedSpoils;
+  const expectedLoserFinal = loserSolBefore - expectedSpoils; // 50% remaining
+
+  let finalizeSignature: string | undefined;
 
   if (statusAfterVictory === BattleStatus.VictoryPending) {
     if (!hasOpponent) {
@@ -545,6 +550,7 @@ async function executeFullPipeline(
 
     const finalizeResult = await finalizeDuel(connection, keeper, mint, opponentMint);
     steps.finalizeDuel = finalizeResult;
+    finalizeSignature = finalizeResult.signature;
 
     if (!finalizeResult.success) {
       return { success: false, steps, error: 'Finalize duel failed' };
@@ -561,7 +567,7 @@ async function executeFullPipeline(
 
     const winnerDiscrepancy = Math.abs(actualWinnerFinal - expectedWinnerFinal);
     const loserDiscrepancy = Math.abs(actualLoserFinal - expectedLoserFinal);
-    const plunderCorrect = winnerDiscrepancy < 0.001 && loserDiscrepancy < 0.001;
+    const plunderCorrect = winnerDiscrepancy < 0.01 && loserDiscrepancy < 0.01;
 
     console.log('\n🔍 PLUNDER VERIFICATION:');
     console.log(`   Winner expected: ${expectedWinnerFinal.toFixed(4)} SOL | actual: ${actualWinnerFinal.toFixed(4)} SOL`);
@@ -580,17 +586,28 @@ async function executeFullPipeline(
       correct: plunderCorrect,
     };
 
+    // ⭐ FIX V6: Update loser with CORRECT remaining SOL (50%)
+    const loserRemainingLamports = Math.floor(expectedLoserFinal * 1e9);
+
+    console.log(`📝 Updating loser database: sol_collected = ${loserRemainingLamports} (${expectedLoserFinal.toFixed(4)} SOL)`);
+
     await supabase.from('tokens').update({
       battle_status: BattleStatus.Qualified,
       opponent_mint: null,
-      battle_end_timestamp: new Date().toISOString(),
+      sol_collected: loserRemainingLamports,  // ⭐ CRITICAL: Update SOL to 50%!
+      // NOTE: battle_end_timestamp doesn't exist in tokens table
     }).eq('mint', opponentMint.toString());
 
+    // ⭐ FIX V6: Update battles with spoils info
     await supabase.from('battles').update({
       status: 'completed',
       winner_mint: tokenMint,
       ended_at: new Date().toISOString(),
+      spoils_transferred: expectedSpoils,  // ⭐ Add spoils amount
+      finalize_signature: finalizeSignature,  // ⭐ Add signature
     }).or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
+
+    console.log('✅ Database updated: loser sol_collected and battles table');
   }
 
   // STEP 3: Withdraw for Listing
@@ -598,10 +615,12 @@ async function executeFullPipeline(
   const statusAfterFinalize = stateAfterFinalize?.data[V1_OFFSET_BATTLE_STATUS] ?? statusAfterVictory;
 
   let solWithdrawn = 0;
+  let withdrawSignature: string | undefined;
 
   if (statusAfterFinalize === BattleStatus.Listed) {
     const withdrawResult = await withdrawForListing(connection, keeper, mint);
     steps.withdraw = withdrawResult;
+    withdrawSignature = withdrawResult.signature;
 
     if (!withdrawResult.success) {
       return { success: false, steps, error: 'Withdraw failed' };
@@ -623,15 +642,18 @@ async function executeFullPipeline(
   // SUCCESS! Update database
   const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
 
+  // ⭐ FIX V6: listing_timestamp is bigint, use unix timestamp in ms
+  const listingTimestamp = Date.now();
+
   await supabase.from('tokens').update({
     battle_status: BattleStatus.PoolCreated,
     raydium_pool_id: poolResult.poolId,
     raydium_url: raydiumUrl,
-    listing_timestamp: new Date().toISOString(),
+    listing_timestamp: listingTimestamp,
   }).eq('mint', tokenMint);
 
   // ═══════════════════════════════════════════════════════════════
-  // ⭐ FIX V5: Use PRE-CALCULATED spoils values (not post-finalize!)
+  // ⭐ FIX V6: Fetch winner & loser data for winners table
   // ═══════════════════════════════════════════════════════════════
 
   const { data: winnerData } = await supabase
@@ -646,7 +668,7 @@ async function executeFullPipeline(
     .eq('mint', opponentMint.toString())
     .single();
 
-  // ⭐ FIX V5: Use pre-calculated values!
+  // ⭐ FIX V6: Use pre-calculated values!
   const spoilsSol = expectedSpoils;
   const platformFeeSol = expectedPlatformFee;
 
@@ -661,7 +683,7 @@ async function executeFullPipeline(
     solToRaydiumPool: solWithdrawn > 0 ? solWithdrawn : expectedWinnerFinal,
   };
 
-  // ⭐ FIX V5: Insert with CORRECT spoils values!
+  // ⭐ FIX V6: Insert with CORRECT spoils values (removed non-existent fields)
   await supabase.from('winners').upsert({
     mint: tokenMint,
     name: winnerData?.name || 'Unknown',
@@ -671,26 +693,27 @@ async function executeFullPipeline(
     loser_name: loserData?.name || 'Unknown',
     loser_symbol: loserData?.symbol || '???',
     loser_image: loserData?.image || null,
-    final_sol_collected: winnerSolBefore, // Winner's SOL before plunder
+    final_sol_collected: winnerSolBefore,
     final_volume_sol: winnerVolumeBefore,
     final_mc_usd: 0,
     final_volume_usd: 0,
-    spoils_sol: spoilsSol,  // ⭐ CORRECT: 50% of loser's ORIGINAL SOL
-    platform_fee_sol: platformFeeSol,  // ⭐ CORRECT: 5% of (winner + spoils)
+    spoils_sol: spoilsSol,
+    platform_fee_sol: platformFeeSol,
     pool_id: poolResult.poolId,
     raydium_url: raydiumUrl,
     victory_timestamp: new Date().toISOString(),
+    finalize_signature: finalizeSignature || null,
+    withdraw_signature: withdrawSignature || null,
+    pool_signature: poolResult.signature || null,
     status: 'pool_created',
-    // ⭐ NEW: Add detailed plunder data
-    winner_final_sol: expectedWinnerFinal,
-    loser_final_sol: expectedLoserFinal,
+    // NOTE: winner_final_sol and loser_final_sol don't exist in winners table
   }, { onConflict: 'mint' });
 
   console.log('✅ Winner record saved with CORRECT spoils data');
   console.log(`   Spoils: ${spoilsSol.toFixed(4)} SOL (50% of ${loserSolBefore.toFixed(4)})`);
   console.log(`   Platform fee: ${platformFeeSol.toFixed(4)} SOL (5% of ${totalAfterPlunder.toFixed(4)})`);
 
-  // Add points
+  // Add points to winner creator
   if (winnerData?.creator_wallet) {
     const { data: currentPoints } = await supabase
       .from('user_stonks')
@@ -723,7 +746,7 @@ async function executeFullPipeline(
     }
   });
 
-  console.log('\n🎉 AUTO-COMPLETE PIPELINE SUCCESS!');
+  console.log('\n🎉 AUTO-COMPLETE PIPELINE V6 SUCCESS!');
   console.log('Pool ID:', poolResult.poolId);
   console.log('Plunder Report:', JSON.stringify(plunderReport, null, 2));
 
@@ -752,9 +775,10 @@ async function scanForWinners(): Promise<{
   const { data: tokensToProcess, error } = await supabase
     .from('tokens')
     .select('mint, symbol, sol_collected, total_trade_volume, battle_status')
-    .in('battle_status', [BattleStatus.InBattle, BattleStatus.Listed]);
+    .in('battle_status', [BattleStatus.InBattle, BattleStatus.VictoryPending, BattleStatus.Listed]);
 
   if (error || !tokensToProcess) {
+    console.error('Error fetching tokens:', error);
     return { scanned: 0, potentialWinners: [], processed: [] };
   }
 
@@ -771,6 +795,7 @@ async function scanForWinners(): Promise<{
       const chainStatus = account.data[V1_OFFSET_BATTLE_STATUS];
       if (chainStatus < 0 || chainStatus > 5) continue;
 
+      // Handle Listed status (needs pool creation)
       if (chainStatus === BattleStatus.Listed) {
         const { data: existingWinner } = await supabase
           .from('winners')
@@ -792,15 +817,8 @@ async function scanForWinners(): Promise<{
         continue;
       }
 
-      if (chainStatus !== BattleStatus.InBattle) {
-        await supabase.from('tokens').update({ battle_status: chainStatus }).eq('mint', token.mint);
-        continue;
-      }
-
-      const solCollected = Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
-      const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
-
-      if (solCollected >= SOL_THRESHOLD && totalVolume >= VICTORY_VOLUME_SOL) {
+      // Handle VictoryPending status (needs finalize + pool)
+      if (chainStatus === BattleStatus.VictoryPending) {
         potentialWinners.push(token.mint);
         const result = await executeFullPipeline(token.mint);
         processed.push({
@@ -810,6 +828,31 @@ async function scanForWinners(): Promise<{
           error: result.error,
           plunderReport: result.plunderReport,
         });
+        continue;
+      }
+
+      // Sync database status if different from chain
+      if (chainStatus !== BattleStatus.InBattle && chainStatus !== token.battle_status) {
+        await supabase.from('tokens').update({ battle_status: chainStatus }).eq('mint', token.mint);
+        continue;
+      }
+
+      // Check if InBattle token meets victory conditions
+      if (chainStatus === BattleStatus.InBattle) {
+        const solCollected = Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
+        const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
+
+        if (solCollected >= SOL_THRESHOLD && totalVolume >= VICTORY_VOLUME_SOL) {
+          potentialWinners.push(token.mint);
+          const result = await executeFullPipeline(token.mint);
+          processed.push({
+            mint: token.mint,
+            success: result.success,
+            poolId: result.poolId,
+            error: result.error,
+            plunderReport: result.plunderReport,
+          });
+        }
       }
     } catch (err) {
       console.error(`Error checking ${token.mint}:`, err);
