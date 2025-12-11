@@ -420,7 +420,7 @@ export function FOMOTicker() {
         <div className="flex justify-center lg:justify-start items-center">
           <Link
             href={`/token/${currentEvent.mint}`}
-            className={`ticker-content flex items-center gap-1.5 lg:gap-1 px-2 lg:px-1.5 text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ${shake ? 'ticker-shake' : ''} ${isSpecialEvent ? 'py-1.5 lg:py-1 text-lg lg:text-base' : 'py-0.5 lg:py-0.5 text-base lg:text-sm'}`}
+            className={`ticker-content flex items-center gap-1.5 lg:gap-1 px-2 lg:px-1.5 text-black font-normal hover:opacity-90 transition-opacity cursor-pointer ${shake ? 'ticker-shake' : ''} ${isSpecialEvent ? 'py-1 lg:py-0.5 text-base lg:text-sm' : 'py-0.5 lg:py-0.5 text-base lg:text-sm'}`}
             style={{ backgroundColor: color, borderRadius: 0 }}
           >
             {currentEvent.type === 'won' ? (
@@ -429,12 +429,12 @@ export function FOMOTicker() {
                   🏆 WINNER:
                 </span>
                 {isValidImageUrl(currentEvent.tokenImage) && (
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-yellow-600">
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-yellow-600">
                     <Image
                       src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
-                      width={32}
-                      height={32}
+                      width={24}
+                      height={24}
                       className="w-full h-full object-cover"
                       unoptimized
                     />
@@ -448,12 +448,12 @@ export function FOMOTicker() {
                   💀 DEFEATED:
                 </span>
                 {isValidImageUrl(currentEvent.tokenImage) && (
-                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border-2 border-red-600 grayscale opacity-80">
+                  <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-red-600 grayscale opacity-80">
                     <Image
                       src={currentEvent.tokenImage!}
                       alt={currentEvent.tokenSymbol}
-                      width={32}
-                      height={32}
+                      width={24}
+                      height={24}
                       className="w-full h-full object-cover"
                       unoptimized
                     />

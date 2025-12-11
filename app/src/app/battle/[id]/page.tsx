@@ -60,6 +60,9 @@ export default function BattleDetailPage() {
   // Currently selected token for trading
   const [selectedToken, setSelectedToken] = useState<'A' | 'B'>('A');
 
+  // Tab state for Comments/Trade section
+  const [activeTab, setActiveTab] = useState<'comments' | 'trade'>('comments');
+
   // ═══════════════════════════════════════════════════════════════
   // VICTORY STATE MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
@@ -389,19 +392,39 @@ export default function BattleDetailPage() {
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
         <div className="max-w-[1600px] mx-auto p-4 lg:p-6">
 
-          {/* Back Button + Battle Title */}
-          <div className="flex items-center gap-4 mb-6">
+          {/* Back Button + Battle Title - Centered */}
+          <div className="flex items-center justify-center gap-4 mb-6 relative">
             <button
               onClick={() => router.back()}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+              className="absolute left-0 p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
             >
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold">
-              {stateA.symbol} vs {stateB?.symbol || '???'} Battle
-            </h1>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
+                <Image
+                  src={getTokenImage(stateA)}
+                  alt={stateA.symbol || 'Token A'}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+              <span className="text-white font-bold text-sm">VS</span>
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-gradient-to-br from-pink-500 to-red-500">
+                <Image
+                  src={stateB ? getTokenImage(stateB) : '/placeholder-token.png'}
+                  alt={stateB?.symbol || 'Token B'}
+                  width={28}
+                  height={28}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+            </div>
             {/* Live indicator */}
             {stateA.battleStatus === BattleStatus.InBattle && (
               <span className="flex items-center gap-1 text-sm bg-red-500/20 text-red-400 px-2 py-1 rounded-full">
@@ -434,14 +457,9 @@ export default function BattleDetailPage() {
                 </div>
               </div>
 
-              {/* Score */}
+              {/* SOL Values Only */}
               <div className="text-center">
-                <div className="text-[10px] text-gray-400 uppercase">objectives</div>
-                <div className="text-3xl font-black text-white mb-1">
-                  {scoreA} - {scoreB}
-                </div>
-                <div className="text-xs text-gray-400 uppercase">SOL Collected</div>
-                <div className="text-lg font-bold text-yellow-400">
+                <div className="text-xl font-bold text-yellow-400">
                   {progressA.solCollected.toFixed(2)} - {progressB.solCollected.toFixed(2)}
                 </div>
               </div>
@@ -470,6 +488,33 @@ export default function BattleDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Tekken Style Progress Bar */}
+            <div className="mt-4">
+              <div className="h-6 bg-[#2a3544] rounded-full overflow-hidden flex relative">
+                {/* Blue side (Token A) */}
+                <div
+                  className="h-full bg-gradient-to-r from-[#4DB5FF] to-[#2196F3] transition-all duration-500"
+                  style={{ width: `${((progressA.sol + progressA.vol) / 2)}%` }}
+                />
+                {/* Gap in the middle */}
+                <div className="flex-1 bg-[#2a3544]" />
+                {/* Pink side (Token B) */}
+                <div
+                  className="h-full bg-gradient-to-l from-[#FF5A8E] to-[#E91E63] transition-all duration-500"
+                  style={{ width: `${stateB ? ((progressB.sol + progressB.vol) / 2) : 0}%` }}
+                />
+                {/* VS in center */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-white font-black text-xs bg-black/50 px-2 py-0.5 rounded">VS</span>
+                </div>
+              </div>
+              {/* Progress percentages */}
+              <div className="flex justify-between mt-2 text-sm">
+                <span className="text-[#4DB5FF] font-bold">{((progressA.sol + progressA.vol) / 2).toFixed(1)}%</span>
+                <span className="text-[#FF5A8E] font-bold">{stateB ? ((progressB.sol + progressB.vol) / 2).toFixed(1) : 0}%</span>
+              </div>
+            </div>
           </div>
 
           {/* Token Toggle */}
@@ -478,7 +523,7 @@ export default function BattleDetailPage() {
               <button
                 onClick={() => setSelectedToken('A')}
                 className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${selectedToken === 'A'
-                    ? 'bg-orange-500 text-white'
+                    ? 'bg-[#4DB5FF] text-white border-2 border-orange-500'
                     : 'text-gray-400 hover:text-white'
                   }`}
               >
@@ -488,9 +533,10 @@ export default function BattleDetailPage() {
                 <button
                   onClick={() => setSelectedToken('B')}
                   className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${selectedToken === 'B'
-                      ? 'bg-orange-500 text-white'
+                      ? 'text-white border-2 border-orange-500'
                       : 'text-gray-400 hover:text-white'
                     }`}
+                  style={selectedToken === 'B' ? { backgroundColor: '#FF5A8E' } : {}}
                 >
                   {stateB.symbol}
                 </button>
@@ -504,23 +550,22 @@ export default function BattleDetailPage() {
             {/* LEFT COLUMN - Token Details */}
             <div className="lg:col-span-8 space-y-6">
 
-              {/* Token Info Card */}
+              {/* Token Info Card - Photo position matches button position */}
               <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
-                <div className="flex items-start gap-5 mb-6">
-                  <div className="w-24 h-24 rounded-xl overflow-hidden bg-[#2a3544] flex-shrink-0">
+                <div className={`flex items-start justify-between gap-5 mb-6 ${selectedToken === 'A' ? '' : 'flex-row-reverse'}`}>
+                  <div className="w-28 h-28 rounded-xl overflow-hidden bg-[#2a3544] flex-shrink-0">
                     <Image
                       src={getTokenImage(currentState)}
                       alt={currentState?.symbol || 'Token'}
-                      width={96}
-                      height={96}
+                      width={112}
+                      height={112}
                       className="w-full h-full object-cover"
                       unoptimized
                     />
                   </div>
-                  <div className="flex-1">
-                    <h2 className="text-2xl font-bold mb-1">{currentState?.symbol}</h2>
-                    <div className="text-gray-400 mb-3">{currentState?.name}</div>
-                    <div className="flex items-center gap-2 text-xs">
+                  <div className={`flex-1 ${selectedToken === 'A' ? '' : 'text-right'}`}>
+                    <h2 className="text-2xl font-bold mb-3">${currentState?.symbol}</h2>
+                    <div className={`flex items-center gap-2 text-xs ${selectedToken === 'A' ? '' : 'justify-end'}`}>
                       <span className="text-gray-500">CA:</span>
                       <button
                         onClick={() => navigator.clipboard.writeText(currentMint?.toString() || '')}
@@ -538,22 +583,17 @@ export default function BattleDetailPage() {
 
                 {/* Progress Bars */}
                 <div className="bg-white/5 rounded-xl p-4 space-y-5">
-                  {/* SOL Progress */}
+                  {/* Market Cap */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-lg font-bold ${currentProgress.sol >= 100 ? 'text-yellow-400' : 'text-gray-400'}`}>
-                          {currentProgress.sol >= 100 ? '✅' : '⬜'}
-                        </span>
-                        <span className="font-semibold">SOL Progress</span>
-                      </div>
-                      <span className={`font-bold ${currentProgress.sol >= 100 ? 'text-yellow-400' : 'text-green-400'}`}>
+                      <span className="font-semibold">Market Cap</span>
+                      <span className="font-bold text-white">
                         {currentProgress.sol.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-400 mb-2">
-                      <span>Current: {currentProgress.solCollected.toFixed(2)} SOL</span>
-                      <span>Target: {CURRENT_TIER.TARGET_SOL} SOL</span>
+                    <div className="flex justify-between text-xs mb-2">
+                      <span className="text-gray-400">{currentProgress.solCollected.toFixed(2)} SOL</span>
+                      <span className="text-yellow-400">🏆 Target: {CURRENT_TIER.TARGET_SOL} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
@@ -566,22 +606,17 @@ export default function BattleDetailPage() {
                     </div>
                   </div>
 
-                  {/* Volume Progress */}
+                  {/* Volume */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-lg font-bold ${currentProgress.vol >= 100 ? 'text-yellow-400' : 'text-gray-400'}`}>
-                          {currentProgress.vol >= 100 ? '✅' : '⬜'}
-                        </span>
-                        <span className="font-semibold">Volume Progress</span>
-                      </div>
-                      <span className={`font-bold ${currentProgress.vol >= 100 ? 'text-yellow-400' : 'text-orange-400'}`}>
+                      <span className="font-semibold">Volume</span>
+                      <span className="font-bold text-white">
                         {currentProgress.vol.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-400 mb-2">
-                      <span>Current: {currentProgress.volumeSol.toFixed(2)} SOL</span>
-                      <span>Target: {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL</span>
+                    <div className="flex justify-between text-xs mb-2">
+                      <span className="text-gray-400">{currentProgress.volumeSol.toFixed(2)} SOL</span>
+                      <span className="text-yellow-400">🏆 Target: {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
@@ -608,35 +643,80 @@ export default function BattleDetailPage() {
                 }} />
               )}
 
-              {/* Battle Info */}
-              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
-                <h3 className="font-bold mb-4 flex items-center gap-2">
-                  ⚔️ Battle Info
-                </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-gray-400 mb-1">Battle Status</div>
-                    <div className="font-semibold text-green-400">
-                      {stateA.battleStatus === BattleStatus.InBattle ? '🔴 LIVE' : 'Pending'}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 mb-1">Victory Condition</div>
-                    <div className="font-semibold">
-                      SOL ≥ {CURRENT_TIER.TARGET_SOL} + Vol ≥ {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 mb-1">{stateA.symbol} Progress</div>
-                    <div className="font-semibold">
-                      {((progressA.sol + progressA.vol) / 2).toFixed(1)}% avg
-                    </div>
-                  </div>
-                  {stateB && (
-                    <div>
-                      <div className="text-gray-400 mb-1">{stateB.symbol} Progress</div>
-                      <div className="font-semibold">
-                        {((progressB.sol + progressB.vol) / 2).toFixed(1)}% avg
+              {/* Comments/Trade Tabs Section */}
+              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl overflow-hidden">
+                {/* Tabs */}
+                <div className="flex border-b border-[#2a3544]">
+                  <button
+                    onClick={() => setActiveTab('comments')}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                      activeTab === 'comments'
+                        ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    💬 Comments
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('trade')}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
+                      activeTab === 'trade'
+                        ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    📊 Trade
+                  </button>
+                </div>
+
+                {/* Tab Content */}
+                <div className="p-4">
+                  {activeTab === 'comments' ? (
+                    <>
+                      {/* Add Comment */}
+                      <div className="flex gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+                          ?
+                        </div>
+                        <div className="flex-1">
+                          <textarea
+                            placeholder="Add a comment..."
+                            className="w-full bg-[#2a3544] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-orange-500/50"
+                            rows={2}
+                          />
+                          <div className="flex justify-end mt-2">
+                            <button className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-black font-bold text-sm rounded-lg transition-colors">
+                              Post
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comments List */}
+                      <div className="space-y-4">
+                        <div className="text-center text-gray-500 text-sm py-4">
+                          No comments yet. Be the first to comment!
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* Trade Tab Content */
+                    <div className="space-y-4">
+                      <div className="text-center py-6">
+                        <div className="text-4xl mb-3">📈</div>
+                        <p className="text-gray-400 text-sm mb-4">Recent trades for {currentState?.symbol}</p>
+                      </div>
+
+                      {/* Trade History Placeholder */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center text-xs text-gray-500 px-2">
+                          <span>Type</span>
+                          <span>Amount</span>
+                          <span>Time</span>
+                        </div>
+                        <div className="text-center text-gray-500 text-sm py-4">
+                          No trades yet
+                        </div>
                       </div>
                     </div>
                   )}
@@ -668,36 +748,77 @@ export default function BattleDetailPage() {
               )}
               </div>
 
-              {/* Quick Stats */}
+              {/* Battle Info - Tekken Style */}
               <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
-                <h3 className="font-bold mb-4">⚡ Quick Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">{stateA.symbol} SOL</span>
-                    <span className="font-semibold">{progressA.solCollected.toFixed(2)} SOL</span>
+                <h3 className="font-bold mb-4 flex items-center gap-2">
+                  ⚔️ Battle Info
+                </h3>
+
+                {/* Tekken Style Progress Bar */}
+                <div className="relative">
+                  {/* Token Photos */}
+                  <div className="flex justify-between mb-2">
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-[#4DB5FF] bg-[#2a3544]">
+                        <Image
+                          src={getTokenImage(stateA)}
+                          alt={stateA.symbol || 'Token A'}
+                          width={48}
+                          height={48}
+                          className="w-full h-full object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <span className="text-xs text-[#4DB5FF] font-bold mt-1">{stateA.symbol}</span>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-[#FF5A8E] bg-[#2a3544]">
+                        {stateB ? (
+                          <Image
+                            src={getTokenImage(stateB)}
+                            alt={stateB.symbol || 'Token B'}
+                            width={48}
+                            height={48}
+                            className="w-full h-full object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xl">❓</div>
+                        )}
+                      </div>
+                      <span className="text-xs text-[#FF5A8E] font-bold mt-1">{stateB?.symbol || '???'}</span>
+                    </div>
                   </div>
-                  {stateB && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">{stateB.symbol} SOL</span>
-                      <span className="font-semibold">{progressB.solCollected.toFixed(2)} SOL</span>
-                    </div>
-                  )}
-                  <div className="border-t border-gray-800 pt-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">{stateA.symbol} Vol</span>
-                      <span className="font-semibold">{progressA.volumeSol.toFixed(2)} SOL</span>
+
+                  {/* Progress Bar */}
+                  <div className="h-6 bg-[#2a3544] rounded-full overflow-hidden flex relative">
+                    {/* Blue side (Token A) */}
+                    <div
+                      className="h-full bg-gradient-to-r from-[#4DB5FF] to-[#2196F3] transition-all duration-500"
+                      style={{ width: `${((progressA.sol + progressA.vol) / 2)}%` }}
+                    />
+                    {/* Gap in the middle */}
+                    <div className="flex-1 bg-[#2a3544]" />
+                    {/* Pink side (Token B) */}
+                    <div
+                      className="h-full bg-gradient-to-l from-[#FF5A8E] to-[#E91E63] transition-all duration-500"
+                      style={{ width: `${stateB ? ((progressB.sol + progressB.vol) / 2) : 0}%` }}
+                    />
+                    {/* VS in center */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white font-black text-xs bg-black/50 px-2 py-0.5 rounded">VS</span>
                     </div>
                   </div>
-                  {stateB && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">{stateB.symbol} Vol</span>
-                      <span className="font-semibold">{progressB.volumeSol.toFixed(2)} SOL</span>
-                    </div>
-                  )}
+
+                  {/* Progress percentages */}
+                  <div className="flex justify-between mt-2 text-sm">
+                    <span className="text-[#4DB5FF] font-bold">{((progressA.sol + progressA.vol) / 2).toFixed(1)}%</span>
+                    <span className="text-[#FF5A8E] font-bold">{stateB ? ((progressB.sol + progressB.vol) / 2).toFixed(1) : 0}%</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Winner Prediction */}
+              {/* Leading */}
               <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-4">
                 <h3 className="font-bold mb-3">🏆 Leading</h3>
                 {!stateB ? (
@@ -760,6 +881,55 @@ export default function BattleDetailPage() {
                     ⚖️ Tied! Keep trading to break the tie.
                   </div>
                 )}
+              </div>
+
+              {/* Quick Stats */}
+              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4">
+                <h3 className="font-bold mb-4">⚡ Quick Stats</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full overflow-hidden border border-[#4DB5FF]">
+                        <Image src={getTokenImage(stateA)} alt={stateA.symbol || ''} width={24} height={24} className="w-full h-full object-cover" unoptimized />
+                      </div>
+                      <span className="text-gray-400">{stateA.symbol} SOL</span>
+                    </div>
+                    <span className="font-semibold">{progressA.solCollected.toFixed(2)} SOL</span>
+                  </div>
+                  {stateB && (
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full overflow-hidden border border-[#FF5A8E]">
+                          <Image src={getTokenImage(stateB)} alt={stateB.symbol || ''} width={24} height={24} className="w-full h-full object-cover" unoptimized />
+                        </div>
+                        <span className="text-gray-400">{stateB.symbol} SOL</span>
+                      </div>
+                      <span className="font-semibold">{progressB.solCollected.toFixed(2)} SOL</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-800 pt-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full overflow-hidden border border-[#4DB5FF]">
+                          <Image src={getTokenImage(stateA)} alt={stateA.symbol || ''} width={24} height={24} className="w-full h-full object-cover" unoptimized />
+                        </div>
+                        <span className="text-gray-400">{stateA.symbol} Vol</span>
+                      </div>
+                      <span className="font-semibold">{progressA.volumeSol.toFixed(2)} SOL</span>
+                    </div>
+                  </div>
+                  {stateB && (
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full overflow-hidden border border-[#FF5A8E]">
+                          <Image src={getTokenImage(stateB)} alt={stateB.symbol || ''} width={24} height={24} className="w-full h-full object-cover" unoptimized />
+                        </div>
+                        <span className="text-gray-400">{stateB.symbol} Vol</span>
+                      </div>
+                      <span className="font-semibold">{progressB.volumeSol.toFixed(2)} SOL</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

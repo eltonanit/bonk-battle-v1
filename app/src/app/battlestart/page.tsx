@@ -126,7 +126,9 @@ function OnBattleItem({ token }: { token: UserToken }) {
 
   return (
     <div className="flex items-center justify-between p-4 rounded-xl border border-white/10">
-      <Link href={`/token/${token.mint}`} className="flex items-center gap-3 hover:opacity-80 transition">
+      {/* Token VS Opponent */}
+      <div className="flex items-center gap-3">
+        {/* Your Token */}
         <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-orange-500 to-red-600">
           {token.image ? (
             <Image src={token.image} alt={token.symbol || 'Token'} width={48} height={48} className="object-cover w-full h-full" unoptimized />
@@ -136,23 +138,23 @@ function OnBattleItem({ token }: { token: UserToken }) {
             </div>
           )}
         </div>
-        <div>
-          <span className="font-bold text-lg block">${token.symbol || 'Unknown'}</span>
-          <span className="text-xs text-white/50">{token.name || token.mint.slice(0, 8)}</span>
-        </div>
-      </Link>
 
-      <div className="flex items-center gap-2">
-        <span className="text-xl font-bold text-white/80">0</span>
-        <span className="text-white/40">-</span>
-        <span className="text-xl font-bold text-white/80">0</span>
-        {token.opponentImage && (
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600 ml-2">
-            <Image src={token.opponentImage} alt="opponent" width={32} height={32} className="object-cover w-full h-full" unoptimized />
-          </div>
-        )}
+        {/* VS */}
+        <span className="text-white font-bold text-sm">VS</span>
+
+        {/* Opponent Token - slightly smaller */}
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-cyan-500 to-blue-600">
+          {token.opponentImage ? (
+            <Image src={token.opponentImage} alt="opponent" width={40} height={40} className="object-cover w-full h-full" unoptimized />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center font-bold text-white text-sm">
+              ??
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* View Match Button */}
       <Link
         href={`/battle/${battleId}`}
         className="px-4 py-2 bg-orange-500 text-black font-bold rounded-lg text-sm hover:bg-orange-400 transition"
@@ -567,16 +569,16 @@ export default function BattleArenaPage() {
           {publicKey ? (
             <Link
               href="/create"
-              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
+              className="px-4 py-2 bg-green-500 text-black text-sm font-bold rounded-lg hover:bg-green-400 transition"
             >
-              Start New Battle
+              Create New Token
             </Link>
           ) : (
             <button
               onClick={() => setVisible(true)}
-              className="px-4 py-2 bg-orange-400 text-black text-sm font-bold rounded-lg hover:bg-orange-300 transition"
+              className="px-4 py-2 bg-green-500 text-black text-sm font-bold rounded-lg hover:bg-green-400 transition"
             >
-              Start New Battle
+              Create New Token
             </button>
           )}
         </div>
@@ -665,11 +667,19 @@ export default function BattleArenaPage() {
                 {activeTab === 'qualify' && 'No qualified tokens'}
                 {activeTab === 'new' && 'No new tokens'}
               </p>
-              <p className="text-white/30 text-sm">
+              <p className="text-white/30 text-sm mb-4">
                 {activeTab === 'on-battle' && 'Qualify your tokens to start battling!'}
                 {activeTab === 'qualify' && 'Buy tokens to help them qualify'}
                 {activeTab === 'new' && 'Create a new token to get started'}
               </p>
+              {activeTab === 'new' && (
+                <Link
+                  href="/create"
+                  className="inline-block px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
+                >
+                  Create New Token
+                </Link>
+              )}
             </div>
           ) : (
             <>
@@ -702,7 +712,7 @@ export default function BattleArenaPage() {
                       href="/create"
                       className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
                     >
-                      Create a new token
+                      Create New Token
                     </Link>
                   </div>
                 </>
@@ -717,7 +727,7 @@ export default function BattleArenaPage() {
                       href="/create"
                       className="px-4 py-2 bg-green-500 text-black font-bold rounded-lg hover:bg-green-400 transition text-sm"
                     >
-                      Create a new token
+                      Create New Token
                     </Link>
                   </div>
                 </>

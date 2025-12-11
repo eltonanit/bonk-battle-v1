@@ -6,9 +6,10 @@
  * - Fixed "Buy" button at bottom of screen
  * - Opens drawer with Buy/Sell tabs
  * - Only visible on screens < 810px
+ * - ✅ FIXED: Now matches TradingPanel behavior for percentage buttons
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PublicKey } from '@solana/web3.js';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
@@ -18,6 +19,12 @@ import { sellToken } from '@/lib/solana/sell-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 import Image from 'next/image';
+
+// ============================================================
+// 🎯 VICTORY TARGETS (must match TradingPanel)
+// ============================================================
+const TARGET_SOL = 6.0;
+const TRADING_FEE = 0.02;
 
 interface TokenState {
   symbol: string;
@@ -45,7 +52,7 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { balance, balanceFormatted } = useUserTokenBalance(mint);
+  const { balance, balanceFormatted, refetch: refetchBalance } = useUserTokenBalance(mint);
   const [solBalance, setSolBalance] = useState<number | null>(null);
 
   const [showSuccess, setShowSuccess] = useState(false);
@@ -53,6 +60,30 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
 
   const tokenSymbol = tokenState?.symbol || 'TOKEN';
   const tokenImage = tokenState?.image || '/BONK-LOGO.svg';
+
+  // ============================================================
+  // 🎯 CALCULATE MAX BUYABLE SOL (same as TradingPanel)
+  // ============================================================
+  const progressData = useMemo(() => {
+    if (!tokenState) {
+      return {
+        solRemaining: TARGET_SOL,
+        maxBuyableSol: TARGET_SOL,
+        isGraduationLocked: false,
+      };
+    }
+
+    const solCollectedSol = tokenState.solCollected / 1e9;
+    const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
+    const maxBuyableSol = solRemaining / (1 - TRADING_FEE);
+    const isGraduationLocked = solRemaining <= 0.001;
+
+    return {
+      solRemaining,
+      maxBuyableSol,
+      isGraduationLocked,
+    };
+  }, [tokenState]);
 
   // Fetch SOL balance
   useEffect(() => {
@@ -82,6 +113,25 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  // ============================================================
+  // 🎮 PERCENTAGE BUTTONS - SAME AS TRADING PANEL
+  // ============================================================
+  const handlePercentage = (percent: number) => {
+    if (mode === 'buy') {
+      if (!solBalance) return;
+      // ⭐ Same logic as TradingPanel
+      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol);
+      const value = Math.max(0, maxUsable * (percent / 100));
+      setAmount(value.toFixed(4));
+    } else {
+      // ⭐ For sell: use balanceFormatted (already divided by 1e9)
+      if (balanceFormatted === null || balanceFormatted === 0) return;
+      const value = balanceFormatted * (percent / 100);
+      // ⭐ No decimals for whole token amounts
+      setAmount(Math.floor(value).toString());
+    }
+  };
 
   // ============================================================
   // HANDLERS
@@ -122,6 +172,9 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
         tokenState?.image
       ).catch(console.error);
 
+      // ⭐ Refresh balance after buy
+      setTimeout(() => refetchBalance(), 2000);
+
       setSuccessMessage(`Bought tokens for ${solAmount} SOL`);
       setShowSuccess(true);
       setAmount('');
@@ -148,10 +201,12 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
       return;
     }
 
+    // ⭐ FIX: Convert display amount to raw amount (multiply by 1e9)
     const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
+    // ⭐ FIX: Compare raw amounts correctly
     if (balance === null || tokenAmountRaw > balance) {
-      alert('Insufficient token balance');
+      alert(`Insufficient token balance. You have ${balanceFormatted?.toLocaleString() ?? 0} ${tokenSymbol}`);
       return;
     }
 
@@ -166,7 +221,10 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
         tokenState?.image
       ).catch(console.error);
 
-      setSuccessMessage(`Sold ${tokenAmount.toFixed(2)} ${tokenSymbol}`);
+      // ⭐ Refresh balance after sell
+      setTimeout(() => refetchBalance(), 2000);
+
+      setSuccessMessage(`Sold ${tokenAmount.toLocaleString()} ${tokenSymbol}`);
       setShowSuccess(true);
       setAmount('');
       setIsOpen(false);
@@ -180,26 +238,14 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
     }
   };
 
-  const handleQuickAmount = (value: number | string) => {
-    if (value === 'reset') {
-      setAmount('');
-      return;
-    }
-
-    if (mode === 'buy') {
-      setAmount(String(value));
-    } else {
-      // For sell, value is percentage
-      if (!balanceFormatted) return;
-      const percent = Number(value);
-      const tokenAmount = balanceFormatted * (percent / 100);
-      setAmount(tokenAmount.toFixed(2));
-    }
-  };
-
   const handleSuccessClose = useCallback(() => {
     setShowSuccess(false);
   }, []);
+
+  // ⭐ Format balance for display with commas (same as TradingPanel)
+  const displayBalance = balanceFormatted !== null
+    ? Math.floor(balanceFormatted).toLocaleString()
+    : '0';
 
   // ============================================================
   // RENDER
@@ -246,9 +292,8 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
       {/* DRAWER CONTENT */}
       {/* ════════════════════════════════════════════════════════════ */}
       <div
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#12151c] rounded-t-3xl transition-transform duration-300 ease-out tablet-trading:hidden ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        }`}
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-[#12151c] rounded-t-3xl transition-transform duration-300 ease-out tablet-trading:hidden ${isOpen ? 'translate-y-0' : 'translate-y-full'
+          }`}
         style={{ maxHeight: '85vh' }}
       >
         {/* Drag handle */}
@@ -261,22 +306,20 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
           <div className="flex items-center gap-3">
             <button
               onClick={() => { setMode('buy'); setAmount(''); }}
-              className={`px-14 py-2 font-medium transition-all ${
-                mode === 'buy'
+              className={`px-14 py-2 font-medium transition-all ${mode === 'buy'
                   ? 'text-black'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
               style={mode === 'buy' ? { backgroundColor: '#1FD978' } : {}}
             >
               Buy
             </button>
             <button
               onClick={() => { setMode('sell'); setAmount(''); }}
-              className={`px-14 py-2 font-medium transition-all ${
-                mode === 'sell'
+              className={`px-14 py-2 font-medium transition-all ${mode === 'sell'
                   ? 'text-white bg-red-500'
                   : 'text-gray-400 hover:text-white'
-              }`}
+                }`}
             >
               Sell
             </button>
@@ -302,15 +345,13 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
             </button>
           </div>
 
-          {/* Balance display */}
+          {/* Balance display - FIXED to match TradingPanel */}
           <div className="flex justify-between items-center text-sm">
-            <span className="text-gray-400">
-              {mode === 'buy' ? 'balance:' : `${tokenSymbol} balance:`}
-            </span>
+            <span className="text-gray-400">Balance:</span>
             <span className="text-white font-medium">
               {mode === 'buy'
-                ? `${solBalance?.toFixed(4) ?? '0'} SOL`
-                : balanceFormatted?.toFixed(0) ?? '0'
+                ? `${solBalance?.toFixed(4) ?? '0.0000'} SOL`
+                : `${displayBalance} ${tokenSymbol}`
               }
             </span>
           </div>
@@ -356,10 +397,12 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
             </div>
           </div>
 
-          {/* Quick amount buttons */}
+          {/* ============================================================ */}
+          {/* PERCENTAGE BUTTONS - SAME AS TRADING PANEL */}
+          {/* ============================================================ */}
           <div className="flex gap-2">
             <button
-              onClick={() => handleQuickAmount('reset')}
+              onClick={() => setAmount('')}
               className="px-4 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm text-gray-400 transition-colors"
               disabled={loading}
             >
@@ -367,68 +410,32 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
             </button>
 
             {mode === 'buy' ? (
-              // SOL amounts for buy
+              // ⭐ PERCENTAGE buttons for buy (same as TradingPanel)
               <>
-                <button
-                  onClick={() => handleQuickAmount(0.1)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  0.1 SOL
-                </button>
-                <button
-                  onClick={() => handleQuickAmount(0.5)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  0.5 SOL
-                </button>
-                <button
-                  onClick={() => handleQuickAmount(1)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  1 SOL
-                </button>
-                <button
-                  onClick={() => setAmount(String(Math.max(0, (solBalance || 0) - 0.01).toFixed(4)))}
-                  className="px-4 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  Max
-                </button>
+                {[25, 50, 75, 100].map((percent) => (
+                  <button
+                    key={percent}
+                    onClick={() => handlePercentage(percent)}
+                    className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
+                    disabled={loading || progressData.isGraduationLocked}
+                  >
+                    {percent}%
+                  </button>
+                ))}
               </>
             ) : (
-              // Percentage amounts for sell
+              // ⭐ PERCENTAGE buttons for sell (same as TradingPanel)
               <>
-                <button
-                  onClick={() => handleQuickAmount(25)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  25%
-                </button>
-                <button
-                  onClick={() => handleQuickAmount(50)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  50%
-                </button>
-                <button
-                  onClick={() => handleQuickAmount(75)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  75%
-                </button>
-                <button
-                  onClick={() => handleQuickAmount(100)}
-                  className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
-                  disabled={loading}
-                >
-                  100%
-                </button>
+                {[25, 50, 75, 100].map((percent) => (
+                  <button
+                    key={percent}
+                    onClick={() => handlePercentage(percent)}
+                    className="flex-1 py-2 bg-[#2a3544] hover:bg-[#3a4554] rounded-lg text-sm font-medium transition-colors"
+                    disabled={loading}
+                  >
+                    {percent}%
+                  </button>
+                ))}
               </>
             )}
           </div>
@@ -437,11 +444,10 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
           <button
             onClick={mode === 'buy' ? handleBuy : handleSell}
             disabled={loading || !amount || parseFloat(amount) <= 0}
-            className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              mode === 'buy'
+            className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy'
                 ? 'bg-green-500 hover:bg-green-600 text-black'
                 : 'bg-red-500 hover:bg-red-600 text-white'
-            }`}
+              }`}
           >
             {loading
               ? 'Processing...'
