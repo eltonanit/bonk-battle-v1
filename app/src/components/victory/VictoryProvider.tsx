@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { VictoryPopup } from './VictoryPopup';
@@ -39,7 +39,6 @@ interface VictoryProviderProps {
   userWallet: string | null;
 }
 
-// Extend window for test mode
 declare global {
   interface Window {
     __triggerVictory?: (data: VictoryData) => void;
@@ -49,61 +48,92 @@ declare global {
 export function VictoryProvider({ children, userWallet }: VictoryProviderProps) {
   const router = useRouter();
 
-  // Popup states
+  const walletRef = useRef<string | null>(userWallet);
+  const processedVictoriesRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    walletRef.current = userWallet;
+  }, [userWallet]);
+
   const [showVictoryPopup, setShowVictoryPopup] = useState(false);
   const [showPointsPopup, setShowPointsPopup] = useState(false);
   const [victoryData, setVictoryData] = useState<VictoryData | null>(null);
-
-  // Notifications
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // ⭐ Log on mount
   useEffect(() => {
-    console.log('🏆 VictoryProvider: Mounted');
-    console.log('🏆 VictoryProvider: User wallet =', userWallet);
-  }, [userWallet]);
+    console.log('🏆 VictoryProvider: Mounted, wallet =', userWallet);
+  }, []);
 
-  // Handle victory event
-  const triggerVictory = useCallback((data: VictoryData) => {
-    console.log('🎉 VictoryProvider: triggerVictory called with:', data);
+  // ⭐ Stable triggerVictory function
+  const triggerVictory = useRef((data: VictoryData) => {
+    const currentWallet = walletRef.current;
+
+    // Debounce: ignore if same mint was processed in last 2 seconds
+    const recentKey = `${data.mint}-${currentWallet}`;
+    if (processedVictoriesRef.current.has(recentKey)) {
+      console.log('⚠️ Victory already processed recently, skipping');
+      return;
+    }
+
+    console.log('🎉 triggerVictory called:', data.symbol);
+
+    // Mark as processed for 2 seconds
+    processedVictoriesRef.current.add(recentKey);
+    setTimeout(() => {
+      processedVictoriesRef.current.delete(recentKey);
+    }, 2000);
+
     setVictoryData(data);
     setShowVictoryPopup(true);
-  }, []);
 
-  // ⭐ TEST MODE - Expose triggerVictory to window
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.__triggerVictory = triggerVictory;
-      console.log('🧪 TEST MODE: Use window.__triggerVictory({mint, symbol, name, image, poolId, loserSymbol}) to test');
+    if (currentWallet) {
+      // Award points via API only - API creates notification automatically
+      (async () => {
+        console.log('💰 Awarding points to:', currentWallet);
+
+        try {
+          const response = await fetch('/api/points/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              walletAddress: currentWallet,
+              action: 'win_battle',
+              tokenMint: data.mint,
+              tokenSymbol: data.symbol,
+              tokenImage: data.image
+            })
+          });
+
+          const result = await response.json();
+          console.log(result.success ? '✅ Points awarded:' : '❌ Points failed:', result);
+
+          // ⭐ NO MORE DIRECT INSERT - API already creates notification!
+
+        } catch (err) {
+          console.error('❌ Error:', err);
+        }
+      })();
     }
-    return () => {
-      if (typeof window !== 'undefined') {
-        delete window.__triggerVictory;
-      }
-    };
-  }, [triggerVictory]);
+  }).current;
 
-  // Close victory popup → show points popup
+  // Expose to window once
+  useEffect(() => {
+    window.__triggerVictory = triggerVictory;
+    console.log('🧪 TEST: window.__triggerVictory ready');
+    return () => { delete window.__triggerVictory; };
+  }, []);
+
   const handleVictoryClose = useCallback(() => {
-    console.log('🏆 VictoryProvider: Victory popup closed');
     setShowVictoryPopup(false);
-    setTimeout(() => {
-      setShowPointsPopup(true);
-    }, 300);
+    setTimeout(() => setShowPointsPopup(true), 300);
   }, []);
 
-  // View token from victory popup
   const handleViewToken = useCallback(() => {
-    console.log('🏆 VictoryProvider: View token clicked');
     setShowVictoryPopup(false);
-    setTimeout(() => {
-      setShowPointsPopup(true);
-    }, 300);
+    setTimeout(() => setShowPointsPopup(true), 300);
   }, []);
 
-  // Close points popup → redirect to token page
   const handlePointsClose = useCallback(() => {
-    console.log('🏆 VictoryProvider: Points popup closed');
     setShowPointsPopup(false);
     setUnreadCount(prev => prev + 1);
     if (victoryData) {
@@ -111,83 +141,53 @@ export function VictoryProvider({ children, userWallet }: VictoryProviderProps) 
     }
   }, [victoryData, router]);
 
-  // Notification helpers
-  const addNotification = useCallback(() => {
-    setUnreadCount(prev => prev + 1);
-  }, []);
+  const addNotification = useCallback(() => setUnreadCount(prev => prev + 1), []);
+  const clearNotifications = useCallback(() => setUnreadCount(0), []);
 
-  const clearNotifications = useCallback(() => {
-    setUnreadCount(0);
-  }, []);
-
-  // Subscribe to activity_feed for victory events
+  // Subscribe to victory events
   useEffect(() => {
-    if (!userWallet) {
-      console.log('🏆 VictoryProvider: No wallet connected, skipping subscription');
-      return;
-    }
+    if (!userWallet) return;
 
-    console.log('🎯 VictoryProvider: Subscribing to victory events for', userWallet);
+    console.log('🎯 Subscribing to victories for', userWallet);
 
     const channel = supabase
       .channel('victory-events')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'activity_feed',
-          filter: 'action_type=eq.victory',
-        },
-        async (payload) => {
-          console.log('🎉 Victory event received from Supabase:', payload);
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'activity_feed',
+        filter: 'action_type=eq.victory',
+      }, async (payload) => {
+        const activity = payload.new as any;
+        if (activity.wallet === userWallet) {
+          const { data: tokenData } = await supabase
+            .from('tokens')
+            .select('mint, symbol, name, image, raydium_pool_id, raydium_url')
+            .eq('mint', activity.token_mint)
+            .single();
 
-          const activity = payload.new as any;
-
-          // Check if this victory is for the current user's token
-          if (activity.wallet === userWallet) {
-            console.log('🎉 This victory is for the current user!');
-
-            // Fetch full token data
-            const { data: tokenData } = await supabase
-              .from('tokens')
-              .select('mint, symbol, name, image, raydium_pool_id, raydium_url')
-              .eq('mint', activity.token_mint)
-              .single();
-
-            if (tokenData) {
-              console.log('🎉 Token data fetched:', tokenData);
-              triggerVictory({
-                mint: tokenData.mint,
-                symbol: tokenData.symbol,
-                name: tokenData.name,
-                image: tokenData.image,
-                poolId: tokenData.raydium_pool_id || activity.metadata?.pool_id,
-                raydiumUrl: tokenData.raydium_url || activity.metadata?.raydium_url,
-                loserSymbol: activity.metadata?.loser_symbol,
-                creatorWallet: userWallet,
-              });
-            }
-          } else {
-            console.log('🎉 Victory is for another user:', activity.wallet);
+          if (tokenData) {
+            triggerVictory({
+              mint: tokenData.mint,
+              symbol: tokenData.symbol,
+              name: tokenData.name,
+              image: tokenData.image,
+              poolId: tokenData.raydium_pool_id || activity.metadata?.pool_id,
+              raydiumUrl: tokenData.raydium_url,
+              loserSymbol: activity.metadata?.loser_symbol,
+              creatorWallet: userWallet,
+            });
           }
         }
-      )
-      .subscribe((status) => {
-        console.log('🎯 VictoryProvider: Subscription status:', status);
-      });
+      })
+      .subscribe();
 
-    return () => {
-      console.log('🎯 VictoryProvider: Unsubscribing from victory events');
-      supabase.removeChannel(channel);
-    };
-  }, [userWallet, triggerVictory]);
+    return () => { supabase.removeChannel(channel); };
+  }, [userWallet]);
 
   return (
     <VictoryContext.Provider value={{ triggerVictory, addNotification, unreadCount, clearNotifications }}>
       {children}
-
-      {/* Victory Popup */}
       {victoryData && (
         <VictoryPopup
           isOpen={showVictoryPopup}
@@ -196,8 +196,6 @@ export function VictoryProvider({ children, userWallet }: VictoryProviderProps) 
           tokenData={victoryData}
         />
       )}
-
-      {/* Points Popup */}
       {victoryData && (
         <PointsPopup
           isOpen={showPointsPopup}
