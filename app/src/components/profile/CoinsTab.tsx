@@ -57,17 +57,17 @@ function formatMarketCap(mcUsd: number): string {
 function getStatusBadge(status: number): { label: string; color: string; bgColor: string } {
   switch (status) {
     case BattleStatus.Created:
-      return { label: 'NEW', color: 'text-white', bgColor: 'bg-emerald-600' };
+      return { label: 'NEW', color: 'text-white', bgColor: 'bg-emerald-600/70' };
     case BattleStatus.Qualified:
-      return { label: 'QUALIFIED', color: 'text-black', bgColor: 'bg-yellow-400' };
+      return { label: 'QUALIFIED', color: 'text-black', bgColor: 'bg-yellow-400/70' };
     case BattleStatus.InBattle:
-      return { label: 'IN BATTLE', color: 'text-white', bgColor: 'bg-orange-500' };
+      return { label: 'IN BATTLE', color: 'text-white', bgColor: 'bg-orange-500/70' };
     case BattleStatus.VictoryPending:
-      return { label: 'WINNER', color: 'text-white', bgColor: 'bg-purple-500' };
     case BattleStatus.Listed:
-      return { label: 'LISTED', color: 'text-white', bgColor: 'bg-cyan-500' };
+    case BattleStatus.PoolCreated:
+      return { label: 'WINNER', color: 'text-white', bgColor: 'bg-purple-500/70' };
     default:
-      return { label: 'UNKNOWN', color: 'text-white', bgColor: 'bg-gray-500' };
+      return { label: 'NEW', color: 'text-white', bgColor: 'bg-gray-500/70' };
   }
 }
 
@@ -208,9 +208,9 @@ export function CoinsTab() {
                 className="relative bg-[#1a1f2e] overflow-hidden group border border-[#2a3544] hover:border-[#3a4554] transition-all"
               >
                 {/* Top Bar - Market Cap */}
-                <div className="bg-emerald-500 px-2 py-1 flex items-center justify-center">
-                  <span className="text-black text-xs font-bold">
-                    {formatMarketCap(mcUsd)}
+                <div className="bg-[#1a1f2e]/90 px-2 py-1 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">
+                    MC {formatMarketCap(mcUsd)}
                   </span>
                 </div>
 

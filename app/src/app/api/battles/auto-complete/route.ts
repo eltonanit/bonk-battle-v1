@@ -9,10 +9,11 @@
  * 3. withdraw_for_listing → SOL + Tokens to Keeper
  * 4. create_raydium_pool → Pool Created!
  * 
- * ⭐ FIX V4:
- * - Fixed image_url → image (column doesn't exist!)
- * - Winners table now saves correctly with all data
- * - Added victory event to activity_feed for popup
+ * ⭐ FIX V5:
+ * - CRITICAL: Read loser SOL BEFORE finalize_duel (was reading AFTER = wrong!)
+ * - Spoils calculation now correctly shows 50% of loser's ORIGINAL liquidity
+ * - Added plunder verification logging
+ * - Platform fee calculation fixed (5% of winner+spoils, not 2% of winner only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -61,6 +62,9 @@ const supabase = createClient(
 const TARGET_SOL = 6_000_000_000; // 6 SOL in lamports
 const VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL in lamports
 const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5.97 SOL
+
+// Fee constants (must match smart contract!)
+const PLATFORM_FEE_BPS = 500; // 5%
 
 console.log(`🎯 Victory Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} SOL (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9} SOL`);
 
@@ -120,6 +124,26 @@ async function getTokenProgramForMint(connection: Connection, mint: PublicKey): 
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ NEW: Read battle state SOL values
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function readBattleStateSol(
+  connection: Connection,
+  mint: PublicKey
+): Promise<{ solCollected: number; totalVolume: number; status: number } | null> {
+  const [battleStatePDA] = getBattleStatePDA(mint);
+  const account = await connection.getAccountInfo(battleStatePDA);
+
+  if (!account) return null;
+
+  return {
+    solCollected: Number(account.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED)) / 1e9,
+    totalVolume: Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME)) / 1e9,
+    status: account.data[V1_OFFSET_BATTLE_STATUS],
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -288,7 +312,7 @@ async function withdrawForListing(
 
   try {
     const signature = await sendAndConfirmTransaction(connection, transaction, [keeper], { commitment: 'confirmed' });
-    console.log('✅ Withdrawal complete!', solInAccount.toFixed(2), 'SOL');
+    console.log('✅ Withdrawal complete!', solInAccount.toFixed(4), 'SOL');
     return { success: true, signature, solWithdrawn: solInAccount };
 
   } catch (error: any) {
@@ -350,7 +374,7 @@ async function createRaydiumPool(
       return { success: false, error: `Keeper has insufficient SOL: ${keeperSol.toFixed(2)} SOL` };
     }
 
-    console.log('SOL for pool:', actualSolAmount.toFixed(2));
+    console.log('SOL for pool:', actualSolAmount.toFixed(4));
 
     const solAmountBN = new BN(Math.floor(actualSolAmount * 1e9));
     const tokenAmountBN = new BN(tokenAmountRaw);
@@ -416,6 +440,7 @@ async function executeFullPipeline(
   poolId?: string;
   raydiumUrl?: string;
   error?: string;
+  plunderReport?: Record<string, any>;
 }> {
   console.log('\n═══════════════════════════════════════════════════════════════');
   console.log('🚀 AUTO-COMPLETE PIPELINE STARTING');
@@ -462,7 +487,19 @@ async function executeFullPipeline(
 
   console.log('Opponent:', hasOpponent ? opponentMint.toString() : 'None');
 
-  const originalSolCollected = solCollected;
+  // ⭐ STORE ORIGINAL VALUES (before any modifications!)
+  const winnerSolBefore = solCollected / 1e9;
+  const winnerVolumeBefore = totalVolume / 1e9;
+
+  // ⭐ FIX V5: Read loser SOL BEFORE finalize_duel!
+  let loserSolBefore = 0;
+  if (hasOpponent) {
+    const loserState = await readBattleStateSol(connection, opponentMint);
+    if (loserState) {
+      loserSolBefore = loserState.solCollected;
+      console.log(`📊 Loser SOL BEFORE finalize: ${loserSolBefore.toFixed(4)} SOL`);
+    }
+  }
 
   // STEP 1: Check Victory (if InBattle)
   if (currentStatus === BattleStatus.InBattle) {
@@ -486,10 +523,25 @@ async function executeFullPipeline(
   const stateAfterVictory = await connection.getAccountInfo(battleStatePDA);
   const statusAfterVictory = stateAfterVictory?.data[V1_OFFSET_BATTLE_STATUS] ?? currentStatus;
 
+  // ⭐ Calculate expected plunder values BEFORE finalize
+  const expectedSpoils = loserSolBefore / 2; // 50% of loser
+  const totalAfterPlunder = winnerSolBefore + expectedSpoils;
+  const expectedPlatformFee = totalAfterPlunder * (PLATFORM_FEE_BPS / 10000); // 5%
+  const expectedWinnerFinal = totalAfterPlunder - expectedPlatformFee;
+  const expectedLoserFinal = loserSolBefore - expectedSpoils;
+
   if (statusAfterVictory === BattleStatus.VictoryPending) {
     if (!hasOpponent) {
       return { success: false, steps, error: 'No opponent found for finalize' };
     }
+
+    console.log('\n💰 PLUNDER PREVIEW:');
+    console.log(`   Winner SOL before: ${winnerSolBefore.toFixed(4)} SOL`);
+    console.log(`   Loser SOL before:  ${loserSolBefore.toFixed(4)} SOL`);
+    console.log(`   Expected spoils:   ${expectedSpoils.toFixed(4)} SOL (50%)`);
+    console.log(`   Platform fee:      ${expectedPlatformFee.toFixed(4)} SOL (5%)`);
+    console.log(`   Winner should get: ${expectedWinnerFinal.toFixed(4)} SOL`);
+    console.log(`   Loser should keep: ${expectedLoserFinal.toFixed(4)} SOL\n`);
 
     const finalizeResult = await finalizeDuel(connection, keeper, mint, opponentMint);
     steps.finalizeDuel = finalizeResult;
@@ -497,6 +549,36 @@ async function executeFullPipeline(
     if (!finalizeResult.success) {
       return { success: false, steps, error: 'Finalize duel failed' };
     }
+
+    // ⭐ VERIFY PLUNDER AFTER finalize_duel
+    await sleep(2000);
+
+    const winnerStateAfter = await readBattleStateSol(connection, mint);
+    const loserStateAfter = await readBattleStateSol(connection, opponentMint);
+
+    const actualWinnerFinal = winnerStateAfter?.solCollected || 0;
+    const actualLoserFinal = loserStateAfter?.solCollected || 0;
+
+    const winnerDiscrepancy = Math.abs(actualWinnerFinal - expectedWinnerFinal);
+    const loserDiscrepancy = Math.abs(actualLoserFinal - expectedLoserFinal);
+    const plunderCorrect = winnerDiscrepancy < 0.001 && loserDiscrepancy < 0.001;
+
+    console.log('\n🔍 PLUNDER VERIFICATION:');
+    console.log(`   Winner expected: ${expectedWinnerFinal.toFixed(4)} SOL | actual: ${actualWinnerFinal.toFixed(4)} SOL`);
+    console.log(`   Loser expected:  ${expectedLoserFinal.toFixed(4)} SOL | actual: ${actualLoserFinal.toFixed(4)} SOL`);
+    console.log(`   ${plunderCorrect ? '✅ PLUNDER CORRECT!' : '⚠️ DISCREPANCY DETECTED!'}\n`);
+
+    steps.plunderVerification = {
+      winnerBefore: winnerSolBefore,
+      loserBefore: loserSolBefore,
+      spoils: expectedSpoils,
+      platformFee: expectedPlatformFee,
+      winnerExpected: expectedWinnerFinal,
+      loserExpected: expectedLoserFinal,
+      winnerActual: actualWinnerFinal,
+      loserActual: actualLoserFinal,
+      correct: plunderCorrect,
+    };
 
     await supabase.from('tokens').update({
       battle_status: BattleStatus.Qualified,
@@ -509,8 +591,6 @@ async function executeFullPipeline(
       winner_mint: tokenMint,
       ended_at: new Date().toISOString(),
     }).or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
-
-    await sleep(2000);
   }
 
   // STEP 3: Withdraw for Listing
@@ -532,7 +612,7 @@ async function executeFullPipeline(
   }
 
   // STEP 4: Create Raydium Pool
-  const solForPool = solWithdrawn > 0 ? solWithdrawn : (originalSolCollected / 1e9);
+  const solForPool = solWithdrawn > 0 ? solWithdrawn : expectedWinnerFinal;
   const poolResult = await createRaydiumPool(connection, keeper, mint, solForPool);
   steps.createPool = poolResult;
 
@@ -551,55 +631,64 @@ async function executeFullPipeline(
   }).eq('mint', tokenMint);
 
   // ═══════════════════════════════════════════════════════════════
-  // ⭐ FIX V4: FETCH WINNER & LOSER DATA - use 'image' not 'image_url'!
+  // ⭐ FIX V5: Use PRE-CALCULATED spoils values (not post-finalize!)
   // ═══════════════════════════════════════════════════════════════
 
   const { data: winnerData } = await supabase
     .from('tokens')
-    .select('name, symbol, image, creator_wallet')  // ⭐ FIX: 'image' not 'image_url'
+    .select('name, symbol, image, creator_wallet')
     .eq('mint', tokenMint)
     .single();
 
   const { data: loserData } = await supabase
     .from('tokens')
-    .select('mint, name, symbol, image')  // ⭐ FIX: 'image' not 'image_url'
+    .select('mint, name, symbol, image')
     .eq('mint', opponentMint.toString())
     .single();
 
-  // Calculate spoils
-  const [loserStatePDA] = getBattleStatePDA(opponentMint);
-  const loserStateAccount = await connection.getAccountInfo(loserStatePDA);
-  let spoilsSol = 0;
-  if (loserStateAccount) {
-    const loserSolCollected = Number(loserStateAccount.data.readBigUInt64LE(V1_OFFSET_SOL_COLLECTED));
-    spoilsSol = (loserSolCollected / 1e9) * 0.5;
-  }
+  // ⭐ FIX V5: Use pre-calculated values!
+  const spoilsSol = expectedSpoils;
+  const platformFeeSol = expectedPlatformFee;
 
-  const platformFeeSol = (originalSolCollected / 1e9) * 0.02;
+  // Build plunder report for API response
+  const plunderReport = {
+    winnerSolBefore,
+    loserSolBefore,
+    spoilsSol,
+    platformFeeSol,
+    winnerFinalSol: expectedWinnerFinal,
+    loserFinalSol: expectedLoserFinal,
+    solToRaydiumPool: solWithdrawn > 0 ? solWithdrawn : expectedWinnerFinal,
+  };
 
-  // ⭐ FIX V4: Insert with correct field names!
+  // ⭐ FIX V5: Insert with CORRECT spoils values!
   await supabase.from('winners').upsert({
     mint: tokenMint,
     name: winnerData?.name || 'Unknown',
     symbol: winnerData?.symbol || '???',
-    image: winnerData?.image || null,  // ⭐ FIX: 'image' not 'image_url'
+    image: winnerData?.image || null,
     loser_mint: opponentMint.toString(),
     loser_name: loserData?.name || 'Unknown',
     loser_symbol: loserData?.symbol || '???',
-    loser_image: loserData?.image || null,  // ⭐ FIX: 'image' not 'image_url'
-    final_sol_collected: originalSolCollected / 1e9,
-    final_volume_sol: totalVolume / 1e9,
+    loser_image: loserData?.image || null,
+    final_sol_collected: winnerSolBefore, // Winner's SOL before plunder
+    final_volume_sol: winnerVolumeBefore,
     final_mc_usd: 0,
     final_volume_usd: 0,
-    spoils_sol: spoilsSol,
-    platform_fee_sol: platformFeeSol,
+    spoils_sol: spoilsSol,  // ⭐ CORRECT: 50% of loser's ORIGINAL SOL
+    platform_fee_sol: platformFeeSol,  // ⭐ CORRECT: 5% of (winner + spoils)
     pool_id: poolResult.poolId,
     raydium_url: raydiumUrl,
     victory_timestamp: new Date().toISOString(),
     status: 'pool_created',
+    // ⭐ NEW: Add detailed plunder data
+    winner_final_sol: expectedWinnerFinal,
+    loser_final_sol: expectedLoserFinal,
   }, { onConflict: 'mint' });
 
-  console.log('✅ Winner record saved with full data');
+  console.log('✅ Winner record saved with CORRECT spoils data');
+  console.log(`   Spoils: ${spoilsSol.toFixed(4)} SOL (50% of ${loserSolBefore.toFixed(4)})`);
+  console.log(`   Platform fee: ${platformFeeSol.toFixed(4)} SOL (5% of ${totalAfterPlunder.toFixed(4)})`);
 
   // Add points
   if (winnerData?.creator_wallet) {
@@ -629,17 +718,21 @@ async function executeFullPipeline(
       loser_mint: opponentMint.toString(),
       loser_symbol: loserData?.symbol || '???',
       winner_image: winnerData?.image || null,
+      spoils_sol: spoilsSol,
+      platform_fee_sol: platformFeeSol,
     }
   });
 
   console.log('\n🎉 AUTO-COMPLETE PIPELINE SUCCESS!');
   console.log('Pool ID:', poolResult.poolId);
+  console.log('Plunder Report:', JSON.stringify(plunderReport, null, 2));
 
   return {
     success: true,
     steps,
     poolId: poolResult.poolId,
     raydiumUrl,
+    plunderReport,
   };
 }
 
@@ -650,7 +743,7 @@ async function executeFullPipeline(
 async function scanForWinners(): Promise<{
   scanned: number;
   potentialWinners: string[];
-  processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string }>;
+  processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string; plunderReport?: Record<string, any> }>;
 }> {
   console.log('\n🔍 Scanning for potential winners...');
 
@@ -666,7 +759,7 @@ async function scanForWinners(): Promise<{
   }
 
   const potentialWinners: string[] = [];
-  const processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string }> = [];
+  const processed: Array<{ mint: string; success: boolean; poolId?: string; error?: string; plunderReport?: Record<string, any> }> = [];
 
   for (const token of tokensToProcess) {
     try {
@@ -689,7 +782,13 @@ async function scanForWinners(): Promise<{
 
         potentialWinners.push(token.mint);
         const result = await executeFullPipeline(token.mint);
-        processed.push({ mint: token.mint, success: result.success, poolId: result.poolId, error: result.error });
+        processed.push({
+          mint: token.mint,
+          success: result.success,
+          poolId: result.poolId,
+          error: result.error,
+          plunderReport: result.plunderReport,
+        });
         continue;
       }
 
@@ -704,7 +803,13 @@ async function scanForWinners(): Promise<{
       if (solCollected >= SOL_THRESHOLD && totalVolume >= VICTORY_VOLUME_SOL) {
         potentialWinners.push(token.mint);
         const result = await executeFullPipeline(token.mint);
-        processed.push({ mint: token.mint, success: result.success, poolId: result.poolId, error: result.error });
+        processed.push({
+          mint: token.mint,
+          success: result.success,
+          poolId: result.poolId,
+          error: result.error,
+          plunderReport: result.plunderReport,
+        });
       }
     } catch (err) {
       console.error(`Error checking ${token.mint}:`, err);

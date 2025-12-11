@@ -7,6 +7,30 @@
  * - Opens drawer with Token selector + Buy/Sell tabs
  * - Only visible on screens < 810px
  * - ✅ FIXED: Now matches TradingPanel behavior for percentage buttons
+ * 
+ * ⚠️ IMPORTANTE: La pagina battle DEVE passare solCollected in LAMPORTS per ogni token!
+ * 
+ * Esempio di come chiamare questo componente dalla pagina battle:
+ * 
+ * <BattleMobileTradingDrawer
+ *   tokenA={{
+ *     mint: new PublicKey(tokenAState.mint),
+ *     symbol: tokenAState.symbol,
+ *     image: tokenAState.image,
+ *     battleStatus: tokenAState.battleStatus,
+ *     solCollected: tokenAState.solCollected,  // ⭐ IN LAMPORTS!
+ *   }}
+ *   tokenB={{
+ *     mint: new PublicKey(tokenBState.mint),
+ *     symbol: tokenBState.symbol,
+ *     image: tokenBState.image,
+ *     battleStatus: tokenBState.battleStatus,
+ *     solCollected: tokenBState.solCollected,  // ⭐ IN LAMPORTS!
+ *   }}
+ *   selectedToken={selectedToken}
+ *   onSelectToken={setSelectedToken}
+ *   onSuccess={refetchBattle}
+ * />
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -31,7 +55,7 @@ interface TokenData {
   symbol: string;
   image: string;
   battleStatus?: number;
-  solCollected?: number; // ⭐ Added for graduation calculation
+  solCollected: number; // ⭐ REQUIRED - in lamports (raw value from blockchain)
 }
 
 interface BattleMobileTradingDrawerProps {
@@ -72,26 +96,29 @@ export function BattleMobileTradingDrawer({
   // 🎯 CALCULATE MAX BUYABLE SOL (same as TradingPanel)
   // ============================================================
   const progressData = useMemo(() => {
-    const solCollected = currentToken.solCollected;
-    if (solCollected === undefined) {
-      return {
-        solRemaining: TARGET_SOL,
-        maxBuyableSol: TARGET_SOL,
-        isGraduationLocked: false,
-      };
-    }
-
-    const solCollectedSol = solCollected / 1e9;
+    // ⭐ solCollected is in LAMPORTS (raw value from blockchain)
+    const solCollectedSol = (currentToken.solCollected || 0) / 1e9;
     const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
-    const maxBuyableSol = solRemaining / (1 - TRADING_FEE);
+    // ✅ FIX: maxBuyableSol = quanto manca per graduare (NON diviso per fee!)
+    // La fee del 2% viene aggiunta SOPRA questo importo, non sottratta
+    const maxBuyableSol = solRemaining;
     const isGraduationLocked = solRemaining <= 0.001;
 
+    console.log('📊 BattleMobileDrawer progressData:', {
+      solCollectedLamports: currentToken.solCollected,
+      solCollectedSol,
+      solRemaining,
+      maxBuyableSol,
+      isGraduationLocked,
+    });
+
     return {
+      solCollectedSol,
       solRemaining,
       maxBuyableSol,
       isGraduationLocked,
     };
-  }, [currentToken]);
+  }, [currentToken.solCollected]);
 
   // Fetch SOL balance
   useEffect(() => {
@@ -323,8 +350,8 @@ export function BattleMobileTradingDrawer({
             <button
               onClick={() => onSelectToken('A')}
               className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'A'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-400 hover:text-white'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-400 hover:text-white'
                 }`}
             >
               <div className="w-9 h-9 rounded-full overflow-hidden">
@@ -345,8 +372,8 @@ export function BattleMobileTradingDrawer({
               <button
                 onClick={() => onSelectToken('B')}
                 className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg transition-all ${selectedToken === 'B'
-                    ? 'text-white'
-                    : 'text-gray-400 hover:text-white'
+                  ? 'text-white'
+                  : 'text-gray-400 hover:text-white'
                   }`}
                 style={selectedToken === 'B' ? { backgroundColor: '#FF5A8E' } : {}}
               >
@@ -372,8 +399,8 @@ export function BattleMobileTradingDrawer({
             <button
               onClick={() => { setMode('buy'); setAmount(''); }}
               className={`px-14 py-2 font-medium transition-all ${mode === 'buy'
-                  ? 'text-black'
-                  : 'text-gray-400 hover:text-white'
+                ? 'text-black'
+                : 'text-gray-400 hover:text-white'
                 }`}
               style={mode === 'buy' ? { backgroundColor: '#1FD978' } : {}}
             >
@@ -382,8 +409,8 @@ export function BattleMobileTradingDrawer({
             <button
               onClick={() => { setMode('sell'); setAmount(''); }}
               className={`px-14 py-2 font-medium transition-all ${mode === 'sell'
-                  ? 'text-white bg-red-500'
-                  : 'text-gray-400 hover:text-white'
+                ? 'text-white bg-red-500'
+                : 'text-gray-400 hover:text-white'
                 }`}
             >
               Sell
@@ -510,8 +537,8 @@ export function BattleMobileTradingDrawer({
             onClick={mode === 'buy' ? handleBuy : handleSell}
             disabled={loading || !amount || parseFloat(amount) <= 0}
             className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${mode === 'buy'
-                ? 'bg-green-500 hover:bg-green-600 text-black'
-                : 'bg-red-500 hover:bg-red-600 text-white'
+              ? 'bg-green-500 hover:bg-green-600 text-black'
+              : 'bg-red-500 hover:bg-red-600 text-white'
               }`}
           >
             {loading

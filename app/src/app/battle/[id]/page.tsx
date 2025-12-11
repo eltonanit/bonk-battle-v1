@@ -944,12 +944,14 @@ export default function BattleDetailPage() {
             symbol: stateA.symbol || 'TOKEN A',
             image: getTokenImage(stateA),
             battleStatus: stateA.battleStatus,
+            solCollected: stateA.realSolReserves,
           }}
           tokenB={effectiveTokenBMint && stateB ? {
             mint: effectiveTokenBMint,
             symbol: stateB.symbol || 'TOKEN B',
             image: getTokenImage(stateB),
             battleStatus: stateB.battleStatus,
+            solCollected: stateB.realSolReserves,
           } : undefined}
           selectedToken={selectedToken}
           onSelectToken={setSelectedToken}
