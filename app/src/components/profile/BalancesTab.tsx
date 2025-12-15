@@ -1,6 +1,7 @@
 ﻿// app/src/components/profile/BalancesTab.tsx
 // ═══════════════════════════════════════════════════════════════════════════════
-// BONK BATTLE - Fixed BalancesTab with proper P&L calculation
+// BONK BATTLE - Fixed BalancesTab with CORRECT P&L calculation
+// Uses LAST TRADE PRICE instead of slippage formula
 // ═══════════════════════════════════════════════════════════════════════════════
 
 'use client';
@@ -20,14 +21,10 @@ import Link from 'next/link';
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const DEFAULT_SOL_PRICE = 240;
+const DEFAULT_SOL_PRICE = 230;
 const SOL_DECIMALS = 1_000_000_000; // 10^9 lamports per SOL
 const TOKEN_DECIMALS = 1_000_000_000; // 10^9
 const BONK_BATTLE_PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
-
-// ⭐ CRITICAL: Maximum realistic values to detect garbage data
-const MAX_REALISTIC_SOL_RESERVES = 1_000_000 * SOL_DECIMALS; // 1M SOL max
-const MAX_REALISTIC_VALUE_USD = 10_000_000; // $10M max per position
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -40,9 +37,10 @@ interface BonkPosition {
   tokenImage: string;
   battleStatus: BattleStatus;
   userTokenBalance: bigint;
-  boughtValueUsd: number;
-  currentValueUsd: number;
+  boughtValueUsd: number;      // What user paid (from trade history)
+  currentValueUsd: number;     // Current value based on LAST TRADE PRICE
   currentValueSol: number;
+  lastTradePrice: number;      // Last trade price in SOL per token
   isValidData: boolean;
 }
 
@@ -52,6 +50,13 @@ interface UserTradeAggregate {
   total_usd_spent: number;
   total_tokens_sold: number;
   total_usd_received: number;
+  avg_buy_price_sol: number;   // Average price user paid
+}
+
+interface LastTradeInfo {
+  token_price_sol: number;
+  trade_type: string;
+  block_time: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -65,6 +70,41 @@ export function BalancesTab() {
   const [solPrice, setSolPrice] = useState(DEFAULT_SOL_PRICE);
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // FETCH LAST TRADE PRICE FOR EACH TOKEN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  const fetchLastTradePrices = useCallback(async (tokenMints: string[]): Promise<Map<string, LastTradeInfo>> => {
+    const pricesMap = new Map<string, LastTradeInfo>();
+
+    if (tokenMints.length === 0) return pricesMap;
+
+    try {
+      // Fetch last trade for each token
+      for (const mint of tokenMints) {
+        const { data, error } = await supabase
+          .from('user_trades')
+          .select('token_price_sol, trade_type, block_time')
+          .eq('token_mint', mint)
+          .order('block_time', { ascending: false })
+          .limit(1);
+
+        if (!error && data && data.length > 0) {
+          pricesMap.set(mint, {
+            token_price_sol: Number(data[0].token_price_sol),
+            trade_type: data[0].trade_type,
+            block_time: data[0].block_time,
+          });
+        }
+      }
+
+      return pricesMap;
+    } catch (err) {
+      console.error('Error fetching last trade prices:', err);
+      return pricesMap;
+    }
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // FETCH USER TRADES FROM DATABASE
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -72,26 +112,7 @@ export function BalancesTab() {
     const tradesMap = new Map<string, UserTradeAggregate>();
 
     try {
-      // Try the aggregated view first
-      const { data: viewData, error: viewError } = await supabase
-        .from('user_positions')
-        .select('*')
-        .eq('wallet_address', wallet);
-
-      if (!viewError && viewData && viewData.length > 0) {
-        for (const row of viewData) {
-          tradesMap.set(row.token_mint, {
-            token_mint: row.token_mint,
-            total_tokens_bought: Number(row.total_tokens_bought) || 0,
-            total_usd_spent: Number(row.total_usd_spent) || 0,
-            total_tokens_sold: Number(row.total_tokens_sold) || 0,
-            total_usd_received: Number(row.total_usd_received) || 0,
-          });
-        }
-        return tradesMap;
-      }
-
-      // Fallback: aggregate from user_trades table
+      // Fetch all trades for this user
       const { data: trades, error: tradesError } = await supabase
         .from('user_trades')
         .select('*')
@@ -108,6 +129,7 @@ export function BalancesTab() {
           total_usd_spent: 0,
           total_tokens_sold: 0,
           total_usd_received: 0,
+          avg_buy_price_sol: 0,
         };
 
         if (trade.trade_type === 'buy') {
@@ -119,6 +141,20 @@ export function BalancesTab() {
         }
 
         tradesMap.set(trade.token_mint, existing);
+      }
+
+      // Calculate average buy price for each token
+      for (const [mint, agg] of tradesMap.entries()) {
+        if (agg.total_tokens_bought > 0) {
+          // avg_buy_price = total_usd_spent / total_tokens_bought (in USD per token)
+          // But we need SOL per token, so we'll calculate from the trades
+          const tokenTrades = trades.filter(t => t.token_mint === mint && t.trade_type === 'buy');
+          let totalSolSpent = 0;
+          for (const t of tokenTrades) {
+            totalSolSpent += Number(t.sol_amount);
+          }
+          agg.avg_buy_price_sol = totalSolSpent / agg.total_tokens_bought;
+        }
       }
 
       return tradesMap;
@@ -203,7 +239,20 @@ export function BalancesTab() {
       const userTrades = await fetchUserTrades(publicKey.toString());
       console.log(`📈 Found trade history for ${userTrades.size} tokens`);
 
-      // 5. Match BONK tokens with user balances and calculate P/L
+      // 5. Get list of user's BONK token mints
+      const userBonkMints: string[] = [];
+      for (const token of allBonkTokens) {
+        const mintStr = token.mint.toString();
+        if (userBalances.has(mintStr)) {
+          userBonkMints.push(mintStr);
+        }
+      }
+
+      // 6. ⭐ CRITICAL: Fetch LAST TRADE PRICE for each token
+      const lastTradePrices = await fetchLastTradePrices(userBonkMints);
+      console.log(`💹 Fetched last trade prices for ${lastTradePrices.size} tokens`);
+
+      // 7. Match BONK tokens with user balances and calculate P/L
       const bonkPositions: BonkPosition[] = [];
 
       for (const token of allBonkTokens) {
@@ -214,64 +263,51 @@ export function BalancesTab() {
           continue;
         }
 
-        // ⭐ VALIDATION: Check if data is valid
-        const virtualSol = token.virtualSolReserves ?? 0;
-        const virtualToken = token.virtualTokenReserves ?? 0;
-        const realSol = token.realSolReserves ?? token.solCollected ?? 0;
+        const lastTrade = lastTradePrices.get(mintStr);
+        const tradeHistory = userTrades.get(mintStr);
 
-        // ⭐ CRITICAL FIX: Detect garbage data
-        const isValidData =
-          virtualSol < MAX_REALISTIC_SOL_RESERVES &&
-          realSol < MAX_REALISTIC_SOL_RESERVES &&
-          virtualSol >= 0 &&
-          virtualToken >= 0;
-
-        console.log(`\n🎮 Token: ${token.symbol || mintStr.slice(0, 8)}`);
-        console.log(`   Valid data: ${isValidData}`);
-        console.log(`   Virtual SOL: ${(virtualSol / SOL_DECIMALS).toFixed(4)} SOL`);
-        console.log(`   User balance: ${(Number(userBalance) / TOKEN_DECIMALS).toFixed(2)} tokens`);
-
-        // ⭐ Calculate CURRENT value using bonding curve SELL formula
+        // ⭐ Use LAST TRADE PRICE for current value
         let currentValueSol = 0;
         let currentValueUsd = 0;
+        let lastTradePrice = 0;
+        let isValidData = false;
 
-        if (isValidData && virtualToken > 0) {
-          const tokensToSell = Number(userBalance);
+        if (lastTrade && lastTrade.token_price_sol > 0) {
+          lastTradePrice = lastTrade.token_price_sol;
 
-          // Bonding curve sell formula
-          const solOutLamports = (virtualSol * tokensToSell) / (virtualToken + tokensToSell);
-
-          // Convert lamports to SOL
-          currentValueSol = solOutLamports / SOL_DECIMALS;
-
-          // Cap at real SOL reserves
-          const maxSol = realSol / SOL_DECIMALS;
-          currentValueSol = Math.min(currentValueSol, maxSol);
-
-          // Convert to USD
+          // Current value = balance × last trade price
+          const balanceTokens = Number(userBalance) / TOKEN_DECIMALS;
+          currentValueSol = balanceTokens * lastTradePrice;
           currentValueUsd = currentValueSol * currentSolPrice;
+          isValidData = true;
 
-          // ⭐ FINAL VALIDATION: Cap at max realistic value
-          if (currentValueUsd > MAX_REALISTIC_VALUE_USD) {
-            console.warn(`   ⚠️ Value $${currentValueUsd.toFixed(2)} exceeds max, setting to 0`);
-            currentValueUsd = 0;
-            currentValueSol = 0;
-          }
+          console.log(`\n🎮 Token: ${token.symbol || mintStr.slice(0, 8)}`);
+          console.log(`   Last trade price: ${lastTradePrice.toExponential(4)} SOL/token`);
+          console.log(`   Balance: ${balanceTokens.toFixed(2)} tokens`);
+          console.log(`   Current value: ${currentValueSol.toFixed(4)} SOL = $${currentValueUsd.toFixed(2)}`);
         }
 
-        console.log(`   Current value: $${currentValueUsd.toFixed(2)}`);
-
         // Get BOUGHT value from trade history
-        const tradeHistory = userTrades.get(mintStr);
-        let boughtValueUsd = currentValueUsd;
+        let boughtValueUsd = 0;
 
         if (tradeHistory && tradeHistory.total_tokens_bought > 0) {
+          // Calculate how much user still holds vs what they bought
           const netTokens = tradeHistory.total_tokens_bought - tradeHistory.total_tokens_sold;
-          if (netTokens > 0) {
+
+          if (netTokens > 0 && tradeHistory.total_tokens_bought > 0) {
+            // Retained ratio: what % of bought tokens user still holds
             const retainedRatio = netTokens / tradeHistory.total_tokens_bought;
             boughtValueUsd = tradeHistory.total_usd_spent * retainedRatio;
           }
         }
+
+        // If no trade history, use current value as bought (shouldn't happen but fallback)
+        if (boughtValueUsd === 0) {
+          boughtValueUsd = currentValueUsd;
+        }
+
+        console.log(`   Bought value: $${boughtValueUsd.toFixed(2)}`);
+        console.log(`   P&L: $${(currentValueUsd - boughtValueUsd).toFixed(2)} (${((currentValueUsd - boughtValueUsd) / boughtValueUsd * 100).toFixed(2)}%)`);
 
         bonkPositions.push({
           mint: mintStr,
@@ -283,13 +319,14 @@ export function BalancesTab() {
           boughtValueUsd,
           currentValueUsd,
           currentValueSol,
+          lastTradePrice,
           isValidData,
         });
       }
 
       console.log(`\n✅ Found ${bonkPositions.length} user positions`);
 
-      // Sort: valid data first, then by value
+      // Sort by value descending
       bonkPositions.sort((a, b) => {
         if (a.isValidData && !b.isValidData) return -1;
         if (!a.isValidData && b.isValidData) return 1;
@@ -304,7 +341,7 @@ export function BalancesTab() {
     } finally {
       setLoading(false);
     }
-  }, [publicKey, fetchUserTrades]);
+  }, [publicKey, fetchUserTrades, fetchLastTradePrices]);
 
   useEffect(() => {
     fetchPositions();
@@ -392,7 +429,7 @@ export function BalancesTab() {
           </p>
           {/* P/L Below */}
           <p className={`text-sm font-medium ${isTotalProfit ? 'text-green-400' : 'text-red-400'}`}>
-            {isTotalProfit ? '+' : ''}{formatUsd(totalPnl)} {isTotalProfit ? '+' : ''}{totalPnlPercent.toFixed(2)}%
+            {isTotalProfit ? '+' : ''}{formatUsd(totalPnl)} ({isTotalProfit ? '+' : ''}{totalPnlPercent.toFixed(2)}%)
           </p>
         </div>
       )}
@@ -457,7 +494,7 @@ export function BalancesTab() {
                 )}
               </div>
 
-              {/* Column 3: Current Value */}
+              {/* Column 3: Current Value + P&L */}
               <div className="flex items-center justify-end gap-1">
                 {position.isValidData ? (
                   <>
@@ -474,9 +511,9 @@ export function BalancesTab() {
                       <div className={`text-sm font-bold ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
                         {formatUsd(position.currentValueUsd)}
                       </div>
-                      {Math.abs(pnlPercent) > 0.1 && (
+                      {Math.abs(pnlPercent) > 0.01 && (
                         <div className={`text-xs ${isProfit ? 'text-green-400' : 'text-red-400'}`}>
-                          {isProfit ? '+' : ''}{pnlPercent.toFixed(1)}%
+                          {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
                         </div>
                       )}
                     </div>

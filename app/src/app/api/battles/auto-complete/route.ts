@@ -713,7 +713,7 @@ async function executeFullPipeline(
   console.log(`   Spoils: ${spoilsSol.toFixed(4)} SOL (50% of ${loserSolBefore.toFixed(4)})`);
   console.log(`   Platform fee: ${platformFeeSol.toFixed(4)} SOL (5% of ${totalAfterPlunder.toFixed(4)})`);
 
-  // Add points to winner creator + NOTIFICATION
+  // Add points to winner creator
   if (winnerData?.creator_wallet) {
     const { data: currentPoints } = await supabase
       .from('user_stonks')
@@ -726,36 +726,7 @@ async function executeFullPipeline(
       total_stonks: (currentPoints?.total_stonks || 0) + 10000,
     }, { onConflict: 'wallet_address' });
 
-    // ⭐ Record in user_points for history
-    await supabase.from('user_points').insert({
-      wallet_address: winnerData.creator_wallet,
-      action: 'win_battle',
-      points: 10000,
-      token_mint: tokenMint,
-      token_symbol: winnerData.symbol || '???',
-      token_image: winnerData.image || null,
-      created_at: new Date().toISOString(),
-    });
-
-    // ⭐ CREATE NOTIFICATION for the popup!
-    await supabase.from('notifications').insert({
-      wallet_address: winnerData.creator_wallet,
-      type: 'points',
-      title: '🏆 Battle Victory!',
-      message: `Your token $${winnerData.symbol || '???'} won the battle! +10,000 points`,
-      read: false,
-      created_at: new Date().toISOString(),
-      metadata: {
-        action: 'win_battle',
-        points: 10000,
-        token_mint: tokenMint,
-        token_symbol: winnerData.symbol || '???',
-        token_image: winnerData.image || null,
-      },
-    });
-
     console.log('🎮 +10,000 points awarded to:', winnerData.creator_wallet.slice(0, 8) + '...');
-    console.log('🔔 Notification created for victory!');
   }
 
   // ⭐ Log victory to activity feed for popup!

@@ -456,11 +456,27 @@ export default function CreatePage() {
                                 onClick={() => document.getElementById('fileInput')?.click()}
                                 className={`border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-all ${isDragOver ? 'border-bonk-green bg-bonk-green/10' : 'border-bonk-border hover:border-bonk-green hover:bg-bonk-green/5'}`}
                             >
-                                <div className="text-6xl mb-4 opacity-70">🖼️</div>
-                                <div className="text-lg font-semibold mb-2">{imageFile ? imageFile.name : 'Select image to upload'}</div>
-                                <div className="text-sm text-gray-400 mb-6">or drag and drop it here</div>
+                                {imageFile && imageFile.type.startsWith('image/') ? (
+                                    // Show image preview
+                                    <div className="flex flex-col items-center">
+                                        <img
+                                            src={URL.createObjectURL(imageFile)}
+                                            alt="Preview"
+                                            className="w-32 h-32 object-cover rounded-xl mb-4 border-2 border-bonk-border"
+                                        />
+                                        <div className="text-lg font-semibold mb-2 text-green-400">{imageFile.name}</div>
+                                        <div className="text-sm text-gray-400 mb-4">Click to change image</div>
+                                    </div>
+                                ) : (
+                                    // Default upload UI
+                                    <>
+                                        <div className="text-6xl mb-4 opacity-70">🖼️</div>
+                                        <div className="text-lg font-semibold mb-2">{imageFile ? imageFile.name : 'Select image to upload'}</div>
+                                        <div className="text-sm text-gray-400 mb-6">or drag and drop it here</div>
+                                    </>
+                                )}
                                 <button type="button" className="bg-bonk-orange-dark text-black px-8 py-3 rounded-lg font-semibold hover:bg-bonk-orange-dark/90 transition-colors">
-                                    Select file
+                                    {imageFile ? 'Change file' : 'Select file'}
                                 </button>
                                 <input
                                     id="fileInput"
