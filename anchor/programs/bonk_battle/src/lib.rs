@@ -3,6 +3,8 @@
 // BONK BATTLE V2 - SOL-BASED BONDING CURVE + TIER SYSTEM
 // All victory conditions in SOL (price-independent!)
 // =================================================================
+// ⭐ FIX V3: Use tokens_sold directly in bonding curve calculations
+// =================================================================
 
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
@@ -332,9 +334,11 @@ pub mod bonk_battle {
         // Use the (possibly capped) amount for rest of transaction
         let sol_amount = actual_sol_amount;
 
+        // ⭐ FIX V3: Pass tokens_sold directly instead of deriving from sol_collected
         let tokens_to_give = calculate_buy_amount_optimized(
             sol_amount,
-            ctx.accounts.token_battle_state.sol_collected
+            ctx.accounts.token_battle_state.sol_collected,
+            ctx.accounts.token_battle_state.tokens_sold,  // ⭐ NEW: Pass actual tokens_sold
         )?;
 
         require!(tokens_to_give > 0, BonkError::InsufficientOutput);
@@ -480,9 +484,11 @@ pub mod bonk_battle {
             BonkError::TradingInactive
         );
 
+        // ⭐ FIX V3: Pass tokens_sold directly instead of deriving from sol_collected
         let sol_to_return = calculate_sell_amount_optimized(
             token_amount,
             ctx.accounts.token_battle_state.sol_collected,
+            ctx.accounts.token_battle_state.tokens_sold,  // ⭐ NEW: Pass actual tokens_sold
         )?;
         require!(sol_to_return > 0, BonkError::InsufficientOutput);
         require!(
@@ -915,27 +921,29 @@ fn lamports_to_usd(lamports: u64, sol_price_usd: u64) -> Result<u64> {
     Ok(usd)
 }
 
+// =================================================================
+// ⭐ FIX V3: BONDING CURVE CALCULATIONS WITH DIRECT tokens_sold
+// =================================================================
+
 /// Calculate tokens to give for a SOL buy
-fn calculate_buy_amount_optimized(sol_amount: u64, sol_already_collected: u64) -> Result<u64> {
-    // Linear bonding curve: tokens proportional to SOL remaining
-    
-    let tokens_already_sold = if TARGET_SOL > 0 {
-        (sol_already_collected as u128)
-            .checked_mul(BONDING_CURVE_SUPPLY as u128)
-            .ok_or(BonkError::MathOverflow)?
-            .checked_div(TARGET_SOL as u128)
-            .ok_or(BonkError::MathOverflow)?
-    } else {
-        0
-    } as u64;
-    
+/// ⭐ FIX: Now uses tokens_sold directly instead of deriving from sol_collected
+fn calculate_buy_amount_optimized(
+    sol_amount: u64, 
+    sol_already_collected: u64,
+    tokens_already_sold: u64,  // ⭐ NEW: Use actual tokens_sold from state
+) -> Result<u64> {
+    // ⭐ FIX: Use tokens_sold directly (not calculated from sol_collected)
+    // This prevents inconsistencies after multiple buy/sell operations
     let tokens_remaining = BONDING_CURVE_SUPPLY
         .checked_sub(tokens_already_sold)
         .ok_or(BonkError::MathOverflow)?;
     
+    if tokens_remaining == 0 {
+        return Ok(0);
+    }
+    
     let sol_remaining = TARGET_SOL
-        .checked_sub(sol_already_collected)
-        .ok_or(BonkError::MathOverflow)?;
+        .saturating_sub(sol_already_collected);
     
     if sol_remaining == 0 {
         return Ok(0);
@@ -954,38 +962,35 @@ fn calculate_buy_amount_optimized(sol_amount: u64, sol_already_collected: u64) -
     
     // Cap at remaining tokens
     if tokens_out > tokens_remaining {
-        return Ok(tokens_remaining * 90 / 100);
+        return Ok(tokens_remaining.checked_mul(90).unwrap().checked_div(100).unwrap());
     }
     
     Ok(tokens_out)
 }
 
 /// Calculate SOL to return for a token sell
-fn calculate_sell_amount_optimized(token_amount: u64, sol_collected: u64) -> Result<u64> {
-    if sol_collected == 0 {
+/// ⭐ FIX: Now uses tokens_sold directly instead of deriving from sol_collected
+fn calculate_sell_amount_optimized(
+    token_amount: u64, 
+    sol_collected: u64,
+    tokens_sold: u64,  // ⭐ NEW: Use actual tokens_sold from state
+) -> Result<u64> {
+    // ⭐ FIX: Early return if either value is 0 (prevents division by zero)
+    if sol_collected == 0 || tokens_sold == 0 {
         return Ok(0);
     }
     
-    let tokens_sold = if TARGET_SOL > 0 {
-        (sol_collected as u128)
-            .checked_mul(BONDING_CURVE_SUPPLY as u128)
-            .ok_or(BonkError::MathOverflow)?
-            .checked_div(TARGET_SOL as u128)
-            .ok_or(BonkError::MathOverflow)?
-    } else {
-        return Ok(0);
-    } as u64;
-    
     // SOL out = (Token amount / Tokens sold) * SOL collected
+    // This gives the proportional share of SOL for the tokens being sold
     let sol_out = (token_amount as u128)
         .checked_mul(sol_collected as u128)
         .ok_or(BonkError::MathOverflow)?
         .checked_div(tokens_sold as u128)
         .ok_or(BonkError::MathOverflow)? as u64;
     
-    // Cap at available SOL
+    // Cap at available SOL (90% max to leave buffer)
     if sol_out > sol_collected {
-        return Ok(sol_collected * 90 / 100);
+        return Ok(sol_collected.checked_mul(90).unwrap().checked_div(100).unwrap());
     }
     
     Ok(sol_out)
