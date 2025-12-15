@@ -9,14 +9,11 @@
  * 3. withdraw_for_listing → SOL + Tokens to Keeper
  * 4. create_raydium_pool → Pool Created!
  * 
- * ⭐ FIX V6:
+ * ⭐ FIX V7:
+ * - ADDED: Notification for +10,000 points on victory!
+ * - ADDED: user_points record for tracking
  * - CRITICAL: Read loser SOL BEFORE finalize_duel (was reading AFTER = wrong!)
  * - CRITICAL: Update loser's sol_collected to 50% remaining in database
- * - REMOVED: battle_end_timestamp (field doesn't exist in tokens table)
- * - REMOVED: winner_final_sol, loser_final_sol (fields don't exist in winners table)
- * - ADDED: spoils_transferred and finalize_signature to battles table
- * - Platform fee calculation fixed (5% of winner+spoils)
- * - Added plunder verification logging
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -68,6 +65,9 @@ const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5.97 SOL
 
 // Fee constants (must match smart contract!)
 const PLATFORM_FEE_BPS = 500; // 5%
+
+// ⭐ Points for winning battle
+const BATTLE_WIN_POINTS = 10000;
 
 console.log(`🎯 Victory Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} SOL (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9} SOL`);
 
@@ -147,6 +147,70 @@ async function readBattleStateSol(
     totalVolume: Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME)) / 1e9,
     status: account.data[V1_OFFSET_BATTLE_STATUS],
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ V7: ADD POINTS WITH NOTIFICATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function addBattleWinPoints(
+  walletAddress: string,
+  tokenMint: string,
+  tokenSymbol: string,
+  tokenImage: string | null
+): Promise<boolean> {
+  try {
+    console.log(`🎮 Adding ${BATTLE_WIN_POINTS} points to ${walletAddress.slice(0, 8)}...`);
+
+    // 1. Update total points in user_stonks
+    const { data: currentPoints } = await supabase
+      .from('user_stonks')
+      .select('total_stonks')
+      .eq('wallet_address', walletAddress)
+      .single();
+
+    const newTotal = (currentPoints?.total_stonks || 0) + BATTLE_WIN_POINTS;
+
+    await supabase.from('user_stonks').upsert({
+      wallet_address: walletAddress,
+      total_stonks: newTotal,
+    }, { onConflict: 'wallet_address' });
+
+    // 2. Record in user_points for history
+    await supabase.from('user_points').insert({
+      wallet_address: walletAddress,
+      action: 'win_battle',
+      points: BATTLE_WIN_POINTS,
+      token_mint: tokenMint,
+      token_symbol: tokenSymbol,
+      token_image: tokenImage,
+      created_at: new Date().toISOString(),
+    });
+
+    // 3. ⭐ CREATE NOTIFICATION for the popup!
+    await supabase.from('notifications').insert({
+      wallet_address: walletAddress,
+      type: 'points',
+      title: '🏆 Battle Victory!',
+      message: `Your token $${tokenSymbol} won the battle! +${BATTLE_WIN_POINTS.toLocaleString()} points`,
+      read: false,
+      created_at: new Date().toISOString(),
+      metadata: {
+        action: 'win_battle',
+        points: BATTLE_WIN_POINTS,
+        token_mint: tokenMint,
+        token_symbol: tokenSymbol,
+        token_image: tokenImage,
+      },
+    });
+
+    console.log(`✅ +${BATTLE_WIN_POINTS} points awarded with notification!`);
+    return true;
+
+  } catch (error) {
+    console.error('❌ Error adding battle win points:', error);
+    return false;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -446,7 +510,7 @@ async function executeFullPipeline(
   plunderReport?: Record<string, any>;
 }> {
   console.log('\n═══════════════════════════════════════════════════════════════');
-  console.log('🚀 AUTO-COMPLETE PIPELINE V6 STARTING');
+  console.log('🚀 AUTO-COMPLETE PIPELINE V7 STARTING');
   console.log('Token:', tokenMint);
   console.log('═══════════════════════════════════════════════════════════════\n');
 
@@ -594,8 +658,7 @@ async function executeFullPipeline(
     await supabase.from('tokens').update({
       battle_status: BattleStatus.Qualified,
       opponent_mint: null,
-      sol_collected: loserRemainingLamports,  // ⭐ CRITICAL: Update SOL to 50%!
-      // NOTE: battle_end_timestamp doesn't exist in tokens table
+      sol_collected: loserRemainingLamports,
     }).eq('mint', opponentMint.toString());
 
     // ⭐ FIX V6: Update battles with spoils info
@@ -603,8 +666,8 @@ async function executeFullPipeline(
       status: 'completed',
       winner_mint: tokenMint,
       ended_at: new Date().toISOString(),
-      spoils_transferred: expectedSpoils,  // ⭐ Add spoils amount
-      finalize_signature: finalizeSignature,  // ⭐ Add signature
+      spoils_transferred: expectedSpoils,
+      finalize_signature: finalizeSignature,
     }).or(`token_a_mint.eq.${tokenMint},token_b_mint.eq.${tokenMint}`);
 
     console.log('✅ Database updated: loser sol_collected and battles table');
@@ -641,8 +704,6 @@ async function executeFullPipeline(
 
   // SUCCESS! Update database
   const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
-
-  // ⭐ FIX V6: listing_timestamp is bigint, use unix timestamp in ms
   const listingTimestamp = Date.now();
 
   await supabase.from('tokens').update({
@@ -653,7 +714,7 @@ async function executeFullPipeline(
   }).eq('mint', tokenMint);
 
   // ═══════════════════════════════════════════════════════════════
-  // ⭐ FIX V6: Fetch winner & loser data for winners table
+  // ⭐ V7: Fetch winner & loser data and ADD POINTS WITH NOTIFICATION
   // ═══════════════════════════════════════════════════════════════
 
   const { data: winnerData } = await supabase
@@ -668,11 +729,9 @@ async function executeFullPipeline(
     .eq('mint', opponentMint.toString())
     .single();
 
-  // ⭐ FIX V6: Use pre-calculated values!
   const spoilsSol = expectedSpoils;
   const platformFeeSol = expectedPlatformFee;
 
-  // Build plunder report for API response
   const plunderReport = {
     winnerSolBefore,
     loserSolBefore,
@@ -683,7 +742,7 @@ async function executeFullPipeline(
     solToRaydiumPool: solWithdrawn > 0 ? solWithdrawn : expectedWinnerFinal,
   };
 
-  // ⭐ FIX V6: Insert with CORRECT spoils values (removed non-existent fields)
+  // ⭐ Insert winner record
   await supabase.from('winners').upsert({
     mint: tokenMint,
     name: winnerData?.name || 'Unknown',
@@ -706,27 +765,23 @@ async function executeFullPipeline(
     withdraw_signature: withdrawSignature || null,
     pool_signature: poolResult.signature || null,
     status: 'pool_created',
-    // NOTE: winner_final_sol and loser_final_sol don't exist in winners table
   }, { onConflict: 'mint' });
 
   console.log('✅ Winner record saved with CORRECT spoils data');
-  console.log(`   Spoils: ${spoilsSol.toFixed(4)} SOL (50% of ${loserSolBefore.toFixed(4)})`);
-  console.log(`   Platform fee: ${platformFeeSol.toFixed(4)} SOL (5% of ${totalAfterPlunder.toFixed(4)})`);
 
-  // Add points to winner creator
+  // ⭐ V7: ADD POINTS WITH NOTIFICATION!
   if (winnerData?.creator_wallet) {
-    const { data: currentPoints } = await supabase
-      .from('user_stonks')
-      .select('total_stonks')
-      .eq('wallet_address', winnerData.creator_wallet)
-      .single();
-
-    await supabase.from('user_stonks').upsert({
-      wallet_address: winnerData.creator_wallet,
-      total_stonks: (currentPoints?.total_stonks || 0) + 10000,
-    }, { onConflict: 'wallet_address' });
-
-    console.log('🎮 +10,000 points awarded to:', winnerData.creator_wallet.slice(0, 8) + '...');
+    await addBattleWinPoints(
+      winnerData.creator_wallet,
+      tokenMint,
+      winnerData.symbol || '???',
+      winnerData.image || null
+    );
+    steps.pointsAwarded = {
+      wallet: winnerData.creator_wallet,
+      points: BATTLE_WIN_POINTS,
+      notificationCreated: true,
+    };
   }
 
   // ⭐ Log victory to activity feed for popup!
@@ -746,9 +801,9 @@ async function executeFullPipeline(
     }
   });
 
-  console.log('\n🎉 AUTO-COMPLETE PIPELINE V6 SUCCESS!');
+  console.log('\n🎉 AUTO-COMPLETE PIPELINE V7 SUCCESS!');
   console.log('Pool ID:', poolResult.poolId);
-  console.log('Plunder Report:', JSON.stringify(plunderReport, null, 2));
+  console.log('Points awarded:', BATTLE_WIN_POINTS, 'with notification');
 
   return {
     success: true,

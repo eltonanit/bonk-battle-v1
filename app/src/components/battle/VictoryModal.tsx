@@ -38,7 +38,6 @@ export function VictoryModal({
   // Animation states
   const [showPoints, setShowPoints] = useState(false);
   const [pointsAnimating, setPointsAnimating] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [confettiPieces, setConfettiPieces] = useState<Array<{ id: number; left: string; delay: string; color: string }>>([]);
 
   // Generate confetti on mount
@@ -55,47 +54,30 @@ export function VictoryModal({
   // Show points animation when pool is created
   useEffect(() => {
     if (poolId && !showPoints) {
-      // Delay to let user see the pool creation success
       setTimeout(() => {
         setShowPoints(true);
         setPointsAnimating(true);
-
-        // Start countdown after points animation
         setTimeout(() => {
           setPointsAnimating(false);
-          setCountdown(5);
         }, 2000);
       }, 500);
     }
   }, [poolId, showPoints]);
 
-  // Countdown and redirect
-  useEffect(() => {
-    if (countdown === null) return;
+  const isFinalized = !!poolId;
 
-    if (countdown === 0) {
-      router.push(`/token/${winnerMint}`);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setCountdown(countdown - 1);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [countdown, router, winnerMint]);
-
-  // Manual redirect
-  const handleGoToWinner = useCallback(() => {
+  // Handle close - redirect to winner token page
+  const handleClose = useCallback(() => {
     router.push(`/token/${winnerMint}`);
   }, [router, winnerMint]);
 
-  const isFinalized = !!poolId;
-
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+      {/* Backdrop - click to close and go to winner */}
+      <div
+        className="absolute inset-0 bg-black/90 backdrop-blur-md cursor-pointer"
+        onClick={handleClose}
+      />
 
       {/* Confetti */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -117,23 +99,35 @@ export function VictoryModal({
 
       {/* Modal */}
       <div className="relative z-10 w-full max-w-lg mx-4 animate-bounce-in">
-        <div className="bg-gradient-to-br from-yellow-900/95 via-orange-900/95 to-yellow-900/95 border-2 border-yellow-500 rounded-2xl overflow-hidden shadow-2xl shadow-yellow-500/40">
+        <div className="relative bg-gradient-to-br from-yellow-900/95 via-orange-900/95 to-yellow-900/95 border-2 border-yellow-500 rounded-2xl overflow-hidden shadow-2xl shadow-yellow-500/40">
+
+          {/* X Close Button */}
+          <button
+            onClick={handleClose}
+            className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white/70 hover:text-white transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
 
           {/* Animated Header */}
           <div className="h-2 bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 animate-shimmer" />
 
-          {/* Trophy Section */}
+          {/* Title Section - NO TROPHY */}
           <div className="text-center pt-8 pb-4 relative">
             {/* Glow effect */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-40 h-40 bg-yellow-500/20 rounded-full blur-3xl animate-pulse" />
             </div>
 
-            <div className="text-8xl animate-trophy-bounce mb-4 relative z-10">🏆</div>
-            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 animate-text-shimmer">
+            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-400 animate-text-shimmer relative z-10">
               VICTORY!
             </h1>
-            <p className="text-yellow-200 mt-2 text-lg">{winnerSymbol} conquered the arena!</p>
+            {/* Winner announcement */}
+            <p className="text-yellow-200 mt-3 text-lg">
+              Winner: <span className="font-bold text-yellow-400">${winnerSymbol}</span>
+            </p>
           </div>
 
           {/* Battle Result */}
@@ -196,21 +190,17 @@ export function VictoryModal({
             </div>
           </div>
 
-          {/* Points Award - Animated */}
+          {/* Points Award - +10,000 POINTS (not STONKS) */}
           <div className="px-6 pb-4">
-            <div className={`bg-gradient-to-r from-purple-900/60 to-pink-900/60 border-2 border-purple-500/50 rounded-xl p-4 text-center relative overflow-hidden transition-all duration-500 ${showPoints ? 'scale-100 opacity-100' : 'scale-95 opacity-70'
-              }`}>
+            <div className={`bg-gradient-to-r from-purple-900/60 to-pink-900/60 border-2 border-purple-500/50 rounded-xl p-4 text-center relative overflow-hidden transition-all duration-500 ${showPoints ? 'scale-100 opacity-100' : 'scale-95 opacity-70'}`}>
               {/* Sparkle effect */}
               {pointsAnimating && (
                 <div className="absolute inset-0 animate-sparkle-bg" />
               )}
 
               <div className="text-purple-300 text-sm mb-1 font-semibold">🎮 Battle Win Bonus</div>
-              <div className={`text-3xl font-black transition-all duration-500 ${pointsAnimating
-                  ? 'text-yellow-400 scale-125 animate-points-pop'
-                  : 'text-purple-200'
-                }`}>
-                +10,000 STONKS
+              <div className={`text-3xl font-black transition-all duration-500 ${pointsAnimating ? 'text-yellow-400 scale-125 animate-points-pop' : 'text-purple-200'}`}>
+                +10,000 POINTS
               </div>
               {pointsAnimating && (
                 <div className="text-sm text-green-400 mt-1 animate-fade-in">Added to your account!</div>
@@ -231,60 +221,22 @@ export function VictoryModal({
               </div>
             )}
 
-            {/* Success State with Countdown */}
-            {isFinalized && (
-              <>
-                {/* Pool Created Success */}
-                <div className="w-full py-3 rounded-xl font-bold text-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white text-center">
-                  <span className="flex items-center justify-center gap-2">
-                    ✅ Pool Created Successfully!
-                  </span>
-                </div>
-
-                {/* Raydium Trade Button */}
-                {raydiumUrl && (
-                  <a
-                    href={raydiumUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-400 hover:to-purple-400 text-white text-center transition-all transform hover:scale-[1.02]"
-                  >
-                    🌊 Trade on Raydium
-                  </a>
-                )}
-
-                {/* Countdown & Go to Winner */}
-                <button
-                  onClick={handleGoToWinner}
-                  className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-black text-center transition-all transform hover:scale-[1.02]"
-                >
-                  {countdown !== null ? (
-                    <span className="flex items-center justify-center gap-2">
-                      🏆 Go to Champion Page
-                      <span className="bg-black/20 px-3 py-1 rounded-full text-sm">
-                        {countdown}s
-                      </span>
-                    </span>
-                  ) : (
-                    '🏆 Go to Champion Page'
-                  )}
-                </button>
-              </>
-            )}
-
-            {/* Navigation Links */}
+            {/* Navigation Buttons - Updated */}
             <div className="flex gap-3 pt-2">
+              {/* Left: Your Balance */}
               <Link
-                href="/battles"
-                className="flex-1 py-3 rounded-xl font-semibold text-center bg-white/10 hover:bg-white/20 text-white transition-all text-sm"
+                href="/profile?tab=balance"
+                className="flex-1 py-3 rounded-xl font-semibold text-center bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 transition-all text-sm border border-blue-500/30"
               >
-                ⚔️ More Battles
+                💰 Your Balance
               </Link>
+
+              {/* Right: View Winner Token */}
               <Link
-                href="/winners"
-                className="flex-1 py-3 rounded-xl font-semibold text-center bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 transition-all text-sm"
+                href={`/token/${winnerMint}`}
+                className="flex-1 py-3 rounded-xl font-semibold text-center bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 transition-all text-sm border border-yellow-500/30"
               >
-                🏆 Hall of Champions
+                🏆 View Winner
               </Link>
             </div>
           </div>
@@ -305,14 +257,6 @@ export function VictoryModal({
           100% { transform: translateY(100vh) rotate(1080deg) scale(0.5); opacity: 0; }
         }
         .animate-confetti-fall { animation: confetti-fall 4s ease-in forwards; }
-
-        @keyframes trophy-bounce {
-          0%, 100% { transform: translateY(0) scale(1); }
-          25% { transform: translateY(-15px) scale(1.1); }
-          50% { transform: translateY(-5px) scale(1.05); }
-          75% { transform: translateY(-10px) scale(1.08); }
-        }
-        .animate-trophy-bounce { animation: trophy-bounce 2s ease-in-out infinite; }
 
         @keyframes crown-bounce {
           0%, 100% { transform: rotate(-10deg); }

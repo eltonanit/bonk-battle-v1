@@ -359,10 +359,13 @@ export function TokenHero({ token, preloadedMetadata, battleId, battleStatus }: 
                 {(battleStatus === BattleStatus.InBattle || battleStatus === BattleStatus.VictoryPending) && battleId && (
                   <Link
                     href={`/battle/${battleId}`}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 text-xs sm:text-sm font-medium transition-colors animate-pulse-slow"
+                    className="flex flex-col items-center px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 text-xs sm:text-sm font-medium transition-colors animate-pulse-slow"
                   >
-                    <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-400 animate-ping-slow"></span>
-                    <span>In Battle</span>
+                    <div className="flex items-center gap-1 sm:gap-1.5 text-orange-400">
+                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-orange-400 animate-ping-slow"></span>
+                      <span>In Battle</span>
+                    </div>
+                    <span className="text-white text-xs">VIEW</span>
                   </Link>
                 )}
 

@@ -1,5 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
-// ✅ FIXED: Balance display and sell amount formatting
+// ✅ FIX DEFINITIVO: Calcolo corretto del 100% per raggiungere esattamente il target
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -229,7 +229,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, [publicKey, connection]);
 
   // ============================================================
-  // 🎯 SOL-BASED PROGRESS CALCULATIONS
+  // 🎯 SOL-BASED PROGRESS CALCULATIONS - FIX DEFINITIVO
   // ============================================================
   const progressData = useMemo(() => {
     if (!tokenState) {
@@ -262,10 +262,30 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     const overallProgress = solProgress;
 
     const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
-    const maxBuyableSol = solRemaining / (1 - TRADING_FEE);
+
+    // ✅ FIX DEFINITIVO: maxBuyableSol = quanto manca esattamente
+    // Quando siamo vicini al target, usiamo il 98% per evitare overflow
+    let maxBuyableSol: number;
+    if (solRemaining <= 0.001) {
+      maxBuyableSol = 0;
+    } else if (solRemaining < 0.5) {
+      // Vicini al target: usa il 98% per sicurezza
+      maxBuyableSol = solRemaining * 0.98;
+    } else {
+      // Lontani dal target: usa il valore pieno
+      maxBuyableSol = solRemaining;
+    }
 
     const isNearGraduation = solProgress >= AUTO_DISABLE_THRESHOLD;
     const isGraduationLocked = solProgress >= 100 || solRemaining <= 0.001;
+
+    console.log('📊 TradingPanel progressData:', {
+      solCollectedSol,
+      solRemaining,
+      maxBuyableSol,
+      isNearGraduation,
+      isGraduationLocked,
+    });
 
     return {
       mcProgress,
@@ -561,13 +581,28 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, []);
 
   // ============================================================
-  // 🎮 PERCENTAGE BUTTONS - FIXED
+  // 🎮 PERCENTAGE BUTTONS - FIX DEFINITIVO
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
       if (!solBalance) return;
-      const maxUsable = Math.min(solBalance - 0.01, progressData.maxBuyableSol);
+
+      // ✅ FIX: Usa direttamente maxBuyableSol che ora è calcolato correttamente
+      const userMaxSol = solBalance - 0.01; // Lascia 0.01 SOL per fee transazione
+      const tokenMaxSol = progressData.maxBuyableSol;
+
+      const maxUsable = Math.min(userMaxSol, tokenMaxSol);
       const value = Math.max(0, maxUsable * (percent / 100));
+
+      console.log('📊 handlePercentage:', {
+        percent,
+        solBalance,
+        userMaxSol,
+        tokenMaxSol,
+        maxUsable,
+        value,
+      });
+
       setAmount(value.toFixed(4));
     } else {
       // ⭐ FIX: Use balanceFormatted (already divided by 1e9)
