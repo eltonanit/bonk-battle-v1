@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useWallet } from '@solana/wallet-adapter-react';
 
 interface VictoryModalProps {
   winnerSymbol: string;
@@ -34,11 +35,17 @@ export function VictoryModal({
   onClose,
 }: VictoryModalProps) {
   const router = useRouter();
+  const { publicKey } = useWallet();
 
   // Animation states
   const [showPoints, setShowPoints] = useState(false);
   const [pointsAnimating, setPointsAnimating] = useState(false);
   const [confettiPieces, setConfettiPieces] = useState<Array<{ id: number; left: string; delay: string; color: string }>>([]);
+
+  // Share state
+  const [hasShared, setHasShared] = useState(false);
+  const [sharePointsAwarded, setSharePointsAwarded] = useState(false);
+  const [isAwardingSharePoints, setIsAwardingSharePoints] = useState(false);
 
   // Generate confetti on mount
   useEffect(() => {
@@ -70,6 +77,63 @@ export function VictoryModal({
   const handleClose = useCallback(() => {
     router.push(`/token/${winnerMint}`);
   }, [router, winnerMint]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ SHARE ON X + 2,000 POINTS
+  // ═══════════════════════════════════════════════════════════════
+  const handleShareOnX = useCallback(async () => {
+    // Build the tweet text
+    const tweetText = `🏆 My token $${winnerSymbol} just WON a battle on @BonkBattle! 
+
+💰 ${solCollected.toFixed(2)} SOL collected
+📊 ${volumeSol.toFixed(2)} SOL volume
+🌊 Now trading on Raydium!
+
+Join the arena: https://bonkbattle.fun/token/${winnerMint}
+
+#BonkBattle #Solana #Memecoins`;
+
+    // Open Twitter/X share dialog
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+
+    // Mark as shared
+    setHasShared(true);
+
+    // Award +2,000 points if wallet connected
+    if (publicKey && !sharePointsAwarded) {
+      setIsAwardingSharePoints(true);
+
+      try {
+        const response = await fetch('/api/points/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: publicKey.toString(),
+            action: 'share_victory',
+            points: 2000,
+            token_mint: winnerMint,
+            token_symbol: winnerSymbol,
+          }),
+        });
+
+        if (response.ok) {
+          setSharePointsAwarded(true);
+          console.log('✅ +2,000 share points awarded!');
+        } else {
+          const data = await response.json();
+          // If cooldown, still mark as shared visually
+          if (data.error === 'Cooldown active') {
+            console.log('⏳ Share cooldown active');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to award share points:', error);
+      } finally {
+        setIsAwardingSharePoints(false);
+      }
+    }
+  }, [winnerSymbol, winnerMint, solCollected, volumeSol, publicKey, sharePointsAwarded]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
@@ -190,7 +254,7 @@ export function VictoryModal({
             </div>
           </div>
 
-          {/* Points Award - +10,000 POINTS (not STONKS) */}
+          {/* Points Award - +10,000 POINTS */}
           <div className="px-6 pb-4">
             <div className={`bg-gradient-to-r from-purple-900/60 to-pink-900/60 border-2 border-purple-500/50 rounded-xl p-4 text-center relative overflow-hidden transition-all duration-500 ${showPoints ? 'scale-100 opacity-100' : 'scale-95 opacity-70'}`}>
               {/* Sparkle effect */}
@@ -206,6 +270,42 @@ export function VictoryModal({
                 <div className="text-sm text-green-400 mt-1 animate-fade-in">Added to your account!</div>
               )}
             </div>
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          {/* ⭐ SHARE ON X BUTTON - +2,000 POINTS */}
+          {/* ═══════════════════════════════════════════════════════════════ */}
+          <div className="px-6 pb-4">
+            <button
+              onClick={handleShareOnX}
+              disabled={isAwardingSharePoints}
+              className={`w-full py-3 rounded-xl font-bold text-lg transition-all relative overflow-hidden ${sharePointsAwarded
+                  ? 'bg-green-600 text-white cursor-default'
+                  : hasShared
+                    ? 'bg-gray-600 hover:bg-gray-500 text-white'
+                    : 'bg-black hover:bg-gray-900 text-white border-2 border-gray-700 hover:border-gray-500'
+                }`}
+            >
+              {isAwardingSharePoints ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Awarding Points...
+                </span>
+              ) : sharePointsAwarded ? (
+                <span className="flex items-center justify-center gap-2">
+                  ✅ Shared! +2,000 Points Earned
+                </span>
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  {/* X (Twitter) Logo */}
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  Share on X
+                  <span className="text-yellow-400 font-black">+2,000 pts</span>
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Status & Actions */}

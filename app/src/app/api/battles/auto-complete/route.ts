@@ -713,20 +713,66 @@ async function executeFullPipeline(
   console.log(`   Spoils: ${spoilsSol.toFixed(4)} SOL (50% of ${loserSolBefore.toFixed(4)})`);
   console.log(`   Platform fee: ${platformFeeSol.toFixed(4)} SOL (5% of ${totalAfterPlunder.toFixed(4)})`);
 
-  // Add points to winner creator
+  // ═══════════════════════════════════════════════════════════════
+  // ADD POINTS + CREATE NOTIFICATION FOR WINNER CREATOR
+  // ═══════════════════════════════════════════════════════════════
   if (winnerData?.creator_wallet) {
-    const { data: currentPoints } = await supabase
-      .from('user_stonks')
-      .select('total_stonks')
-      .eq('wallet_address', winnerData.creator_wallet)
+    const creatorWallet = winnerData.creator_wallet;
+
+    // 1. Get current user stats from user_points
+    const { data: currentUser } = await supabase
+      .from('user_points')
+      .select('total_points, wins_count')
+      .eq('wallet_address', creatorWallet)
       .single();
 
-    await supabase.from('user_stonks').upsert({
-      wallet_address: winnerData.creator_wallet,
-      total_stonks: (currentPoints?.total_stonks || 0) + 10000,
+    const newTotal = (currentUser?.total_points || 0) + 10000;
+    const newWins = (currentUser?.wins_count || 0) + 1;
+
+    // 2. Update user_points with new total and wins count
+    await supabase.from('user_points').upsert({
+      wallet_address: creatorWallet,
+      total_points: newTotal,
+      wins_count: newWins,
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'wallet_address' });
 
-    console.log('🎮 +10,000 points awarded to:', winnerData.creator_wallet.slice(0, 8) + '...');
+    // 3. Record in point_transactions for history
+    await supabase.from('point_transactions').insert({
+      wallet_address: creatorWallet,
+      action: 'win_battle',
+      points: 10000,
+      metadata: {
+        token_mint: tokenMint,
+        token_symbol: winnerData.symbol || '???',
+        token_image: winnerData.image || null,
+        pool_id: poolResult.poolId,
+        raydium_url: raydiumUrl,
+      },
+    });
+
+    // 4. CREATE NOTIFICATION for the +10,000 points popup!
+    // Using YOUR column names: user_wallet, data (not wallet_address, metadata)
+    await supabase.from('notifications').insert({
+      user_wallet: creatorWallet,
+      type: 'points',
+      title: 'Battle Victory!',
+      message: `Your token $${winnerData.symbol || '???'} won the battle! +10,000 points`,
+      read: false,
+      data: {
+        action: 'win_battle',
+        points: 10000,
+        token_mint: tokenMint,
+        token_symbol: winnerData.symbol || '???',
+        token_image: winnerData.image || null,
+        pool_id: poolResult.poolId,
+        raydium_url: raydiumUrl,
+      },
+    });
+
+    console.log('+10,000 points awarded to:', creatorWallet.slice(0, 8) + '...');
+    console.log('Notification created for victory!');
+    console.log('Wins count updated to:', newWins);
   }
 
   // ⭐ Log victory to activity feed for popup!
