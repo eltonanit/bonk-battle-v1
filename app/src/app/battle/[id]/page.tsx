@@ -219,7 +219,8 @@ export default function BattleDetailPage() {
   const progressB = getProgress(stateB);
 
   // ═══════════════════════════════════════════════════════════════
-  // AUTO-VICTORY DETECTION & PROCESSING
+  // ⭐ FIX: AUTO-VICTORY DETECTION & PROCESSING
+  // Now also checks battleStatus for already-processed victories
   // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
     // Guards
@@ -228,24 +229,46 @@ export default function BattleDetailPage() {
     if (victoryProcessing) return;
     if (victoryData?.poolId) return; // Already has pool
 
-    // Check victory conditions
-    const tokenAWon = progressA.sol >= 99.5 && progressA.vol >= 99.5; // 99.5% tolerance
-    const tokenBWon = stateB && progressB.sol >= 99.5 && progressB.vol >= 99.5;
+    // ⭐ FIX: Check battleStatus FIRST!
+    // If status is VictoryPending(3), Listed(4) or PoolCreated(5), victory already happened
+    const statusAWon = stateA.battleStatus >= 3; // VictoryPending, Listed, or PoolCreated
+    const statusBWon = stateB && stateB.battleStatus >= 3;
+
+    // Original progress-based check (for live detection during battle)
+    const progressAWon = progressA.sol >= 99.5 && progressA.vol >= 99.5;
+    const progressBWon = stateB && progressB.sol >= 99.5 && progressB.vol >= 99.5;
+
+    // Combined: either status indicates victory OR progress indicates victory
+    const tokenAWon = statusAWon || progressAWon;
+    const tokenBWon = statusBWon || progressBWon;
 
     if (!tokenAWon && !tokenBWon) return;
 
-    // Determine winner
-    const isTokenAWinner = tokenAWon;
+    // Determine winner (prefer the one with higher status, or the one that won)
+    let isTokenAWinner = false;
+    if (tokenAWon && tokenBWon) {
+      // Both show as won - pick the one with higher status
+      isTokenAWinner = (stateA.battleStatus >= (stateB?.battleStatus || 0));
+    } else {
+      isTokenAWinner = tokenAWon;
+    }
+
     const winnerMint = isTokenAWinner ? tokenAMint?.toString() : effectiveTokenBMint?.toString();
     const winnerState = isTokenAWinner ? stateA : stateB;
     const loserState = isTokenAWinner ? stateB : stateA;
 
     if (!winnerMint || !winnerState) return;
 
-    console.log('🏆 VICTORY DETECTED!', winnerState.symbol, 'wins!');
+    console.log('🏆 VICTORY DETECTED!', winnerState.symbol, 'wins! (status:', winnerState.battleStatus, ')');
 
     // Mark as triggered to prevent re-runs
     setVictoryTriggered(true);
+
+    // ⭐ FIX: Use volume for display since sol_collected might be 0 after withdraw
+    // Estimate solCollected from volume (roughly 60% of volume is net SOL collected)
+    const estimatedSolCollected = isTokenAWinner
+      ? (progressA.solCollected > 0 ? progressA.solCollected : Math.min(progressA.volumeSol * 0.6, CURRENT_TIER.TARGET_SOL))
+      : (progressB.solCollected > 0 ? progressB.solCollected : Math.min(progressB.volumeSol * 0.6, CURRENT_TIER.TARGET_SOL));
 
     // Set initial victory data and show modal
     setVictoryData({
@@ -254,12 +277,38 @@ export default function BattleDetailPage() {
       winnerImage: getTokenImage(winnerState),
       loserSymbol: loserState?.symbol,
       loserImage: loserState ? getTokenImage(loserState) : undefined,
-      solCollected: isTokenAWinner ? progressA.solCollected : progressB.solCollected,
+      solCollected: estimatedSolCollected > 0 ? estimatedSolCollected : CURRENT_TIER.TARGET_SOL, // Default to target if 0
       volumeSol: isTokenAWinner ? progressA.volumeSol : progressB.volumeSol,
     });
     setShowVictoryModal(true);
 
-    // Process victory automatically
+    // ⭐ FIX: If status is already Listed/PoolCreated, fetch pool info directly
+    if (winnerState.battleStatus >= 4) {
+      console.log('🔍 Victory already processed, fetching pool info...');
+
+      fetch(`/api/winners/${winnerMint}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.pool_id) {
+            console.log('✅ Found existing pool:', data.pool_id);
+            setVictoryData(prev => prev ? {
+              ...prev,
+              poolId: data.pool_id,
+              raydiumUrl: data.raydium_url,
+              solCollected: data.final_sol_collected ? data.final_sol_collected / 1e9 : prev.solCollected,
+            } : null);
+          }
+          setVictoryProcessing(false);
+        })
+        .catch(err => {
+          console.error('Error fetching winner data:', err);
+          setVictoryProcessing(false);
+        });
+
+      return; // Don't call auto-complete if already processed
+    }
+
+    // Process victory automatically (only if not already Listed/PoolCreated)
     const processVictory = async () => {
       setVictoryProcessing(true);
       console.log('🚀 Auto-processing victory for:', winnerMint.slice(0, 8) + '...');
@@ -285,6 +334,20 @@ export default function BattleDetailPage() {
           // Refetch states to update UI
           refetchA();
           refetchB();
+        } else if (result.error?.includes('Pool already created') || result.steps?.alreadyComplete) {
+          // Pool was already created - fetch the existing pool info
+          console.log('⚠️ Pool already exists, fetching info...');
+          const winnersRes = await fetch(`/api/winners/${winnerMint}`);
+          if (winnersRes.ok) {
+            const winnerInfo = await winnersRes.json();
+            if (winnerInfo?.pool_id) {
+              setVictoryData(prev => prev ? {
+                ...prev,
+                poolId: winnerInfo.pool_id,
+                raydiumUrl: winnerInfo.raydium_url,
+              } : null);
+            }
+          }
         } else {
           console.error('Victory processing failed:', result.error);
           // Still show modal but without pool info
@@ -523,8 +586,8 @@ export default function BattleDetailPage() {
               <button
                 onClick={() => setSelectedToken('A')}
                 className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${selectedToken === 'A'
-                    ? 'bg-[#4DB5FF] text-white border-2 border-orange-500'
-                    : 'text-gray-400 hover:text-white'
+                  ? 'bg-[#4DB5FF] text-white border-2 border-orange-500'
+                  : 'text-gray-400 hover:text-white'
                   }`}
               >
                 {stateA.symbol}
@@ -533,8 +596,8 @@ export default function BattleDetailPage() {
                 <button
                   onClick={() => setSelectedToken('B')}
                   className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-all ${selectedToken === 'B'
-                      ? 'text-white border-2 border-orange-500'
-                      : 'text-gray-400 hover:text-white'
+                    ? 'text-white border-2 border-orange-500'
+                    : 'text-gray-400 hover:text-white'
                     }`}
                   style={selectedToken === 'B' ? { backgroundColor: '#FF5A8E' } : {}}
                 >
@@ -598,8 +661,8 @@ export default function BattleDetailPage() {
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${currentProgress.sol >= 100
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                            : 'bg-gradient-to-r from-green-400 to-green-600'
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                          : 'bg-gradient-to-r from-green-400 to-green-600'
                           }`}
                         style={{ width: `${currentProgress.sol}%` }}
                       />
@@ -621,8 +684,8 @@ export default function BattleDetailPage() {
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${currentProgress.vol >= 100
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                            : 'bg-gradient-to-r from-orange-400 to-orange-600'
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                          : 'bg-gradient-to-r from-orange-400 to-orange-600'
                           }`}
                         style={{ width: `${Math.min(currentProgress.vol, 100)}%` }}
                       />
@@ -649,21 +712,19 @@ export default function BattleDetailPage() {
                 <div className="flex border-b border-[#2a3544]">
                   <button
                     onClick={() => setActiveTab('comments')}
-                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
-                      activeTab === 'comments'
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${activeTab === 'comments'
                         ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     💬 Comments
                   </button>
                   <button
                     onClick={() => setActiveTab('trade')}
-                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${
-                      activeTab === 'trade'
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${activeTab === 'trade'
                         ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
                         : 'text-gray-400 hover:text-white'
-                    }`}
+                      }`}
                   >
                     📊 Trade
                   </button>
@@ -728,24 +789,24 @@ export default function BattleDetailPage() {
             <div className="lg:col-span-4 space-y-6">
               {/* Trading Panel - Hidden on mobile/tablet (<810px), shown on desktop */}
               <div className="hidden tablet-trading:block">
-              {currentMint && currentState && (
-                <TradingPanel
-                  mint={currentMint}
-                  tokenState={{
-                    symbol: currentState.symbol || 'TOKEN',
-                    image: getTokenImage(currentState),
-                    solCollected: currentState.realSolReserves,
-                    totalTradeVolume: currentState.totalTradeVolume,
-                    virtualSolReserves: currentState.virtualSolReserves,
-                    realSolReserves: currentState.realSolReserves,
-                  }}
-                  solPriceUsd={solPriceUsd || 0}
-                  onSuccess={() => {
-                    refetchA();
-                    refetchB();
-                  }}
-                />
-              )}
+                {currentMint && currentState && (
+                  <TradingPanel
+                    mint={currentMint}
+                    tokenState={{
+                      symbol: currentState.symbol || 'TOKEN',
+                      image: getTokenImage(currentState),
+                      solCollected: currentState.realSolReserves,
+                      totalTradeVolume: currentState.totalTradeVolume,
+                      virtualSolReserves: currentState.virtualSolReserves,
+                      realSolReserves: currentState.realSolReserves,
+                    }}
+                    solPriceUsd={solPriceUsd || 0}
+                    onSuccess={() => {
+                      refetchA();
+                      refetchB();
+                    }}
+                  />
+                )}
               </div>
 
               {/* Battle Info - Tekken Style */}

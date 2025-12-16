@@ -332,8 +332,8 @@ export function Tagline() {
 
         {/* ===== RIGHT SIDE - SLIDER IMMAGINI (DESKTOP ONLY) ===== */}
         <div className="hidden lg:block order-2">
-          <h3 className="text-base lg:text-lg font-bold mb-3" style={{ color: '#FF8A5B' }}>
-            ✨CLASH OF MEMES: ENTER THE ARENA
+          <h3 className="text-xl lg:text-2xl font-bold mb-3" style={{ color: '#FF8A5B' }}>
+            ✨CLASH OF MEMES: YOUR TOKEN VS MY TOKEN
           </h3>
 
           {/* ⭐ Container slider - ALTEZZA RIDOTTA per matchare sinistra */}

@@ -146,6 +146,8 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
 
         // sol_collected: u64 (8 bytes)
         const solCollected = readU64('sol_collected');
+        console.log(`🔍 RAW sol_collected bytes:`, Array.from(data.slice(40, 48)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+        console.log(`🔍 Parsed sol_collected: ${solCollected} lamports = ${solCollected / 1e9} SOL`);
 
         // tokens_sold: u64 (8 bytes)
         const tokensSold = readU64('tokens_sold', Number(MAX_REALISTIC_TOKENS));
