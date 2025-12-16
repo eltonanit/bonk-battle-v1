@@ -228,7 +228,7 @@ export default function NotificationsPage() {
                 <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
+                    className={`py-4 px-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
                 >
                     <div className="flex items-center gap-3">
                         <img
@@ -270,32 +270,32 @@ export default function NotificationsPage() {
                     <div
                         key={notif.id}
                         onClick={() => handleNotificationClick(notif)}
-                        className={`py-4 px-3 -mx-3 cursor-pointer hover:bg-yellow-500/10 transition-colors rounded-lg bg-yellow-500/5 ${!isLast ? 'border-b border-yellow-500/20' : ''}`}
+                        className={`py-4 px-4 cursor-pointer hover:bg-yellow-500/10 transition-colors bg-yellow-500/5 ${!isLast ? 'border-b border-yellow-500/20' : ''}`}
                     >
                         <div className="flex items-center gap-3">
-                            {/* Gold circle with trophy */}
-                            <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 border border-yellow-500/30">
-                                <span className="text-2xl">🏆</span>
+                            {/* Gold circle with trophy - same size as regular */}
+                            <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xl">🏆</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                {/* Yellow points text */}
-                                <p className="text-yellow-400 text-xl font-black">
+                                {/* Yellow points text - same size as regular */}
+                                <p className="text-yellow-400 text-lg font-bold">
                                     +{points.toLocaleString()} pts
                                 </p>
-                                <p className="text-yellow-200/70 text-sm mt-0.5 font-medium">{displayMessage}</p>
+                                <p className="text-yellow-200/70 text-sm mt-0.5">{displayMessage}</p>
                                 <p className="text-yellow-500/50 text-xs mt-1">
                                     {formatTimeAgo(notif.created_at)}
                                 </p>
                             </div>
 
-                            {/* Token Image with gold border */}
+                            {/* Token Image with gold border - same size as regular */}
                             {tokenImage && (
-                                <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20">
+                                <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-yellow-500/50">
                                     <Image
                                         src={tokenImage}
                                         alt="Token"
-                                        width={56}
-                                        height={56}
+                                        width={48}
+                                        height={48}
                                         className="w-full h-full object-cover"
                                         unoptimized
                                     />
@@ -315,7 +315,7 @@ export default function NotificationsPage() {
                 <div
                     key={notif.id}
                     onClick={() => handleNotificationClick(notif)}
-                    className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
+                    className={`py-4 px-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -358,7 +358,7 @@ export default function NotificationsPage() {
             <div
                 key={notif.id}
                 onClick={() => handleNotificationClick(notif)}
-                className={`py-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
+                className={`py-4 px-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
             >
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -439,7 +439,7 @@ export default function NotificationsPage() {
                                 <p className="text-gray-400">{`We'll notify you when something happens!`}</p>
                             </div>
                         ) : (
-                            <div className="px-4">
+                            <div>
                                 {notifications.map((notif, index) =>
                                     renderNotification(notif as Notification, index === notifications.length - 1)
                                 )}

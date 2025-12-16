@@ -19,6 +19,7 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
 import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 import { VictoryModal } from '@/components/battle/VictoryModal';
+import { PointsRewardModal } from '@/components/battle/PointsRewardModal';
 import { BattleMobileTradingDrawer } from '@/components/battle/BattleMobileTradingDrawer';
 
 // =================================================================
@@ -67,6 +68,7 @@ export default function BattleDetailPage() {
   // VICTORY STATE MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
   const [showVictoryModal, setShowVictoryModal] = useState(false);
+  const [showPointsModal, setShowPointsModal] = useState(false);
   const [victoryProcessing, setVictoryProcessing] = useState(false);
   const [victoryTriggered, setVictoryTriggered] = useState(false);
   const [victoryData, setVictoryData] = useState<{
@@ -1026,9 +1028,9 @@ export default function BattleDetailPage() {
       <MobileBottomNav />
 
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/* VICTORY MODAL - Auto-processes and redirects */}
+      {/* VICTORY MODAL - Shows battle result first */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {showVictoryModal && victoryData && (
+      {showVictoryModal && victoryData && !showPointsModal && (
         <VictoryModal
           winnerSymbol={victoryData.winnerSymbol}
           winnerImage={victoryData.winnerImage}
@@ -1041,6 +1043,25 @@ export default function BattleDetailPage() {
           raydiumUrl={victoryData.raydiumUrl}
           isProcessing={victoryProcessing}
           onClose={() => setShowVictoryModal(false)}
+          onShowPointsModal={() => {
+            setShowVictoryModal(false);
+            setShowPointsModal(true);
+          }}
+        />
+      )}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {/* POINTS REWARD MODAL - Shows +10,000 points after victory */}
+      {/* ═══════════════════════════════════════════════════════════════ */}
+      {showPointsModal && victoryData && (
+        <PointsRewardModal
+          tokenSymbol={victoryData.winnerSymbol}
+          tokenImage={victoryData.winnerImage}
+          tokenMint={victoryData.winnerMint}
+          points={10000}
+          onClose={() => {
+            setShowPointsModal(false);
+            router.push(`/token/${victoryData.winnerMint}`);
+          }}
         />
       )}
     </div>
