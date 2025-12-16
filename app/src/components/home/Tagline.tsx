@@ -264,7 +264,7 @@ export function Tagline() {
           <div>
             {/* Titolo THE COLOSSEUM - CENTRATO */}
             <h2
-              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold mb-4 lg:mb-6 flex items-center justify-center gap-2 lg:gap-4"
+              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold mb-2 flex items-center justify-center gap-2 lg:gap-4"
               style={{
                 color: '#a855f7',
                 textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
@@ -274,6 +274,36 @@ export function Tagline() {
               THE COLOSSEUM
               <span className="text-2xl sm:text-3xl lg:text-5xl">⚔️</span>
             </h2>
+
+            {/* About to Win - Leading Token - RIGHT UNDER TITLE */}
+            {latestBattle && (() => {
+              const tokenAVolume = lamportsToSol(latestBattle.tokenA.totalTradeVolume ?? 0);
+              const tokenBVolume = lamportsToSol(latestBattle.tokenB.totalTradeVolume ?? 0);
+              const tokenASol = lamportsToSol(latestBattle.tokenA.realSolReserves ?? 0);
+              const tokenBSol = lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0);
+
+              const tokenAProgress = ((tokenASol / TARGET_SOL) + (tokenAVolume / VICTORY_VOLUME_SOL)) / 2;
+              const tokenBProgress = ((tokenBSol / TARGET_SOL) + (tokenBVolume / VICTORY_VOLUME_SOL)) / 2;
+
+              const leadingToken = tokenAProgress >= tokenBProgress ? latestBattle.tokenA : latestBattle.tokenB;
+
+              return (
+                <div className="flex items-center justify-center gap-3 mb-4 bg-black/40 rounded-xl py-2 px-4 mx-auto w-fit">
+                  <span className="text-black font-bold bg-yellow-400 px-2 py-0.5 rounded text-sm">About to win</span>
+                  <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-yellow-400">
+                    <Image
+                      src={leadingToken.image || '/default-token.png'}
+                      alt={leadingToken.symbol || 'Leading'}
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <span className="text-yellow-400 font-bold text-sm">${leadingToken.symbol}</span>
+                </div>
+              );
+            })()}
 
             {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
             {latestBattle ? (
@@ -299,6 +329,7 @@ export function Tagline() {
                     />
                   </div>
                 </div>
+
                 {/* Prize description */}
                 <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#c084fc', textShadow: '0 0 15px rgba(192, 132, 252, 0.6)' }}>
                   Winner gets listed on DEX + 50% liquidity of loser

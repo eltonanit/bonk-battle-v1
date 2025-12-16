@@ -14,6 +14,35 @@ import { TARGET_SOL, VICTORY_VOLUME_SOL, lamportsToSol } from '@/lib/solana/cons
 
 type FilterTab = 'battle' | 'new' | 'aboutToWin' | 'winners';
 
+// Token corrotti da nascondere (battle_status corrotto on-chain)
+const BLACKLISTED_MINTS = new Set([
+  // Batch 1 - Originali
+  "8JLi2gGmSWtfLXdCdbdftDQqTm2jrhZUvqpjEJeRFk3L", // Only998
+  "536mB3r9kyVYmT2xEZmhV7cRscLYWsh2NqpVeuauyhxp", // Enoc998
+  "339SUaivgtTFCHfHemoPypz7BV4zie8gZqqkwtDFrgp2", // LIQ2
+  // Batch 2 - Altri corrotti
+  "34iyko5Knev5znq6phXqGNQYeuSvwUTABjH6eonXB6tu", // 98JO
+  "5dny6aCdc88c6pSEgoZy3RFBVQnAYeyNbyBxGXftJhjU", // BHHHB
+  "278CzMrqZ23ah2NQcKgcjLFxdhmjrzR2HQijPhTGViET", // 3E3
+  "BEiwbsbyY7nhtMFqydwhvHEp6uvEPbZBPAuQYNo2QEDs", // VBVV
+  "FUnqTqYt4nW8y8AAGC1rAu27NbH2yHaKFwpaXoxke4i4", // RTY6
+  "71neaXPN4SG8uHZNca24YXCZJgLBTpDRdwMkzVBzi3xZ", // 007
+  "FN9DYK9QN6on8aMfjEygHjFoBnfQEVtSd6qY8deM7gXz", // 2DFS
+  "CzvfUNx4AePvRNJw94d7FtjFCVyyKvaLtrGA3Fa5Q4SK", // GHH
+  "93BPpgX76EBfekvDP1hCnGNXQm5cS3KTNhMrbpczVXXC", // PR2
+  "6bRBfTvM6MpGefGfa8TTE7RemHW8uywn4ntWwqwqh6ZP", // FEE
+  "HdPAmHrPToDqtm916Xuhz3Z7SxsKqbmn9KBcQQqkA9po", // DEFC
+  "6YbTATxVrRX9TybWnt18WfuLT5e2jAqLbJ4CSZztLiPz", // 1Q2
+  "GhHpd4757tCrgmroN5bkCked5JRgC7CEoP35ZbiDDjan", // 123W
+  "Efz37LsoKDw7jKKgnnT1N2ngigaoPUEUcim7MVM9TDFA", // DDDD
+  "DaFj1JYrPaGqGQx6xKho1DYEH5qeYJWK1JBm9JKa8tnN", // ETST1
+  "5Mfgrz2WwEdY3MaXbPNtsH2K4nTH2N9sUpesY4gX9b3Q", // 1QQ2
+  "A2jDkCvpB4EMjcvHxhHrJET2LGvCi89t3DTTSb2s6h5k", // E434
+  "E4eg651HG5T9L66B5KqrXBKACCwZMdUzUq5Hm4ax1Cdg", // 77Y7
+  "4qwjvFxEER1Rype26PHPMyjLsCxxjtBVoEVRJ6i66ikb", // WDW
+  "12YWjkCX4iJyhaq6CK4rwc8GiDaULXAZ68o18rHA29J", // HHHH
+]);
+
 interface Winner {
   mint: string;
   name: string;
@@ -54,7 +83,12 @@ export function TokenGridBonk() {
         console.log('📊 TokenGridBonk: Loading all BONK Battle tokens...');
         const tokens = await fetchAllBonkTokens();
         console.log(`✅ TokenGridBonk: Found ${tokens.length} BONK tokens`);
-        setAllTokens(tokens);
+
+        // 🧹 Filter out blacklisted (corrupted) tokens
+        const cleanTokens = tokens.filter(t => !BLACKLISTED_MINTS.has(t.mint.toString()));
+        console.log(`🧹 After blacklist filter: ${cleanTokens.length} tokens (removed ${tokens.length - cleanTokens.length})`);
+
+        setAllTokens(cleanTokens);
 
         // Fetch winners from Supabase
         const { data: winnersData, error: winnersError } = await supabase
