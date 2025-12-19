@@ -10,10 +10,10 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { useFollowers, formatWallet, formatTimeAgo } from '@/hooks/useFollowers';
 
-type Tab = 'feed' | 'add';
+type Tab = 'feed' | 'add' | 'invite';
 
 export default function FeedFollowersPage() {
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
   const [activeTab, setActiveTab] = useState<Tab>('feed');
 
   const {
@@ -157,6 +157,16 @@ export default function FeedFollowersPage() {
             >
               Add Followers
             </button>
+            <button
+              onClick={() => setActiveTab('invite')}
+              className={`px-6 py-3 font-semibold transition-all border-b-2 ${
+                activeTab === 'invite'
+                  ? 'text-yellow-400 border-yellow-400'
+                  : 'text-yellow-400 border-transparent hover:text-yellow-300'
+              }`}
+            >
+              Invite
+            </button>
           </div>
 
           {!connected ? (
@@ -268,7 +278,7 @@ export default function FeedFollowersPage() {
                 </div>
               )}
             </div>
-          ) : (
+          ) : activeTab === 'add' ? (
             /* ADD FOLLOWERS TAB */
             <div>
               {loadingSuggested ? (
@@ -333,7 +343,50 @@ export default function FeedFollowersPage() {
                 </>
               )}
             </div>
-          )}
+          ) : activeTab === 'invite' ? (
+            /* INVITE TAB */
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🎁</div>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-2">Invite Friends</h2>
+              <p className="text-gray-400 mb-6">Share your referral link and earn 5,000 points for each friend who joins!</p>
+
+              <div className="bg-[#1a1f2e] border border-yellow-500/30 rounded-xl p-6 max-w-md mx-auto">
+                <div className="text-sm text-gray-400 mb-2">Your referral link</div>
+                <div className="bg-black/50 rounded-lg p-3 mb-4 break-all text-yellow-400 font-mono text-sm">
+                  {publicKey ? `https://bonkbattle.fun/?ref=${publicKey.toString()}` : 'Connect wallet to get your link'}
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (publicKey) {
+                      navigator.clipboard.writeText(`https://bonkbattle.fun/?ref=${publicKey.toString()}`);
+                    }
+                  }}
+                  className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-lg transition-all mb-3"
+                >
+                  📋 Copy Link
+                </button>
+
+                <button
+                  onClick={() => {
+                    const text = `Join me on BONK Battle! The ultimate token battle arena on Solana 🔥\n\nhttps://bonkbattle.fun/?ref=${publicKey?.toString()}`;
+                    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="w-full bg-black hover:bg-gray-900 text-white font-bold py-3 rounded-lg transition-all border border-yellow-500/50 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  Share on X
+                </button>
+              </div>
+
+              <div className="mt-8 text-sm text-gray-500">
+                <span className="text-yellow-400 font-bold">+5,000 pts</span> for each referral that joins!
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -41,6 +41,9 @@ const BLACKLISTED_MINTS = new Set([
   "E4eg651HG5T9L66B5KqrXBKACCwZMdUzUq5Hm4ax1Cdg", // 77Y7
   "4qwjvFxEER1Rype26PHPMyjLsCxxjtBVoEVRJ6i66ikb", // WDW
   "12YWjkCX4iJyhaq6CK4rwc8GiDaULXAZ68o18rHA29J", // HHHH
+  "2PZHPdPGeDHG1gsW7QvKumBpMq3ZFcN7CSABDMezPKUz", // TOP
+  "A6MHG4mo52zT6RjuB9KUubpbbbYwZb66WBvnmq531vFT", // RVR
+  "9WafT1QLi786w1Lt3tKqhZM9H6FX1LKhfmLZogr6DHaL", // OK1
 ]);
 
 interface Winner {

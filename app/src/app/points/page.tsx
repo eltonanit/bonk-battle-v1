@@ -338,18 +338,24 @@ export default function PointsPage() {
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
 
         <div className="max-w-[900px] mx-auto px-5 py-8">
-          {/* ⭐ Header Row: Points + Position */}
+          {/* ⭐ Header Section */}
           <div className="mb-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold text-white">Points</h1>
-              <div className="flex items-center gap-2 bg-emerald-500/20 px-3 py-1 rounded-full">
-                <span className="text-gray-400 text-sm">Position</span>
-                <span className="text-xl font-bold text-emerald-400">#{points?.rank || 1}</span>
-              </div>
-            </div>
+            <h1 className="text-3xl font-bold text-white">Points</h1>
             <Link href="#learn" className="text-emerald-400 hover:text-emerald-300 text-sm">
               Learn more
             </Link>
+
+            {/* 🌍 Position worldwide: con rank e allori */}
+            <div className="flex items-center gap-2 mt-3">
+              <span className="text-gray-400 text-sm">Position worldwide:</span>
+              <div className="inline-flex items-center gap-0">
+                <Image src="/left.png" alt="laurel" width={40} height={40} className="brightness-150 hue-rotate-[80deg] saturate-150 drop-shadow-[0_0_10px_rgba(34,197,94,0.9)]" />
+                <span className="text-xl font-black text-white -mx-1">
+                  {points?.rank ? `${points.rank.toLocaleString()}th` : '—'}
+                </span>
+                <Image src="/right.png" alt="laurel" width={40} height={40} className="brightness-150 hue-rotate-[80deg] saturate-150 drop-shadow-[0_0_10px_rgba(34,197,94,0.9)]" />
+              </div>
+            </div>
           </div>
 
           {/* Social Follow Claim Boxes */}
