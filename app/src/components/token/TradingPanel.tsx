@@ -1,5 +1,5 @@
 // app/src/components/token/TradingPanel.tsx
-// ✅ FIX DEFINITIVO: Calcolo corretto del 100% per raggiungere esattamente il target
+// ✅ FIX: Uses centralized tier configuration
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -13,14 +13,20 @@ import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
 import { supabase } from '@/lib/supabase';
 import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 
+// ⭐ IMPORT CENTRALIZED TIER CONFIG
+import {
+  TARGET_SOL,
+  VICTORY_VOLUME_SOL,
+  ACTIVE_TIER,
+  calculateSolProgress,
+  calculateVolumeProgress,
+  getSolRemaining,
+} from '@/config/tier-config';
+
 // ============================================================
-// 🎯 VICTORY TARGETS (SOL-BASED - TEST TIER)
+// 🎯 CONSTANTS FROM TIER CONFIG
 // ============================================================
-const TARGET_SOL = 6.0;
-const VICTORY_VOLUME_SOL = 6.6;
 const TRADING_FEE = 0.02;
-const VICTORY_MC_USD = 5500;
-const VICTORY_VOLUME_USD = 100;
 const AUTO_DISABLE_THRESHOLD = 97;
 
 interface TokenState {
@@ -91,6 +97,10 @@ function GraduationPopup({
               ? `${tokenSymbol} has reached the bonding curve limit!`
               : `${tokenSymbol} is about to complete bonding curve`
             }
+          </p>
+          {/* ⭐ Show active tier */}
+          <p className="text-xs text-gray-500 mt-2">
+            {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
           </p>
         </div>
 
@@ -229,7 +239,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, [publicKey, connection]);
 
   // ============================================================
-  // 🎯 SOL-BASED PROGRESS CALCULATIONS - FIX DEFINITIVO
+  // 🎯 SOL-BASED PROGRESS CALCULATIONS - USES TIER CONFIG
   // ============================================================
   const progressData = useMemo(() => {
     if (!tokenState) {
@@ -251,28 +261,23 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     const solCollectedSol = tokenState.solCollected / 1e9;
     const totalVolumeSol = tokenState.totalTradeVolume / 1e9;
 
-    const solProgress = (solCollectedSol / TARGET_SOL) * 100;
-    const volumeProgress = (totalVolumeSol / VICTORY_VOLUME_SOL) * 100;
+    // ⭐ Use tier config helpers
+    const solProgress = calculateSolProgress(tokenState.solCollected);
+    const volumeProgress = calculateVolumeProgress(tokenState.totalTradeVolume);
 
     const currentMcUsd = solCollectedSol * (solPriceUsd || 0);
     const currentVolUsd = totalVolumeSol * (solPriceUsd || 0);
-    const mcProgress = Math.min((currentMcUsd / VICTORY_MC_USD) * 100, 100);
-    const volProgress = Math.min((currentVolUsd / VICTORY_VOLUME_USD) * 100, 100);
 
     const overallProgress = solProgress;
+    const solRemaining = getSolRemaining(tokenState.solCollected);
 
-    const solRemaining = Math.max(0, TARGET_SOL - solCollectedSol);
-
-    // ✅ FIX DEFINITIVO: maxBuyableSol = quanto manca esattamente
-    // Quando siamo vicini al target, usiamo il 98% per evitare overflow
+    // maxBuyableSol calculation
     let maxBuyableSol: number;
     if (solRemaining <= 0.001) {
       maxBuyableSol = 0;
     } else if (solRemaining < 0.5) {
-      // Vicini al target: usa il 98% per sicurezza
       maxBuyableSol = solRemaining * 0.98;
     } else {
-      // Lontani dal target: usa il valore pieno
       maxBuyableSol = solRemaining;
     }
 
@@ -280,6 +285,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     const isGraduationLocked = solProgress >= 100 || solRemaining <= 0.001;
 
     console.log('📊 TradingPanel progressData:', {
+      tier: ACTIVE_TIER.name,
+      targetSol: TARGET_SOL,
       solCollectedSol,
       solRemaining,
       maxBuyableSol,
@@ -288,8 +295,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     });
 
     return {
-      mcProgress,
-      volProgress,
+      mcProgress: solProgress,
+      volProgress: volumeProgress,
       overallProgress,
       currentMcUsd,
       currentVolUsd,
@@ -376,7 +383,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         tokenState?.image
       ).catch(console.error);
 
-      // ⭐ REFRESH BALANCE AFTER BUY
       setTimeout(() => {
         refetchBalance();
       }, 2000);
@@ -439,7 +445,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         tokenState?.image
       ).catch(console.error);
 
-      // ⭐ REFRESH BALANCE
       setTimeout(() => refetchBalance(), 2000);
 
       setShowGraduationPopup(false);
@@ -527,10 +532,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       return;
     }
 
-    // ⭐ FIX: Convert display amount to raw amount (multiply by 1e9)
     const tokenAmountRaw = Math.floor(tokenAmount * 1e9);
 
-    // ⭐ FIX: Compare raw amounts correctly
     if (balance === null || tokenAmountRaw > balance) {
       alert(`Insufficient token balance. You have ${balanceFormatted?.toLocaleString() ?? 0} ${tokenState?.symbol || 'tokens'}`);
       return;
@@ -554,7 +557,6 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         tokenState?.image
       ).catch(console.error);
 
-      // ⭐ REFRESH BALANCE AFTER SELL
       setTimeout(() => refetchBalance(), 2000);
 
       setSuccessMessage(`Sold ${tokenAmount.toLocaleString()} ${tokenState?.symbol || 'tokens'}`);
@@ -581,41 +583,28 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   }, []);
 
   // ============================================================
-  // 🎮 PERCENTAGE BUTTONS - FIX DEFINITIVO
+  // 🎮 PERCENTAGE BUTTONS
   // ============================================================
   const handlePercentage = (percent: number) => {
     if (mode === 'buy') {
       if (!solBalance) return;
 
-      // ✅ FIX: Usa direttamente maxBuyableSol che ora è calcolato correttamente
-      const userMaxSol = solBalance - 0.01; // Lascia 0.01 SOL per fee transazione
+      const userMaxSol = solBalance - 0.01;
       const tokenMaxSol = progressData.maxBuyableSol;
 
       const maxUsable = Math.min(userMaxSol, tokenMaxSol);
       const value = Math.max(0, maxUsable * (percent / 100));
 
-      console.log('📊 handlePercentage:', {
-        percent,
-        solBalance,
-        userMaxSol,
-        tokenMaxSol,
-        maxUsable,
-        value,
-      });
-
       setAmount(value.toFixed(4));
     } else {
-      // ⭐ FIX: Use balanceFormatted (already divided by 1e9)
       if (balanceFormatted === null || balanceFormatted === 0) return;
       const value = balanceFormatted * (percent / 100);
-      // ⭐ FIX: No decimals for whole token amounts, max 2 for partial
       setAmount(Math.floor(value).toString());
     }
   };
 
   const tokenSymbol = tokenState?.symbol || 'TOKEN';
 
-  // ⭐ FIX: Format balance for display with commas
   const displayBalance = balanceFormatted !== null
     ? Math.floor(balanceFormatted).toLocaleString()
     : '0';
@@ -654,12 +643,15 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
       />
 
       {/* ============================================================ */}
-      {/* 🏆 VICTORY PROGRESS SECTION */}
+      {/* 🏆 VICTORY PROGRESS SECTION - Uses TIER CONFIG */}
       {/* ============================================================ */}
       {tokenState && (
         <div className="mb-4 p-3 bg-white/5 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold text-gray-300">🏆 Victory Progress</span>
+            <span className="text-sm font-semibold text-gray-300">
+              🏆 Victory Progress
+              <span className="ml-2 text-xs text-gray-500">({ACTIVE_TIER.icon} {ACTIVE_TIER.name})</span>
+            </span>
             <span className={`text-sm font-bold ${progressData.isGraduationLocked ? 'text-yellow-400' :
               progressData.isNearGraduation ? 'text-orange-400' : 'text-green-400'
               }`}>
@@ -679,6 +671,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
             />
           </div>
 
+          {/* ⭐ Uses TARGET_SOL and VICTORY_VOLUME_SOL from tier config */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <span className="text-gray-500">SOL:</span>
@@ -730,9 +723,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         </button>
       </div>
 
-      {/* ============================================================ */}
-      {/* BALANCE DISPLAY - FIXED */}
-      {/* ============================================================ */}
+      {/* BALANCE DISPLAY */}
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm text-gray-400">Balance:</span>
         <span className="text-sm font-bold text-white">
@@ -743,9 +734,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         </span>
       </div>
 
-      {/* ============================================================ */}
       {/* AMOUNT INPUT */}
-      {/* ============================================================ */}
       <div className="relative mb-3">
         <input
           type="number"
@@ -775,9 +764,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         </div>
       </div>
 
-      {/* ============================================================ */}
       {/* PERCENTAGE BUTTONS */}
-      {/* ============================================================ */}
       <div className="flex gap-2 mb-4">
         <button
           onClick={() => setAmount('')}
@@ -798,16 +785,14 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         ))}
       </div>
 
-      {/* USD Estimate - only for buy */}
+      {/* USD Estimate */}
       {solPriceUsd > 0 && amount && mode === 'buy' && (
         <div className="text-center text-xs text-gray-500 mb-3">
           ≈ ${(parseFloat(amount || '0') * solPriceUsd).toFixed(2)} USD
         </div>
       )}
 
-      {/* ============================================================ */}
       {/* SUBMIT BUTTON */}
-      {/* ============================================================ */}
       <button
         onClick={mode === 'buy' ? handleBuy : handleSell}
         disabled={
@@ -834,9 +819,7 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         }
       </button>
 
-      {/* ============================================================ */}
       {/* WARNINGS */}
-      {/* ============================================================ */}
       {!publicKey && (
         <div className="mt-4 text-center text-sm text-yellow-500">
           Please connect your wallet to trade

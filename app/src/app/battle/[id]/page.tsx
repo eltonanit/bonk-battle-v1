@@ -21,21 +21,14 @@ import { VIRTUAL_RESERVE, VIRTUAL_SUPPLY } from '@/config/solana';
 import { VictoryModal } from '@/components/battle/VictoryModal';
 import { PointsRewardModal } from '@/components/battle/PointsRewardModal';
 import { BattleMobileTradingDrawer } from '@/components/battle/BattleMobileTradingDrawer';
-
-// =================================================================
-// TIER TARGETS FROM SMART CONTRACT (SOL-based!)
-// =================================================================
-const TIER_CONFIG = {
-  TEST: {
-    TARGET_SOL: 6,           // 6 SOL = graduation
-    VICTORY_VOLUME_SOL: 6.6, // 110% of TARGET_SOL (SOL-based!)
-  },
-  PRODUCTION: {
-    TARGET_SOL: 37.7,        // 37.7 SOL = graduation
-    VICTORY_VOLUME_SOL: 41.5, // 110% of TARGET_SOL (SOL-based!)
-  }
-};
-const CURRENT_TIER = TIER_CONFIG.TEST;
+import {
+  TARGET_SOL,
+  VICTORY_VOLUME_SOL,
+  ACTIVE_TIER,
+  calculateSolProgress,
+  calculateVolumeProgress,
+  hasMetGraduationConditions,
+} from '@/config/tier-config';
 
 export default function BattleDetailPage() {
   const params = useParams();
@@ -210,8 +203,8 @@ export default function BattleDetailPage() {
     const volumeSol = state.totalTradeVolume / 1e9;
 
     return {
-      sol: Math.min((solCollected / CURRENT_TIER.TARGET_SOL) * 100, 100),
-      vol: Math.min((volumeSol / CURRENT_TIER.VICTORY_VOLUME_SOL) * 100, 100),
+      sol: calculateSolProgress(state.realSolReserves),
+      vol: calculateVolumeProgress(state.totalTradeVolume),
       solCollected,
       volumeSol
     };
@@ -237,8 +230,14 @@ export default function BattleDetailPage() {
     const statusBWon = stateB && stateB.battleStatus >= 3;
 
     // Original progress-based check (for live detection during battle)
-    const progressAWon = progressA.sol >= 99.5 && progressA.vol >= 99.5;
-    const progressBWon = stateB && progressB.sol >= 99.5 && progressB.vol >= 99.5;
+    const progressAWon = stateA && hasMetGraduationConditions(
+      stateA.realSolReserves,
+      stateA.totalTradeVolume
+    );
+    const progressBWon = stateB && hasMetGraduationConditions(
+      stateB.realSolReserves,
+      stateB.totalTradeVolume
+    );
 
     // Combined: either status indicates victory OR progress indicates victory
     const tokenAWon = statusAWon || progressAWon;
@@ -269,8 +268,8 @@ export default function BattleDetailPage() {
     // ⭐ FIX: Use volume for display since sol_collected might be 0 after withdraw
     // Estimate solCollected from volume (roughly 60% of volume is net SOL collected)
     const estimatedSolCollected = isTokenAWinner
-      ? (progressA.solCollected > 0 ? progressA.solCollected : Math.min(progressA.volumeSol * 0.6, CURRENT_TIER.TARGET_SOL))
-      : (progressB.solCollected > 0 ? progressB.solCollected : Math.min(progressB.volumeSol * 0.6, CURRENT_TIER.TARGET_SOL));
+      ? (progressA.solCollected > 0 ? progressA.solCollected : Math.min(progressA.volumeSol * 0.6, TARGET_SOL))
+      : (progressB.solCollected > 0 ? progressB.solCollected : Math.min(progressB.volumeSol * 0.6, TARGET_SOL));
 
     // Set initial victory data and show modal
     setVictoryData({
@@ -279,7 +278,7 @@ export default function BattleDetailPage() {
       winnerImage: getTokenImage(winnerState),
       loserSymbol: loserState?.symbol,
       loserImage: loserState ? getTokenImage(loserState) : undefined,
-      solCollected: estimatedSolCollected > 0 ? estimatedSolCollected : CURRENT_TIER.TARGET_SOL, // Default to target if 0
+      solCollected: estimatedSolCollected > 0 ? estimatedSolCollected : TARGET_SOL, // Default to target if 0
       volumeSol: isTokenAWinner ? progressA.volumeSol : progressB.volumeSol,
     });
     setShowVictoryModal(true);
@@ -658,7 +657,7 @@ export default function BattleDetailPage() {
                     </div>
                     <div className="flex justify-between text-xs mb-2">
                       <span className="text-gray-400">{currentProgress.solCollected.toFixed(2)} SOL</span>
-                      <span className="text-yellow-400">🏆 Target: {CURRENT_TIER.TARGET_SOL} SOL</span>
+                      <span className="text-yellow-400">🏆 Target: {TARGET_SOL} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div
@@ -681,7 +680,7 @@ export default function BattleDetailPage() {
                     </div>
                     <div className="flex justify-between text-xs mb-2">
                       <span className="text-gray-400">{currentProgress.volumeSol.toFixed(2)} SOL</span>
-                      <span className="text-yellow-400">🏆 Target: {CURRENT_TIER.VICTORY_VOLUME_SOL.toFixed(2)} SOL</span>
+                      <span className="text-yellow-400">🏆 Target: {VICTORY_VOLUME_SOL} SOL</span>
                     </div>
                     <div className="h-3 bg-[#2a3544] rounded-full overflow-hidden">
                       <div

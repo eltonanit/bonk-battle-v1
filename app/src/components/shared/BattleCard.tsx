@@ -1,11 +1,26 @@
 // app/src/components/shared/BattleCard.tsx
-// SOL-BASED PROGRESS - Uses centralized constants from lib/solana/constants.ts
+// ⭐ UPDATED: Added Share on X button + holders support
+// Uses centralized tier config from @/config/tier-config
 'use client';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { TARGET_SOL, VICTORY_VOLUME_SOL, formatSol } from '@/lib/solana/constants';
+
+// ⭐ IMPORT FROM CENTRALIZED TIER CONFIG
+import {
+  TARGET_SOL,
+  VICTORY_VOLUME_SOL,
+  ACTIVE_TIER,
+} from '@/config/tier-config';
+
+// Helper function to format SOL values
+function formatSol(value: number, decimals: number = 2): string {
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1) + 'K';
+  }
+  return value.toFixed(decimals);
+}
 
 // CSS for radiating glow effect and diamond pattern
 const radiateStyles = `
@@ -159,24 +174,27 @@ interface BattleToken {
   marketCapUsd: number;       // For display only (USD)
   solCollected: number;       // SOL collected (in SOL, not lamports)
   totalVolumeSol: number;     // Total volume in SOL
+  holders?: number;           // ⭐ NEW: Number of holders
 }
 
 interface BattleCardProps {
   tokenA: BattleToken;
   tokenB: BattleToken;
-  targetSol?: number;        // SOL target for graduation
-  targetVolumeSol?: number;  // Volume target in SOL
+  targetSol?: number;        // SOL target for graduation (defaults to tier config)
+  targetVolumeSol?: number;  // Volume target in SOL (defaults to tier config)
   winner?: 'A' | 'B' | null; // Se impostato, mostra la card in versione "winner"
   isEpicBattle?: boolean;    // Se true, usa colori viola elettrici
+  showShareButton?: boolean; // ⭐ NEW: Show share button (default: true)
 }
 
 export function BattleCard({
   tokenA,
   tokenB,
-  targetSol = TARGET_SOL,
-  targetVolumeSol = VICTORY_VOLUME_SOL,
+  targetSol = TARGET_SOL,           // ⭐ Now defaults to tier config
+  targetVolumeSol = VICTORY_VOLUME_SOL, // ⭐ Now defaults to tier config
   winner = null,
-  isEpicBattle = false
+  isEpicBattle = false,
+  showShareButton = true,  // ⭐ NEW: Default to true
 }: BattleCardProps) {
 
   // ⚔️ Stati per le animazioni di battaglia
@@ -230,7 +248,29 @@ export function BattleCard({
     };
   }, []);
 
-  // ⭐ SOL-BASED progress calculations
+  // ⭐ NEW: Share on X handler
+  const handleShare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const battleUrl = `${window.location.origin}/battle/${tokenA.mint}-${tokenB.mint}`;
+    const scoreText = `📊 Score: ${tokenA.solCollected.toFixed(2)} vs ${tokenB.solCollected.toFixed(2)} SOL`;
+
+    const tweetText = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} - EPIC BATTLE!
+
+${scoreText}
+
+🏆 Who will win? Vote now!
+
+🔥 Winner gets listed on DEX + 50% of loser's liquidity!
+
+#BonkBattle #Solana #Crypto`;
+
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(battleUrl)}`;
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  };
+
+  // ⭐ SOL-BASED progress calculations using tier config values
   const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
   const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
   const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
@@ -387,12 +427,26 @@ export function BattleCard({
               </div>
             </div>
 
-            {/* Score Center (SOL-based) */}
+            {/* Score Center (SOL-based) + Share Button */}
             <div className="flex flex-col items-center">
               <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SOL</span>
               <span className="text-xl lg:text-2xl font-black text-yellow-400">
                 {formatSol(tokenA.solCollected, 2)} - {formatSol(tokenB.solCollected, 2)}
               </span>
+
+              {/* ⭐ NEW: Share Button */}
+              {showShareButton && (
+                <button
+                  onClick={handleShare}
+                  className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 rounded-lg transition-all hover:scale-105 border border-white/10"
+                  title="Share on X"
+                >
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span className="text-white text-xs font-semibold">Share</span>
+                </button>
+              )}
             </div>
 
             {/* Token B Image */}
@@ -423,10 +477,18 @@ export function BattleCard({
           <div className="flex items-start justify-between">
             {/* Left Token Stats */}
             <div className="flex-1 pr-2 lg:pr-4">
-              {/* ⭐ FIX: Solo testo, niente Link annidato */}
-              <p className="text-sm lg:text-base text-orange-400 font-bold mb-2 lg:mb-3 truncate uppercase">
-                ${tokenA.symbol}
-              </p>
+              {/* ⭐ Token Symbol + Holders */}
+              <div className="flex items-center gap-2 mb-2 lg:mb-3">
+                <p className="text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
+                  ${tokenA.symbol}
+                </p>
+                {tokenA.holders !== undefined && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span>👥</span>
+                    <span>{tokenA.holders}</span>
+                  </span>
+                )}
+              </div>
 
               {/* SOL Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
@@ -434,8 +496,8 @@ export function BattleCard({
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                        : 'bg-gradient-to-r from-green-400 to-green-600'
+                      ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                      : 'bg-gradient-to-r from-green-400 to-green-600'
                       }`}
                     style={{ width: `${solProgressA}%` }}
                   />
@@ -451,8 +513,8 @@ export function BattleCard({
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                        : 'bg-gradient-to-r from-green-400 to-green-600'
+                      ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                      : 'bg-gradient-to-r from-green-400 to-green-600'
                       }`}
                     style={{ width: `${volProgressA}%` }}
                   />
@@ -463,7 +525,7 @@ export function BattleCard({
               </div>
             </div>
 
-            {/* Center Target (SOL-based) */}
+            {/* Center Target (SOL-based) - ⭐ NOW USES TIER CONFIG */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
               <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
@@ -474,14 +536,26 @@ export function BattleCard({
                 <span className="text-xs lg:text-sm text-gray-400">VOL</span>
                 <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetVolumeSol)} SOL</span>
               </div>
+              {/* ⭐ Show tier indicator */}
+              <div className="mt-1 text-[10px] text-gray-600">
+                {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
+              </div>
             </div>
 
             {/* Right Token Stats */}
             <div className="flex-1 pl-2 lg:pl-4">
-              {/* ⭐ FIX: Solo testo, niente Link annidato */}
-              <p className="text-sm lg:text-base text-orange-400 font-bold mb-2 lg:mb-3 truncate text-right uppercase">
-                ${tokenB.symbol}
-              </p>
+              {/* ⭐ Token Symbol + Holders */}
+              <div className="flex items-center justify-end gap-2 mb-2 lg:mb-3">
+                {tokenB.holders !== undefined && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span>{tokenB.holders}</span>
+                    <span>👥</span>
+                  </span>
+                )}
+                <p className="text-sm lg:text-base text-orange-400 font-bold truncate text-right uppercase">
+                  ${tokenB.symbol}
+                </p>
+              </div>
 
               {/* SOL Row */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
@@ -491,8 +565,8 @@ export function BattleCard({
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${solProgressB >= 100
-                        ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
-                        : 'bg-gradient-to-r from-green-600 to-green-400'
+                      ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
+                      : 'bg-gradient-to-r from-green-600 to-green-400'
                       }`}
                     style={{ width: `${solProgressB}%` }}
                   />
@@ -508,8 +582,8 @@ export function BattleCard({
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${volProgressB >= 100
-                        ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
-                        : 'bg-gradient-to-r from-green-600 to-green-400'
+                      ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
+                      : 'bg-gradient-to-r from-green-600 to-green-400'
                       }`}
                     style={{ width: `${volProgressB}%` }}
                   />
