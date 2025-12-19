@@ -1,14 +1,36 @@
 ﻿'use client';
-// SOL-BASED - Uses centralized constants from lib/solana/constants.ts
+// ⭐ UPDATED: Uses token's tier to get correct targets
 
 import { useEffect, useState, useRef } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ParsedTokenBattleState, BattleStatus } from '@/types/bonk';
+import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
-import { TARGET_SOL, VICTORY_VOLUME_SOL, lamportsToSol } from '@/lib/solana/constants';
+import { lamportsToSol } from '@/lib/solana/constants';
+
+// ⭐ TIER TARGETS - Must match smart contract!
+const TIER_TARGETS = {
+  [BattleTier.Test]: {
+    TARGET_SOL: 6,
+    VICTORY_VOLUME_SOL: 6.6,
+  },
+  [BattleTier.Production]: {
+    TARGET_SOL: 37.7,
+    VICTORY_VOLUME_SOL: 41.5,
+  },
+} as const;
+
+// ⭐ Helper to get tier-specific targets
+function getTierTargets(tier: BattleTier | number | undefined) {
+  const tierValue = tier ?? BattleTier.Test;
+  const targets = TIER_TARGETS[tierValue as BattleTier] ?? TIER_TARGETS[BattleTier.Test];
+  return {
+    targetSol: targets.TARGET_SOL,
+    victoryVolumeSol: targets.VICTORY_VOLUME_SOL,
+  };
+}
 
 interface TaglineToken {
   mint: string;
@@ -42,7 +64,6 @@ export function Tagline() {
   useEffect(() => {
     async function loadTokens() {
       try {
-        // Use the new BONK fetcher
         const allTokens = await fetchAllBonkTokens();
 
         if (allTokens.length === 0) return;
@@ -63,7 +84,7 @@ export function Tagline() {
             setLatestBattle({ tokenA: token, tokenB: opponent });
             processed.add(mintStr);
             processed.add(opponentMint);
-            break; // Only need the first/most recent battle
+            break;
           }
         }
 
@@ -77,7 +98,7 @@ export function Tagline() {
             imageUrl: token.image || '',
             progress: (token.solCollected / 1e9 / 85) * 100,
             marketCap,
-            tier: 1,
+            tier: token.tier ?? 0,
           };
         });
 
@@ -132,22 +153,24 @@ export function Tagline() {
     return (mcInLamports / 1e9) * solPriceUsd;
   };
 
-  // Helper to convert lamports to USD
-  const lamportsToUsd = (lamports: number): number => {
-    if (!solPriceUsd) return 0;
-    return (lamports / 1e9) * solPriceUsd;
-  };
-
   // Convert token to BattleCard format (SOL-based!)
   const toBattleToken = (token: ParsedTokenBattleState) => ({
     mint: token.mint.toString(),
     name: token.name || 'Unknown',
     symbol: token.symbol || '???',
     image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token), // Still useful for display
+    marketCapUsd: calculateMarketCapUsd(token),
     solCollected: lamportsToSol(token.realSolReserves ?? 0),
     totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
   });
+
+  // ⭐ Get tier targets for the battle (use tokenA's tier, both should match)
+  const getBattleTierTargets = () => {
+    if (!latestBattle) return { targetSol: 6, victoryVolumeSol: 6.6 };
+    return getTierTargets(latestBattle.tokenA.tier);
+  };
+
+  const battleTargets = getBattleTierTargets();
 
   return (
     <div
@@ -282,8 +305,10 @@ export function Tagline() {
               const tokenASol = lamportsToSol(latestBattle.tokenA.realSolReserves ?? 0);
               const tokenBSol = lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0);
 
-              const tokenAProgress = ((tokenASol / TARGET_SOL) + (tokenAVolume / VICTORY_VOLUME_SOL)) / 2;
-              const tokenBProgress = ((tokenBSol / TARGET_SOL) + (tokenBVolume / VICTORY_VOLUME_SOL)) / 2;
+              // ⭐ Use tier-specific targets for progress calculation
+              const { targetSol, victoryVolumeSol } = battleTargets;
+              const tokenAProgress = ((tokenASol / targetSol) + (tokenAVolume / victoryVolumeSol)) / 2;
+              const tokenBProgress = ((tokenBSol / targetSol) + (tokenBVolume / victoryVolumeSol)) / 2;
 
               const leadingToken = tokenAProgress >= tokenBProgress ? latestBattle.tokenA : latestBattle.tokenB;
 
@@ -305,7 +330,7 @@ export function Tagline() {
               );
             })()}
 
-            {/* BattleCard - Most Recent Battle - Clash Royale Border with Electric Sparks */}
+            {/* ⭐ BattleCard - Uses token's tier for correct targets */}
             {latestBattle ? (
               <>
                 <div className="clash-royale-border transform scale-90 origin-top">
@@ -320,11 +345,12 @@ export function Tagline() {
                   <div className="spark" style={{ top: '-2px', left: '20%', animationDelay: '0.7s' }} />
 
                   <div className="clash-royale-inner !p-0">
+                    {/* ⭐ KEY FIX: Pass tier-specific targets */}
                     <BattleCard
                       tokenA={toBattleToken(latestBattle.tokenA)}
                       tokenB={toBattleToken(latestBattle.tokenB)}
-                      targetSol={TARGET_SOL}
-                      targetVolumeSol={VICTORY_VOLUME_SOL}
+                      targetSol={battleTargets.targetSol}
+                      targetVolumeSol={battleTargets.victoryVolumeSol}
                       isEpicBattle={true}
                     />
                   </div>

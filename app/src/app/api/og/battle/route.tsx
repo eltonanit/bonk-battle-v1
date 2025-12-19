@@ -1,15 +1,20 @@
-// app/src/app/api/og/battle/route.tsx
+// src/app/api/og/battle/route.tsx
 // Dynamic OG Image generation for battle shares on X (Twitter)
 // Polymarket-style with percentages and "Who will win?" question
 
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'edge';
 
 // Image dimensions for Twitter/X card
 const WIDTH = 1200;
 const HEIGHT = 630;
+
+// Initialize Supabase client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,37 +43,43 @@ export async function GET(request: NextRequest) {
       return new Response('Missing tokenA or tokenB parameter (or id=tokenA-tokenB)', { status: 400 });
     }
 
-    // Fetch token data from our API
+    // Default token data
     let tokenAData = { symbol: 'TOKEN A', image: null as string | null, solCollected: 0, totalVolume: 0 };
     let tokenBData = { symbol: 'TOKEN B', image: null as string | null, solCollected: 0, totalVolume: 0 };
 
+    // Fetch token data directly from Supabase
     try {
-      const [resA, resB] = await Promise.all([
-        fetch(`${request.nextUrl.origin}/api/tokens/${tokenAMint}`),
-        fetch(`${request.nextUrl.origin}/api/tokens/${tokenBMint}`),
-      ]);
+      const supabase = createClient(supabaseUrl, supabaseKey);
 
-      if (resA.ok) {
-        const dataA = await resA.json();
-        tokenAData = {
-          symbol: dataA.symbol || 'TOKEN A',
-          image: dataA.image || null,
-          solCollected: (dataA.real_sol_reserves || 0) / 1e9,
-          totalVolume: (dataA.total_trade_volume || 0) / 1e9,
-        };
-      }
+      const { data: tokens, error } = await supabase
+        .from('tokens')
+        .select('mint, symbol, image, real_sol_reserves, total_trade_volume')
+        .in('mint', [tokenAMint, tokenBMint]);
 
-      if (resB.ok) {
-        const dataB = await resB.json();
-        tokenBData = {
-          symbol: dataB.symbol || 'TOKEN B',
-          image: dataB.image || null,
-          solCollected: (dataB.real_sol_reserves || 0) / 1e9,
-          totalVolume: (dataB.total_trade_volume || 0) / 1e9,
-        };
+      if (!error && tokens) {
+        const tokenA = tokens.find(t => t.mint === tokenAMint);
+        const tokenB = tokens.find(t => t.mint === tokenBMint);
+
+        if (tokenA) {
+          tokenAData = {
+            symbol: tokenA.symbol || 'TOKEN A',
+            image: tokenA.image || null,
+            solCollected: (tokenA.real_sol_reserves || 0) / 1e9,
+            totalVolume: (tokenA.total_trade_volume || 0) / 1e9,
+          };
+        }
+
+        if (tokenB) {
+          tokenBData = {
+            symbol: tokenB.symbol || 'TOKEN B',
+            image: tokenB.image || null,
+            solCollected: (tokenB.real_sol_reserves || 0) / 1e9,
+            totalVolume: (tokenB.total_trade_volume || 0) / 1e9,
+          };
+        }
       }
     } catch (err) {
-      console.error('Error fetching token data for OG image:', err);
+      console.error('Error fetching token data from Supabase:', err);
     }
 
     // Calculate progress percentages
@@ -372,6 +383,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('OG Image generation error:', error);
-    return new Response('Failed to generate image', { status: 500 });
+    return new Response(`Failed to generate image: ${error}`, { status: 500 });
   }
 }
