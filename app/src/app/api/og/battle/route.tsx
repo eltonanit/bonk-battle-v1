@@ -15,18 +15,32 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const tokenAMint = searchParams.get('tokenA');
-    const tokenBMint = searchParams.get('tokenB');
+    // Support both formats:
+    // 1. ?id=tokenA-tokenB (from layout metadata)
+    // 2. ?tokenA=xxx&tokenB=yyy (direct)
+    let tokenAMint = searchParams.get('tokenA');
+    let tokenBMint = searchParams.get('tokenB');
+
+    // If id is provided, split it into tokenA and tokenB
+    const id = searchParams.get('id');
+    if (id && !tokenAMint && !tokenBMint) {
+      const parts = id.split('-');
+      if (parts.length === 2) {
+        tokenAMint = parts[0];
+        tokenBMint = parts[1];
+      }
+    }
+
     const progressAParam = searchParams.get('progressA');
     const progressBParam = searchParams.get('progressB');
 
     if (!tokenAMint || !tokenBMint) {
-      return new Response('Missing tokenA or tokenB parameter', { status: 400 });
+      return new Response('Missing tokenA or tokenB parameter (or id=tokenA-tokenB)', { status: 400 });
     }
 
     // Fetch token data from our API
-    let tokenAData = { symbol: 'TOKEN A', image: null, solCollected: 0, totalVolume: 0 };
-    let tokenBData = { symbol: 'TOKEN B', image: null, solCollected: 0, totalVolume: 0 };
+    let tokenAData = { symbol: 'TOKEN A', image: null as string | null, solCollected: 0, totalVolume: 0 };
+    let tokenBData = { symbol: 'TOKEN B', image: null as string | null, solCollected: 0, totalVolume: 0 };
 
     try {
       const [resA, resB] = await Promise.all([
