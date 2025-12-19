@@ -1,4 +1,4 @@
-// app/src/app/battle/[id]/layout.tsx
+// src/app/battle/[id]/layout.tsx
 // Server component that generates dynamic metadata for Twitter/OG cards
 
 import { Metadata } from 'next';
@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const [tokenAMint, tokenBMint] = parts;
 
   // Fetch token data from database
-  let tokenA = { symbol: 'TOKEN A', image: null, sol_collected: 0, total_volume: 0 };
-  let tokenB = { symbol: 'TOKEN B', image: null, sol_collected: 0, total_volume: 0 };
+  let tokenA = { symbol: 'TOKEN A', image: null as string | null, sol_collected: 0, total_volume: 0 };
+  let tokenB = { symbol: 'TOKEN B', image: null as string | null, sol_collected: 0, total_volume: 0 };
 
   try {
     const [resA, resB] = await Promise.all([
@@ -67,12 +67,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const progressA = Math.min(100, ((tokenA.sol_collected / TARGET_SOL) * 100 + (tokenA.total_volume / VICTORY_VOLUME_SOL) * 100) / 2);
   const progressB = Math.min(100, ((tokenB.sol_collected / TARGET_SOL) * 100 + (tokenB.total_volume / VICTORY_VOLUME_SOL) * 100) / 2);
 
-  // Build OG Image URL with all parameters
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bonkbattle.com';
-  const ogImageUrl = `${baseUrl}/api/og/battle?tokenA=${tokenAMint}&tokenB=${tokenBMint}&progressA=${progressA.toFixed(1)}&progressB=${progressB.toFixed(1)}`;
+  // Build OG Image URL - hardcode Vercel URL for now
+  const baseUrl = 'https://bonk-battle.vercel.app';
+
+  // Build OG image URL with parameters for dynamic data
+  const ogParams = new URLSearchParams({
+    id: id,
+    symbolA: tokenA.symbol,
+    symbolB: tokenB.symbol,
+    progressA: progressA.toFixed(1),
+    progressB: progressB.toFixed(1),
+  });
+
+  // Add token images if available
+  if (tokenA.image) ogParams.set('imageA', tokenA.image);
+  if (tokenB.image) ogParams.set('imageB', tokenB.image);
+
+  const ogImageUrl = `${baseUrl}/api/og/battle?${ogParams.toString()}`;
 
   const title = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} | BONK BATTLE`;
-  const description = `🏆 Who will win? Vote now!\n📊 ${tokenA.symbol}: ${progressA.toFixed(1)}% vs ${tokenB.symbol}: ${progressB.toFixed(1)}%\n🔥 Winner gets listed on DEX!`;
+  const description = `🏆 Who will win? Vote now! 📊 ${tokenA.symbol}: ${progressA.toFixed(1)}% vs ${tokenB.symbol}: ${progressB.toFixed(1)}% 🔥 Winner gets listed on DEX!`;
 
   return {
     title,
@@ -97,7 +111,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       images: [ogImageUrl],
-      creator: '@BonkBattle',
+      creator: '@BonkBattle_',
     },
   };
 }
