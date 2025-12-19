@@ -1,11 +1,12 @@
 // app/src/components/shared/BattleCard.tsx
-// ⭐ UPDATED: Added Share on X button + holders support
+// ⭐ FIXED: No nested <a> tags - uses div with onClick for navigation
 // Uses centralized tier config from @/config/tier-config
 'use client';
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // ⭐ IMPORT FROM CENTRALIZED TIER CONFIG
 import {
@@ -196,6 +197,7 @@ export function BattleCard({
   isEpicBattle = false,
   showShareButton = true,  // ⭐ NEW: Default to true
 }: BattleCardProps) {
+  const router = useRouter();
 
   // ⚔️ Stati per le animazioni di battaglia
   const [attackA, setAttackA] = useState(false);
@@ -248,26 +250,26 @@ export function BattleCard({
     };
   }, []);
 
-  // ⭐ NEW: Share on X handler
-  const handleShare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
+  // ⭐ Generate Twitter share URL
+  const getShareUrl = () => {
     const battleUrl = `${window.location.origin}/battle/${tokenA.mint}-${tokenB.mint}`;
     const scoreText = `📊 Score: ${tokenA.solCollected.toFixed(2)} vs ${tokenB.solCollected.toFixed(2)} SOL`;
-
     const tweetText = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} - EPIC BATTLE!
-
 ${scoreText}
-
 🏆 Who will win? Vote now!
-
 🔥 Winner gets listed on DEX + 50% of loser's liquidity!
-
 #BonkBattle #Solana #Crypto`;
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(battleUrl)}`;
+  };
 
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(battleUrl)}`;
-    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  // ⭐ Handle card click - navigate to battle page (but not if clicking links)
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Check if click originated from a link or share button
+    const target = e.target as HTMLElement;
+    if (target.closest('a') || target.closest('[data-share-button]')) {
+      return; // Don't navigate if clicking a link
+    }
+    router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
   };
 
   // ⭐ SOL-BASED progress calculations using tier config values
@@ -369,12 +371,16 @@ ${scoreText}
     );
   }
 
+  // ⭐ FIXED: Use div with onClick instead of Link to avoid nested <a> issues
   return (
-    <Link href={battleUrl} className="block">
+    <>
       {/* Inject radiate styles */}
       {isEpicBattle && <style jsx global>{radiateStyles}</style>}
 
-      <div className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer">
+      <div
+        onClick={handleCardClick}
+        className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer"
+      >
         {/* Battle Header */}
         <div
           className={`${!isEpicBattle ? 'battle-grid-bg' : ''} px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
@@ -427,26 +433,12 @@ ${scoreText}
               </div>
             </div>
 
-            {/* Score Center (SOL-based) + Share Button */}
+            {/* Score Center (SOL-based) */}
             <div className="flex flex-col items-center">
               <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SOL</span>
               <span className="text-xl lg:text-2xl font-black text-yellow-400">
                 {formatSol(tokenA.solCollected, 2)} - {formatSol(tokenB.solCollected, 2)}
               </span>
-
-              {/* ⭐ NEW: Share Button */}
-              {showShareButton && (
-                <button
-                  onClick={handleShare}
-                  className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-black/50 hover:bg-black/70 rounded-lg transition-all hover:scale-105 border border-white/10"
-                  title="Share on X"
-                >
-                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  <span className="text-white text-xs font-semibold">Share</span>
-                </button>
-              )}
             </div>
 
             {/* Token B Image */}
@@ -525,7 +517,7 @@ ${scoreText}
               </div>
             </div>
 
-            {/* Center Target (SOL-based) - ⭐ NOW USES TIER CONFIG */}
+            {/* Center Target (SOL-based) - ⭐ SHARE BUTTON HERE */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
               <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
@@ -540,6 +532,25 @@ ${scoreText}
               <div className="mt-1 text-[10px] text-gray-600">
                 {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
               </div>
+              {/* ⭐ Share Button - OUTSIDE clickable area, positioned absolutely */}
+              {showShareButton && (
+                <a
+                  href={getShareUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-black/50 hover:bg-black/70 rounded-lg transition-all hover:scale-105 border border-white/10"
+                  title="Share on X"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('🐦 Share link clicked!', getShareUrl());
+                  }}
+                >
+                  <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                  <span className="text-white text-[10px] font-semibold">Share</span>
+                </a>
+              )}
             </div>
 
             {/* Right Token Stats */}
@@ -594,6 +605,6 @@ ${scoreText}
           </div>
         </div>
       </div>
-    </Link>
+    </>
   );
 }
