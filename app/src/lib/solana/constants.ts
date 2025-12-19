@@ -60,7 +60,7 @@ export const BONDING_CURVE = {
 // TIER CONFIGURATION - ALL VALUES IN SOL (price-independent!)
 // =================================================================
 
-export const USE_TEST_TIER = false; // Set to false for mainnet PRODUCTION
+export const USE_TEST_TIER = true; // Set to false for mainnet PRODUCTION
 
 export const TIER_CONFIG = {
   TEST: {
