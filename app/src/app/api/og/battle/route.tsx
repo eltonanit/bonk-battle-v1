@@ -1,20 +1,14 @@
 // src/app/api/og/battle/route.tsx
 // Dynamic OG Image generation for battle shares on X (Twitter)
-// Polymarket-style with percentages and "Who will win?" question
 
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'edge';
 
 // Image dimensions for Twitter/X card
 const WIDTH = 1200;
 const HEIGHT = 630;
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,67 +30,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const progressAParam = searchParams.get('progressA');
-    const progressBParam = searchParams.get('progressB');
-
     if (!tokenAMint || !tokenBMint) {
       return new Response('Missing tokenA or tokenB parameter (or id=tokenA-tokenB)', { status: 400 });
     }
 
-    // Default token data
-    let tokenAData = { symbol: 'TOKEN A', image: null as string | null, solCollected: 0, totalVolume: 0 };
-    let tokenBData = { symbol: 'TOKEN B', image: null as string | null, solCollected: 0, totalVolume: 0 };
+    // Get optional parameters
+    const symbolA = searchParams.get('symbolA') || 'FIGHTER A';
+    const symbolB = searchParams.get('symbolB') || 'FIGHTER B';
+    const progressAParam = searchParams.get('progressA');
+    const progressBParam = searchParams.get('progressB');
+    const imageA = searchParams.get('imageA');
+    const imageB = searchParams.get('imageB');
 
-    // Fetch token data directly from Supabase
-    try {
-      const supabase = createClient(supabaseUrl, supabaseKey);
+    const progressA = progressAParam ? parseFloat(progressAParam) : 50;
+    const progressB = progressBParam ? parseFloat(progressBParam) : 50;
 
-      const { data: tokens, error } = await supabase
-        .from('tokens')
-        .select('mint, symbol, image, real_sol_reserves, total_trade_volume')
-        .in('mint', [tokenAMint, tokenBMint]);
-
-      if (!error && tokens) {
-        const tokenA = tokens.find(t => t.mint === tokenAMint);
-        const tokenB = tokens.find(t => t.mint === tokenBMint);
-
-        if (tokenA) {
-          tokenAData = {
-            symbol: tokenA.symbol || 'TOKEN A',
-            image: tokenA.image || null,
-            solCollected: (tokenA.real_sol_reserves || 0) / 1e9,
-            totalVolume: (tokenA.total_trade_volume || 0) / 1e9,
-          };
-        }
-
-        if (tokenB) {
-          tokenBData = {
-            symbol: tokenB.symbol || 'TOKEN B',
-            image: tokenB.image || null,
-            solCollected: (tokenB.real_sol_reserves || 0) / 1e9,
-            totalVolume: (tokenB.total_trade_volume || 0) / 1e9,
-          };
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching token data from Supabase:', err);
-    }
-
-    // Calculate progress percentages
-    const TARGET_SOL = 37.7;
-    const VICTORY_VOLUME_SOL = 41.47;
-
-    const progressA = progressAParam
-      ? parseFloat(progressAParam)
-      : Math.min(100, ((tokenAData.solCollected / TARGET_SOL) * 100 + (tokenAData.totalVolume / VICTORY_VOLUME_SOL) * 100) / 2);
-
-    const progressB = progressBParam
-      ? parseFloat(progressBParam)
-      : Math.min(100, ((tokenBData.solCollected / TARGET_SOL) * 100 + (tokenBData.totalVolume / VICTORY_VOLUME_SOL) * 100) / 2);
-
-    // Generate fallback image URLs if not available
-    const tokenAImage = tokenAData.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenAData.symbol}&backgroundColor=4f46e5`;
-    const tokenBImage = tokenBData.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenBData.symbol}&backgroundColor=ec4899`;
+    // Fallback images
+    const tokenAImage = imageA || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenAMint}&backgroundColor=4f46e5`;
+    const tokenBImage = imageB || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenBMint}&backgroundColor=ec4899`;
 
     return new ImageResponse(
       (
@@ -114,19 +65,6 @@ export async function GET(request: NextRequest) {
             padding: '40px',
           }}
         >
-          {/* Background Pattern */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundImage: `radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
-                               radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.15) 0%, transparent 50%)`,
-            }}
-          />
-
           {/* Header - BONK BATTLE Logo */}
           <div
             style={{
@@ -141,9 +79,7 @@ export async function GET(request: NextRequest) {
               style={{
                 fontSize: '36px',
                 fontWeight: 900,
-                background: 'linear-gradient(90deg, #a855f7, #ec4899)',
-                backgroundClip: 'text',
-                color: 'transparent',
+                color: '#a855f7',
                 letterSpacing: '3px',
               }}
             >
@@ -152,7 +88,7 @@ export async function GET(request: NextRequest) {
             <span style={{ fontSize: '40px' }}>⚔️</span>
           </div>
 
-          {/* Main Question - Polymarket Style */}
+          {/* Main Question */}
           <div
             style={{
               fontSize: '48px',
@@ -160,12 +96,13 @@ export async function GET(request: NextRequest) {
               color: '#ffffff',
               marginBottom: '40px',
               textAlign: 'center',
+              display: 'flex',
             }}
           >
             🏆 Who will win the battle?
           </div>
 
-          {/* Battle Arena - Side by Side with Percentages */}
+          {/* Battle Arena */}
           <div
             style={{
               display: 'flex',
@@ -173,7 +110,6 @@ export async function GET(request: NextRequest) {
               justifyContent: 'center',
               gap: '60px',
               width: '100%',
-              maxWidth: '1000px',
             }}
           >
             {/* Token A */}
@@ -182,63 +118,48 @@ export async function GET(request: NextRequest) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                flex: 1,
               }}
             >
-              {/* Token Image */}
               <div
                 style={{
                   width: '160px',
                   height: '160px',
                   borderRadius: '24px',
-                  overflow: 'hidden',
                   border: '4px solid #4DB5FF',
-                  boxShadow: '0 0 40px rgba(77, 181, 255, 0.4)',
                   background: '#1a1b26',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
                 <img
                   src={tokenAImage}
-                  alt={tokenAData.symbol}
                   width={156}
                   height={156}
                   style={{ objectFit: 'cover', borderRadius: '20px' }}
                 />
               </div>
-
-              {/* Token Symbol */}
               <span
                 style={{
                   marginTop: '16px',
                   fontSize: '28px',
                   fontWeight: 800,
                   color: '#4DB5FF',
-                  textTransform: 'uppercase',
                 }}
               >
-                ${tokenAData.symbol}
+                ${symbolA}
               </span>
-
-              {/* Percentage - Polymarket Style */}
               <div
                 style={{
                   marginTop: '12px',
                   padding: '12px 32px',
-                  background: 'linear-gradient(135deg, #4DB5FF 0%, #2196F3 100%)',
+                  background: '#4DB5FF',
                   borderRadius: '16px',
-                  boxShadow: '0 4px 20px rgba(77, 181, 255, 0.4)',
+                  display: 'flex',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '42px',
-                    fontWeight: 900,
-                    color: '#ffffff',
-                  }}
-                >
+                <span style={{ fontSize: '42px', fontWeight: 900, color: '#ffffff' }}>
                   {progressA.toFixed(0)}%
                 </span>
               </div>
@@ -247,34 +168,16 @@ export async function GET(request: NextRequest) {
             {/* VS Badge */}
             <div
               style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: '#ef4444',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <div
-                style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 0 30px rgba(239, 68, 68, 0.5)',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '28px',
-                    fontWeight: 900,
-                    color: 'white',
-                    textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-                  }}
-                >
-                  VS
-                </span>
-              </div>
+              <span style={{ fontSize: '28px', fontWeight: 900, color: 'white' }}>VS</span>
             </div>
 
             {/* Token B */}
@@ -283,70 +186,55 @@ export async function GET(request: NextRequest) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                flex: 1,
               }}
             >
-              {/* Token Image */}
               <div
                 style={{
                   width: '160px',
                   height: '160px',
                   borderRadius: '24px',
-                  overflow: 'hidden',
                   border: '4px solid #FF5A8E',
-                  boxShadow: '0 0 40px rgba(255, 90, 142, 0.4)',
                   background: '#1a1b26',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
                 <img
                   src={tokenBImage}
-                  alt={tokenBData.symbol}
                   width={156}
                   height={156}
                   style={{ objectFit: 'cover', borderRadius: '20px' }}
                 />
               </div>
-
-              {/* Token Symbol */}
               <span
                 style={{
                   marginTop: '16px',
                   fontSize: '28px',
                   fontWeight: 800,
                   color: '#FF5A8E',
-                  textTransform: 'uppercase',
                 }}
               >
-                ${tokenBData.symbol}
+                ${symbolB}
               </span>
-
-              {/* Percentage - Polymarket Style */}
               <div
                 style={{
                   marginTop: '12px',
                   padding: '12px 32px',
-                  background: 'linear-gradient(135deg, #FF5A8E 0%, #E91E63 100%)',
+                  background: '#FF5A8E',
                   borderRadius: '16px',
-                  boxShadow: '0 4px 20px rgba(255, 90, 142, 0.4)',
+                  display: 'flex',
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '42px',
-                    fontWeight: 900,
-                    color: '#ffffff',
-                  }}
-                >
+                <span style={{ fontSize: '42px', fontWeight: 900, color: '#ffffff' }}>
                   {progressB.toFixed(0)}%
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Footer CTA */}
+          {/* Footer */}
           <div
             style={{
               marginTop: '40px',
@@ -356,21 +244,10 @@ export async function GET(request: NextRequest) {
               gap: '8px',
             }}
           >
-            <span
-              style={{
-                fontSize: '22px',
-                color: '#c084fc',
-                fontWeight: 600,
-              }}
-            >
+            <span style={{ fontSize: '22px', color: '#c084fc', fontWeight: 600, display: 'flex' }}>
               🔥 Winner gets listed on Raydium DEX!
             </span>
-            <span
-              style={{
-                fontSize: '18px',
-                color: '#6b7280',
-              }}
-            >
+            <span style={{ fontSize: '18px', color: '#6b7280', display: 'flex' }}>
               bonkbattle.com
             </span>
           </div>
@@ -383,6 +260,6 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('OG Image generation error:', error);
-    return new Response(`Failed to generate image: ${error}`, { status: 500 });
+    return new Response(`Failed to generate image: ${String(error)}`, { status: 500 });
   }
 }
