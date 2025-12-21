@@ -70,13 +70,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Build OG Image URL - hardcode Vercel URL for now
   const baseUrl = 'https://bonk-battle.vercel.app';
 
+  // Calculate market caps in K format
+  const marketCapA = ((tokenA.sol_collected * 137.47) / 1000).toFixed(1) + 'k';
+  const marketCapB = ((tokenB.sol_collected * 137.47) / 1000).toFixed(1) + 'k';
+
   // Build OG image URL with parameters for dynamic data
   const ogParams = new URLSearchParams({
     id: id,
     symbolA: tokenA.symbol,
     symbolB: tokenB.symbol,
-    progressA: progressA.toFixed(1),
-    progressB: progressB.toFixed(1),
+    marketCapA: marketCapA,
+    marketCapB: marketCapB,
   });
 
   // Add token images if available

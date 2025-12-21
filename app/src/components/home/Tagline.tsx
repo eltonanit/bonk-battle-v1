@@ -1,7 +1,7 @@
 ﻿'use client';
 // ⭐ UPDATED: Uses token's tier to get correct targets
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -89,14 +89,16 @@ export function Tagline() {
         }
 
         const taglineTokens: TaglineToken[] = allTokens.slice(0, 15).map((token) => {
-          const marketCap = (token.solCollected / 1e9) * 100 * (solPriceUsd || 100);
+          // ✅ FIX: Use realSolReserves (lamports) and convert to SOL
+          const solCollected = lamportsToSol(token.realSolReserves ?? 0);
+          const marketCap = solCollected * 100 * (solPriceUsd || 100);
 
           return {
             mint: token.mint.toString(),
             name: token.name || token.mint.toString().substring(0, 8),
             symbol: token.symbol || 'UNK',
             imageUrl: token.image || '',
-            progress: (token.solCollected / 1e9 / 85) * 100,
+            progress: (solCollected / 85) * 100,
             marketCap,
             tier: token.tier ?? 0,
           };
@@ -165,12 +167,18 @@ export function Tagline() {
   });
 
   // ⭐ Get tier targets for the battle (use tokenA's tier, both should match)
-  const getBattleTierTargets = () => {
+  const battleTargets = useMemo(() => {
     if (!latestBattle) return { targetSol: 6, victoryVolumeSol: 6.6 };
     return getTierTargets(latestBattle.tokenA.tier);
-  };
+  }, [latestBattle]);
 
-  const battleTargets = getBattleTierTargets();
+  // 🔍 DEBUG: Log per vedere cosa sta succedendo
+  console.log('🎯 Tagline battleTargets:', {
+    hasLatestBattle: !!latestBattle,
+    tier: latestBattle?.tokenA.tier,
+    targetSol: battleTargets.targetSol,
+    victoryVolumeSol: battleTargets.victoryVolumeSol,
+  });
 
   return (
     <div
