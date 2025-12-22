@@ -157,12 +157,17 @@ export default function NotificationsPage() {
         fetchMissingImages();
     }, [notifications, loading, imagesFetched]);
 
-    // Mark all as read when leaving the page
+    // ⭐ FIX: Mark all as read when ENTERING the page (not leaving)
     useEffect(() => {
-        return () => {
-            markAllAsRead();
-        };
-    }, [markAllAsRead]);
+        // Small delay to let the page render first
+        const timer = setTimeout(() => {
+            if (unreadCount > 0) {
+                markAllAsRead();
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [markAllAsRead, unreadCount]);
 
     function handleNotificationClick(notification: Notification) {
         markAsRead(notification.id);
