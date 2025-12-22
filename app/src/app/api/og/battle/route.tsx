@@ -1,5 +1,5 @@
 // src/app/api/og/battle/route.tsx
-// Dynamic OG Image generation - Gaming style layout
+// Dynamic OG Image generation - Clean gaming style layout
 
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
@@ -33,11 +33,14 @@ export async function GET(request: NextRequest) {
     const symbolB = searchParams.get('symbolB') || 'TOKEN B';
     const imageA = searchParams.get('imageA');
     const imageB = searchParams.get('imageB');
-    const marketCapA = searchParams.get('marketCapA') || '0';
-    const marketCapB = searchParams.get('marketCapB') || '0';
+    const marketCapA = searchParams.get('marketCapA') || '$0';
+    const marketCapB = searchParams.get('marketCapB') || '$0';
 
     const tokenAImage = imageA || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenAMint}&backgroundColor=dc2626`;
     const tokenBImage = imageB || `https://api.dicebear.com/7.x/shapes/svg?seed=${tokenBMint}&backgroundColor=2563eb`;
+
+    // Logo URL - using the deployed app URL
+    const logoUrl = 'https://bonk-battle.vercel.app/BONK-LOGO.svg';
 
     return new ImageResponse(
       (
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
             style={{
               display: 'flex',
               width: '100%',
-              height: '420px',
+              height: '340px',
               position: 'relative',
             }}
           >
@@ -66,48 +69,48 @@ export async function GET(request: NextRequest) {
                 height: '100%',
                 background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden',
+                gap: '16px',
               }}
             >
               {/* Token A Image */}
               <img
                 src={tokenAImage}
-                width={350}
-                height={350}
+                width={200}
+                height={200}
                 style={{
                   objectFit: 'cover',
-                  borderRadius: '24px',
-                  border: '6px solid rgba(255,255,255,0.3)',
+                  borderRadius: '20px',
+                  border: '4px solid rgba(255,255,255,0.5)',
                 }}
               />
-
-              {/* BONK BATTLE Logo Overlay */}
+              {/* Market Cap A */}
               <div
                 style={{
-                  position: 'absolute',
-                  top: '20px',
-                  left: '20px',
-                  background: 'rgba(0,0,0,0.7)',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '8px',
                 }}
               >
-                <span style={{ fontSize: '24px' }}>⚔️</span>
                 <span
                   style={{
-                    fontSize: '20px',
+                    fontSize: '28px',
                     fontWeight: 900,
-                    color: '#fbbf24',
-                    letterSpacing: '1px',
+                    color: 'white',
                   }}
                 >
-                  BONK BATTLE
+                  ${symbolA}
+                </span>
+                <span
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.9)',
+                  }}
+                >
+                  Market Cap: {marketCapA}
                 </span>
               </div>
             </div>
@@ -119,49 +122,49 @@ export async function GET(request: NextRequest) {
                 height: '100%',
                 background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                position: 'relative',
-                overflow: 'hidden',
+                gap: '16px',
               }}
             >
               {/* Token B Image */}
               <img
                 src={tokenBImage}
-                width={350}
-                height={350}
+                width={200}
+                height={200}
                 style={{
                   objectFit: 'cover',
-                  borderRadius: '24px',
-                  border: '6px solid rgba(255,255,255,0.3)',
+                  borderRadius: '20px',
+                  border: '4px solid rgba(255,255,255,0.5)',
                 }}
               />
-
-              {/* BONK BATTLE Logo Overlay */}
+              {/* Market Cap B */}
               <div
                 style={{
-                  position: 'absolute',
-                  top: '20px',
-                  right: '20px',
-                  background: 'rgba(0,0,0,0.7)',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '8px',
                 }}
               >
                 <span
                   style={{
-                    fontSize: '20px',
+                    fontSize: '28px',
                     fontWeight: 900,
-                    color: '#fbbf24',
-                    letterSpacing: '1px',
+                    color: 'white',
                   }}
                 >
-                  BONK BATTLE
+                  ${symbolB}
                 </span>
-                <span style={{ fontSize: '24px' }}>⚔️</span>
+                <span
+                  style={{
+                    fontSize: '22px',
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.9)',
+                  }}
+                >
+                  Market Cap: {marketCapB}
+                </span>
               </div>
             </div>
 
@@ -172,20 +175,20 @@ export async function GET(request: NextRequest) {
                 top: '50%',
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
-                width: '120px',
-                height: '120px',
+                width: '100px',
+                height: '100px',
                 background: 'white',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '8px solid #000',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                border: '6px solid #000',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
               }}
             >
               <span
                 style={{
-                  fontSize: '48px',
+                  fontSize: '42px',
                   fontWeight: 900,
                   color: '#000',
                 }}
@@ -199,129 +202,70 @@ export async function GET(request: NextRequest) {
           <div
             style={{
               width: '100%',
-              height: '210px',
+              height: '290px',
               background: 'white',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '30px',
-              gap: '16px',
+              padding: '20px',
+              gap: '20px',
             }}
           >
-            {/* BONKBATTLE Logo */}
+            {/* WHICH COIN WILL WIN? */}
+            <div
+              style={{
+                fontSize: '64px',
+                fontWeight: 900,
+                color: '#000',
+                textAlign: 'center',
+                display: 'flex',
+                letterSpacing: '-2px',
+              }}
+            >
+              WHICH COIN WILL WIN?
+            </div>
+
+            {/* Subtitle */}
+            <div
+              style={{
+                fontSize: '24px',
+                fontWeight: 600,
+                color: '#666',
+                textAlign: 'center',
+                display: 'flex',
+              }}
+            >
+              - Winners get 50% liquidity of loser and get listed on DEX -
+            </div>
+
+            {/* Logo Section */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                marginBottom: '4px',
+                gap: '16px',
+                marginTop: '20px',
               }}
             >
-              <span style={{ fontSize: '32px' }}>⚔️</span>
+              <img
+                src={logoUrl}
+                width={50}
+                height={50}
+                style={{
+                  objectFit: 'contain',
+                }}
+              />
               <span
                 style={{
-                  fontSize: '24px',
+                  fontSize: '32px',
                   fontWeight: 700,
-                  color: '#666',
-                  textTransform: 'uppercase',
+                  color: '#9ca3af',
                   letterSpacing: '2px',
                 }}
               >
-                BONKBATTLE
+                BONK BATTLE
               </span>
-            </div>
-
-            {/* WHO WINS ? */}
-            <div
-              style={{
-                fontSize: '56px',
-                fontWeight: 900,
-                color: '#000',
-                display: 'flex',
-              }}
-            >
-              WHO WINS ?
-            </div>
-
-            {/* Tokens and Market Cap */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '40px',
-                width: '100%',
-                justifyContent: 'center',
-              }}
-            >
-              {/* Token A */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '28px',
-                    fontWeight: 800,
-                    color: '#000',
-                  }}
-                >
-                  ${symbolA}
-                </span>
-                <span
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    color: '#dc2626',
-                  }}
-                >
-                  Market Cap: ${marketCapA}
-                </span>
-              </div>
-
-              {/* VS */}
-              <span
-                style={{
-                  fontSize: '40px',
-                  fontWeight: 900,
-                  color: '#000',
-                }}
-              >
-                VS
-              </span>
-
-              {/* Token B */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '28px',
-                    fontWeight: 800,
-                    color: '#000',
-                  }}
-                >
-                  ${symbolB}
-                </span>
-                <span
-                  style={{
-                    fontSize: '20px',
-                    fontWeight: 700,
-                    color: '#2563eb',
-                  }}
-                >
-                  Market Cap: ${marketCapB}
-                </span>
-              </div>
             </div>
           </div>
         </div>
