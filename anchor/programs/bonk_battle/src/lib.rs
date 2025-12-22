@@ -37,7 +37,7 @@ const RAYDIUM_RESERVED_SUPPLY: u64 = 206_900_000_000_000_000; // 206.9M * 10^9 (
 
 // Active tier selector (change this to switch tiers)
 // Set to true for TEST tier, false for PRODUCTION tier
-const USE_TEST_TIER: bool = true;
+const USE_TEST_TIER: bool = false;
 
 // ============ TIER TEST ============
 // MC Iniziale: ~$280 | MC Finale: ~$820 (@ $137/SOL) | Multiplier: ~2.93x
