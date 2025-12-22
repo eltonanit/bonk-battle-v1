@@ -528,29 +528,6 @@ ${scoreText}
                 <span className="text-xs lg:text-sm text-gray-400">VOL</span>
                 <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetVolumeSol)} SOL</span>
               </div>
-              {/* ⭐ Show tier indicator */}
-              <div className="mt-1 text-[10px] text-gray-600">
-                {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
-              </div>
-              {/* ⭐ Share Button - OUTSIDE clickable area, positioned absolutely */}
-              {showShareButton && (
-                <a
-                  href={getShareUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-black/50 hover:bg-black/70 rounded-lg transition-all hover:scale-105 border border-white/10"
-                  title="Share on X"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('🐦 Share link clicked!', getShareUrl());
-                  }}
-                >
-                  <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                  </svg>
-                  <span className="text-white text-[10px] font-semibold">Share</span>
-                </a>
-              )}
             </div>
 
             {/* Right Token Stats */}
@@ -604,6 +581,25 @@ ${scoreText}
             </div>
           </div>
         </div>
+
+        {/* ⭐ Share Footer - Black stripe at bottom (entire stripe is clickable) */}
+        {showShareButton && (
+          <a
+            href={getShareUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-share-button
+            onClick={(e) => e.stopPropagation()}
+            className="bg-black/80 py-2 px-4 flex items-center justify-center gap-3 hover:bg-black/90 transition-colors cursor-pointer"
+          >
+            {/* X (Twitter) Icon */}
+            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            <span className="font-semibold text-sm text-white">Share</span>
+            <span className="text-orange-400 font-bold text-sm">+250 Points</span>
+          </a>
+        )}
       </div>
     </>
   );
