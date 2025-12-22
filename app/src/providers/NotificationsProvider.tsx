@@ -118,16 +118,31 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }, [publicKey, fetchNotifications]);
 
     const markAsRead = useCallback(async (id: string) => {
-        await supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('id', id);
+        if (!publicKey) return;
 
-        setNotifications((prev) =>
-            prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-    }, []);
+        try {
+            const res = await fetch('/api/notifications/mark-read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wallet: publicKey.toString(),
+                    notificationId: id
+                })
+            });
+
+            if (!res.ok) {
+                console.error('Failed to mark notification as read');
+                return;
+            }
+
+            setNotifications((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+            );
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    }, [publicKey]);
 
     const markAllAsRead = useCallback(async () => {
         if (!publicKey) return;
@@ -141,21 +156,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         markAllCalledRef.current = true;
         console.log('Marking all notifications as read...');
 
-        const { error } = await supabase
-            .from('notifications')
-            .update({ read: true })
-            .eq('user_wallet', publicKey.toString())
-            .eq('read', false);
+        try {
+            const res = await fetch('/api/notifications/mark-read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wallet: publicKey.toString()
+                })
+            });
 
-        if (error) {
-            console.error('Failed to mark all as read:', error);
+            if (!res.ok) {
+                console.error('Failed to mark all as read');
+                markAllCalledRef.current = false;
+                return;
+            }
+
+            const data = await res.json();
+            console.log(`Marked ${data.marked} notifications as read`);
+
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+            setUnreadCount(0);
+        } catch (error) {
+            console.error('Error marking all as read:', error);
             markAllCalledRef.current = false;
-            return;
         }
-
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-        setUnreadCount(0);
-        console.log('All notifications marked as read');
     }, [publicKey]);
 
     return (

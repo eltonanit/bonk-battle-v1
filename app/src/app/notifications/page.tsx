@@ -137,24 +137,15 @@ export default function NotificationsPage() {
         fetchMissingImages();
     }, [notifications, loading, imagesFetched]);
 
-    // ⭐ FIX: Mark all as read ONCE when page loads (using ref, no dependencies that cause loops)
+    // ⭐ Mark all as read IMMEDIATELY when page loads
     useEffect(() => {
-        // Only run once per page mount
         if (hasMarkedReadRef.current) return;
         if (loading) return;
 
-        // Mark as called immediately to prevent any re-runs
         hasMarkedReadRef.current = true;
-
-        // Small delay to let the UI render first
-        const timer = setTimeout(() => {
-            console.log('📬 Auto-marking all notifications as read...');
-            markAllAsRead();
-        }, 300);
-
-        return () => clearTimeout(timer);
+        markAllAsRead();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [loading]); // Only depend on loading - markAllAsRead is stable now
+    }, [loading]);
 
     function handleNotificationClick(notification: Notification) {
         markAsRead(notification.id);
