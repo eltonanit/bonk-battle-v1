@@ -1,6 +1,6 @@
 // app/src/components/shared/BattleCard.tsx
-// ⭐ FIXED: No nested <a> tags - uses div with onClick for navigation
-// Uses centralized tier config from @/config/tier-config
+// ⭐ UPDATED: Shows USD values using ON-CHAIN Price Oracle
+// NO hardcoded prices - everything from blockchain!
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -15,7 +15,65 @@ import {
   ACTIVE_TIER,
 } from '@/config/tier-config';
 
-// Helper function to format SOL values
+// ⭐ USE ON-CHAIN PRICE ORACLE - NO EXTERNAL APIs!
+import { usePriceOracle } from '@/hooks/usePriceOracle';
+
+// ========================================================================
+// MARKET CAP CALCULATION (from smart contract formula)
+// ========================================================================
+
+const MULTIPLIER = ACTIVE_TIER.MULTIPLIER; // ~14.68 for Production
+const BASE_MC_SOL = TARGET_SOL / MULTIPLIER; // Initial MC in SOL terms
+
+/**
+ * Calculate Market Cap in USD based on bonding curve
+ * Formula matches smart contract exactly!
+ */
+function calculateMarketCapUsd(solCollected: number, solPriceUsd: number): number {
+  if (!solPriceUsd || solPriceUsd <= 0) return 0;
+
+  if (solCollected <= 0) {
+    // Initial MC when nothing collected
+    return BASE_MC_SOL * solPriceUsd;
+  }
+
+  // Progress through bonding curve (0 to 1)
+  const progress = Math.min(solCollected / TARGET_SOL, 1);
+
+  // MC range from base to target
+  const mcRange = TARGET_SOL - BASE_MC_SOL;
+
+  // Current MC in SOL terms
+  const currentMcSol = BASE_MC_SOL + (mcRange * progress);
+
+  // Convert to USD using oracle price
+  return currentMcSol * solPriceUsd;
+}
+
+/**
+ * Convert SOL to USD using oracle price
+ */
+function solToUsd(solAmount: number, solPriceUsd: number): number {
+  if (!solPriceUsd || solPriceUsd <= 0) return 0;
+  return solAmount * solPriceUsd;
+}
+
+/**
+ * Format USD value for display
+ */
+function formatUsd(usd: number): string {
+  if (!usd || usd <= 0) return '$0';
+
+  if (usd >= 1_000_000) {
+    return `$${(usd / 1_000_000).toFixed(2)}M`;
+  }
+  if (usd >= 1_000) {
+    return `$${(usd / 1_000).toFixed(1)}K`;
+  }
+  return `$${Math.round(usd).toLocaleString()}`;
+}
+
+// Helper function to format SOL values (kept for tooltips)
 function formatSol(value: number, decimals: number = 2): string {
   if (value >= 1000) {
     return (value / 1000).toFixed(1) + 'K';
@@ -131,7 +189,6 @@ const radiateStyles = `
     filter: blur(12px);
   }
 
-  /* Glowing border animation for epic battle images */
   @keyframes epic-glow-pulse {
     0%, 100% {
       box-shadow:
@@ -155,7 +212,6 @@ const radiateStyles = `
     transition: box-shadow 0.15s ease-out, border-color 0.15s ease-out;
   }
 
-  /* Use transition instead of animation so movement animation can work */
   .epic-image-attacking {
     box-shadow:
       0 0 30px rgba(255, 255, 255, 1),
@@ -172,39 +228,57 @@ interface BattleToken {
   name: string;
   symbol: string;
   image: string | null;
-  marketCapUsd: number;       // For display only (USD)
+  marketCapUsd: number;       // Legacy - ignored, we calculate from oracle
   solCollected: number;       // SOL collected (in SOL, not lamports)
   totalVolumeSol: number;     // Total volume in SOL
-  holders?: number;           // ⭐ NEW: Number of holders
+  holders?: number;
 }
 
 interface BattleCardProps {
   tokenA: BattleToken;
   tokenB: BattleToken;
-  targetSol?: number;        // SOL target for graduation (defaults to tier config)
-  targetVolumeSol?: number;  // Volume target in SOL (defaults to tier config)
-  winner?: 'A' | 'B' | null; // Se impostato, mostra la card in versione "winner"
-  isEpicBattle?: boolean;    // Se true, usa colori viola elettrici
-  showShareButton?: boolean; // ⭐ NEW: Show share button (default: true)
+  targetSol?: number;
+  targetVolumeSol?: number;
+  winner?: 'A' | 'B' | null;
+  isEpicBattle?: boolean;
+  showShareButton?: boolean;
 }
 
 export function BattleCard({
   tokenA,
   tokenB,
-  targetSol = TARGET_SOL,           // ⭐ Now defaults to tier config
-  targetVolumeSol = VICTORY_VOLUME_SOL, // ⭐ Now defaults to tier config
+  targetSol = TARGET_SOL,
+  targetVolumeSol = VICTORY_VOLUME_SOL,
   winner = null,
   isEpicBattle = false,
-  showShareButton = true,  // ⭐ NEW: Default to true
+  showShareButton = true,
 }: BattleCardProps) {
   const router = useRouter();
 
-  // ⚔️ Stati per le animazioni di battaglia
+  // ⭐ GET SOL PRICE FROM ON-CHAIN ORACLE - NOT HARDCODED!
+  const { solPriceUsd, loading: priceLoading } = usePriceOracle();
+
+  // Use oracle price, fallback to 0 if not loaded yet
+  const solPrice = solPriceUsd || 0;
+
+  // ⚔️ Battle animation states
   const [attackA, setAttackA] = useState(false);
   const [attackB, setAttackB] = useState(false);
   const [clash, setClash] = useState(false);
 
-  // ⚔️ Animazioni casuali di battaglia
+  // ⭐ Calculate Market Caps in USD using ON-CHAIN oracle price
+  const mcUsdA = calculateMarketCapUsd(tokenA.solCollected, solPrice);
+  const mcUsdB = calculateMarketCapUsd(tokenB.solCollected, solPrice);
+
+  // ⭐ Calculate target MC in USD (at graduation)
+  const targetMcUsd = calculateMarketCapUsd(targetSol, solPrice);
+
+  // ⭐ Calculate volumes in USD
+  const volUsdA = solToUsd(tokenA.totalVolumeSol, solPrice);
+  const volUsdB = solToUsd(tokenB.totalVolumeSol, solPrice);
+  const targetVolUsd = solToUsd(targetVolumeSol, solPrice);
+
+  // ⚔️ Random battle animations
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     let animationTimeoutId: NodeJS.Timeout;
@@ -253,49 +327,41 @@ export function BattleCard({
   // ⭐ Generate Twitter share URL
   const getShareUrl = () => {
     const battleUrl = `${window.location.origin}/battle/${tokenA.mint}-${tokenB.mint}`;
-    const scoreText = `📊 Score: ${tokenA.solCollected.toFixed(2)} vs ${tokenB.solCollected.toFixed(2)} SOL`;
-    const tweetText = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} - EPIC BATTLE!
-${scoreText}
-🏆 Who will win? Vote now!
-🔥 Winner gets listed on DEX + 50% of loser's liquidity!
-#BonkBattle #Solana #Crypto`;
+    const tweetText = `🚨 NEW BONKBATTLE: Will $${tokenA.symbol} defeat $${tokenB.symbol}? | Winner gets Listed on DEX! |
+
+#BonkBattle #Solana #Crypto #Memecoin`;
     return `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(battleUrl)}`;
   };
 
-  // ⭐ Handle card click - navigate to battle page (but not if clicking links)
+  // Handle card click
   const handleCardClick = (e: React.MouseEvent) => {
-    // Check if click originated from a link or share button
     const target = e.target as HTMLElement;
     if (target.closest('a') || target.closest('[data-share-button]')) {
-      return; // Don't navigate if clicking a link
+      return;
     }
     router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
   };
 
-  // ⭐ SOL-BASED progress calculations using tier config values
+  // ⭐ Progress calculations (based on SOL for accuracy)
   const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
   const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
   const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
   const volProgressB = Math.min((tokenB.totalVolumeSol / targetVolumeSol) * 100, 100);
-
-  // Calcola score (based on SOL progress)
-  const scoreA = (solProgressA >= 100 ? 1 : 0) + (volProgressA >= 100 ? 1 : 0);
-  const scoreB = (solProgressB >= 100 ? 1 : 0) + (volProgressB >= 100 ? 1 : 0);
 
   // Default image
   const getTokenImage = (token: BattleToken) => {
     return token.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${token.symbol}`;
   };
 
-  // URL della pagina battle
-  const battleUrl = `/battle/${tokenA.mint}-${tokenB.mint}`;
-
   // Winner variant
   const winnerToken = winner === 'A' ? tokenA : winner === 'B' ? tokenB : null;
   const loserToken = winner === 'A' ? tokenB : winner === 'B' ? tokenA : null;
 
-  // Se c'è un winner, mostra la card dorata
+  // Winner card (golden)
   if (winner && winnerToken && loserToken) {
+    const winnerMcUsd = calculateMarketCapUsd(winnerToken.solCollected, solPrice);
+    const winnerVolUsd = solToUsd(winnerToken.totalVolumeSol, solPrice);
+
     return (
       <Link href={`/token/${winnerToken.mint}`} className="block">
         <div className="bg-gradient-to-br from-yellow-900/40 via-orange-900/30 to-yellow-900/40 rounded-xl overflow-hidden border-2 border-yellow-500 hover:border-yellow-400 transition-all cursor-pointer shadow-lg shadow-yellow-500/20">
@@ -309,7 +375,7 @@ ${scoreText}
           {/* Winner Content */}
           <div className="p-4">
             <div className="flex items-center gap-4">
-              {/* Winner Image - Grande con corona */}
+              {/* Winner Image */}
               <div className="relative">
                 <div className="w-24 h-24 lg:w-28 lg:h-28 rounded-xl overflow-hidden border-4 border-yellow-500 shadow-lg">
                   <Image
@@ -321,7 +387,6 @@ ${scoreText}
                     unoptimized
                   />
                 </div>
-                {/* Crown overlay */}
                 <div className="absolute -top-3 -right-3 text-3xl">👑</div>
               </div>
 
@@ -332,15 +397,15 @@ ${scoreText}
                 </h3>
                 <p className="text-gray-300 text-sm mb-2">{winnerToken.name}</p>
 
-                {/* Final Stats (SOL-based) */}
+                {/* ⭐ Final Stats in USD */}
                 <div className="flex gap-3">
                   <div className="bg-black/30 rounded px-2 py-1">
-                    <span className="text-gray-500 text-xs">SOL </span>
-                    <span className="text-yellow-400 font-bold text-sm">{formatSol(winnerToken.solCollected, 2)} SOL</span>
+                    <span className="text-gray-500 text-xs">MC </span>
+                    <span className="text-yellow-400 font-bold text-sm">{formatUsd(winnerMcUsd)}</span>
                   </div>
                   <div className="bg-black/30 rounded px-2 py-1">
                     <span className="text-gray-500 text-xs">VOL </span>
-                    <span className="text-green-400 font-bold text-sm">{formatSol(winnerToken.totalVolumeSol, 2)} SOL</span>
+                    <span className="text-green-400 font-bold text-sm">{formatUsd(winnerVolUsd)}</span>
                   </div>
                 </div>
               </div>
@@ -371,10 +436,8 @@ ${scoreText}
     );
   }
 
-  // ⭐ FIXED: Use div with onClick instead of Link to avoid nested <a> issues
   return (
     <>
-      {/* Inject radiate styles */}
       {isEpicBattle && <style jsx global>{radiateStyles}</style>}
 
       <div
@@ -392,8 +455,7 @@ ${scoreText}
         >
           {/* Background Attack Strip - Token A */}
           <div
-            className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'
-              }`}
+            className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
               backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#4DB5FF',
@@ -402,8 +464,7 @@ ${scoreText}
           />
           {/* Background Attack Strip - Token B */}
           <div
-            className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackB || clash ? 'opacity-100' : 'opacity-0'
-              }`}
+            className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackB || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
               backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FF5A8E',
@@ -414,8 +475,7 @@ ${scoreText}
           <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
             {/* Token A Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''
-                } ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -433,18 +493,27 @@ ${scoreText}
               </div>
             </div>
 
-            {/* Score Center (SOL-based) */}
+            {/* ⭐ Score Center - SHOWS USD from Oracle */}
             <div className="flex flex-col items-center">
-              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">SOL</span>
-              <span className="text-xl lg:text-2xl font-black text-yellow-400">
-                {formatSol(tokenA.solCollected, 2)} - {formatSol(tokenB.solCollected, 2)}
-              </span>
+              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">MC</span>
+              {priceLoading ? (
+                <span className="text-xl lg:text-2xl font-black text-gray-500">Loading...</span>
+              ) : (
+                <span className="text-xl lg:text-2xl font-black text-yellow-400">
+                  {formatUsd(mcUsdA)} - {formatUsd(mcUsdB)}
+                </span>
+              )}
+              {/* ⭐ Show oracle SOL price */}
+              {solPrice > 0 && (
+                <span className="text-[10px] text-gray-500 mt-1">
+                  SOL ${solPrice.toFixed(0)}
+                </span>
+              )}
             </div>
 
             {/* Token B Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''
-                } ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -469,7 +538,6 @@ ${scoreText}
           <div className="flex items-start justify-between">
             {/* Left Token Stats */}
             <div className="flex-1 pr-2 lg:pr-4">
-              {/* ⭐ Token Symbol + Holders */}
               <div className="flex items-center gap-2 mb-2 lg:mb-3">
                 <p className="text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
                   ${tokenA.symbol}
@@ -482,9 +550,9 @@ ${scoreText}
                 )}
               </div>
 
-              {/* SOL Row */}
+              {/* ⭐ MC Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">SOL</span>
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
@@ -494,12 +562,12 @@ ${scoreText}
                     style={{ width: `${solProgressA}%` }}
                   />
                 </div>
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
-                  {formatSol(tokenA.solCollected, 2)}
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
+                  {formatUsd(mcUsdA)}
                 </span>
               </div>
 
-              {/* VOL Row */}
+              {/* ⭐ VOL Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2">
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
@@ -511,28 +579,31 @@ ${scoreText}
                     style={{ width: `${volProgressA}%` }}
                   />
                 </div>
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px] text-right">
-                  {formatSol(tokenA.totalVolumeSol, 2)}
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
+                  {formatUsd(volUsdA)}
                 </span>
               </div>
             </div>
 
-            {/* Center Target (SOL-based) - ⭐ SHARE BUTTON HERE */}
+            {/* ⭐ Center Target - USD from Oracle */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
               <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs lg:text-sm text-gray-400">SOL</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetSol)} SOL</span>
+                <span className="text-xs lg:text-sm text-gray-400">MC</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-xs lg:text-sm text-gray-400">VOL</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatSol(targetVolumeSol)} SOL</span>
+                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVolUsd)}</span>
+              </div>
+              {/* Tier indicator */}
+              <div className="mt-1 text-[10px] text-gray-600">
+                {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
               </div>
             </div>
 
             {/* Right Token Stats */}
             <div className="flex-1 pl-2 lg:pl-4">
-              {/* ⭐ Token Symbol + Holders */}
               <div className="flex items-center justify-end gap-2 mb-2 lg:mb-3">
                 {tokenB.holders !== undefined && (
                   <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -545,10 +616,10 @@ ${scoreText}
                 </p>
               </div>
 
-              {/* SOL Row */}
+              {/* ⭐ MC Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
-                  {formatSol(tokenB.solCollected, 2)}
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
+                  {formatUsd(mcUsdB)}
                 </span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
@@ -559,13 +630,13 @@ ${scoreText}
                     style={{ width: `${solProgressB}%` }}
                   />
                 </div>
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">SOL</span>
+                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
               </div>
 
-              {/* VOL Row */}
+              {/* ⭐ VOL Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[45px] lg:min-w-[55px]">
-                  {formatSol(tokenB.totalVolumeSol, 2)}
+                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
+                  {formatUsd(volUsdB)}
                 </span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
                   <div
@@ -592,7 +663,6 @@ ${scoreText}
             onClick={(e) => e.stopPropagation()}
             className="bg-black/80 py-2 px-4 flex items-center justify-center gap-3 hover:bg-black/90 transition-colors cursor-pointer"
           >
-            {/* X (Twitter) Icon */}
             <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>

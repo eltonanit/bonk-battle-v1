@@ -14,8 +14,8 @@
       "schedule": "*/2 * * * *"
     },
     {
-      "path": "/api/keeper/update-oracle",
-      "schedule": "*/5 * * * *"
+      "path": "/api/cron/update-price",
+      "schedule": "0 */12 * * *"
     }
   ]
 }
