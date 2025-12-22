@@ -335,9 +335,13 @@ export default function BattleDetailPage() {
           // Refetch states to update UI
           refetchA();
           refetchB();
-        } else if (result.error?.includes('Pool already created') || result.steps?.alreadyComplete) {
-          // Pool was already created - fetch the existing pool info
-          console.log('⚠️ Pool already exists, fetching info...');
+        } else if (
+          result.error?.includes('Pool already created') ||
+          result.error?.includes('token is Listed') ||
+          result.steps?.alreadyComplete
+        ) {
+          // Pool was already created - fetch the existing pool info (not an error!)
+          console.log('✅ Pool already exists, fetching info...');
           const winnersRes = await fetch(`/api/winners/${winnerMint}`);
           if (winnersRes.ok) {
             const winnerInfo = await winnersRes.json();
@@ -349,8 +353,9 @@ export default function BattleDetailPage() {
               } : null);
             }
           }
-        } else {
-          console.error('Victory processing failed:', result.error);
+        } else if (result.error) {
+          // Only log actual errors, not expected states
+          console.warn('Victory processing issue:', result.error);
           // Still show modal but without pool info
         }
       } catch (error) {

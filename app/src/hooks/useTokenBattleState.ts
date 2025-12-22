@@ -1,42 +1,20 @@
 /**
  * ========================================================================
- * BONK BATTLE V2 - TOKEN BATTLE STATE HOOK
+ * BONK BATTLE V3 - TOKEN BATTLE STATE HOOK (MAINNET OPTIMIZED)
  * ========================================================================
- *
- * Parsing structure matches DEPLOYED on-chain TokenBattleState V2:
  * 
- * pub struct TokenBattleState {
- *     pub mint: Pubkey,                    // 32 bytes
- *     pub tier: BattleTier,                // 1 byte
- *     pub virtual_sol_reserves: u64,       // 8 bytes
- *     pub virtual_token_reserves: u64,     // 8 bytes
- *     pub real_sol_reserves: u64,          // 8 bytes
- *     pub real_token_reserves: u64,        // 8 bytes
- *     pub tokens_sold: u64,                // 8 bytes
- *     pub total_trade_volume: u64,         // 8 bytes
- *     pub is_active: bool,                 // 1 byte
- *     pub battle_status: BattleStatus,     // 1 byte
- *     pub opponent_mint: Pubkey,           // 32 bytes
- *     pub creation_timestamp: i64,         // 8 bytes
- *     pub last_trade_timestamp: i64,       // 8 bytes
- *     pub battle_start_timestamp: i64,     // 8 bytes
- *     pub victory_timestamp: i64,          // 8 bytes
- *     pub listing_timestamp: i64,          // 8 bytes
- *     pub bump: u8,                        // 1 byte
- *     pub name: String,                    // 4 + N bytes
- *     pub symbol: String,                  // 4 + M bytes
- *     pub uri: String,                     // 4 + P bytes
- * }
- *
+ * STRATEGY: Supabase-first, NO RPC reads
+ * - Supabase: Unlimited, fast, free - use for ALL reads
+ * - RPC: Only for transactions (buy/sell/battle)
+ * - Helius Webhook: Keeps Supabase in sync with blockchain
+ * 
+ * This eliminates 429 errors and reduces costs on mainnet!
  * ========================================================================
  */
 
 import { PublicKey } from '@solana/web3.js';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { connection, executeWithRetry } from '@/lib/solana';
-import { getBattleStatePDA } from '@/lib/solana/pdas';
-import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
 import { queryKeys } from '@/lib/queryClient';
 import { BattleStatus, BattleTier } from '@/types/bonk';
 import {
@@ -45,8 +23,22 @@ import {
   calculateVolumeProgress,
 } from '@/lib/solana/constants';
 
+// ═══════════════════════════════════════════════════════════════════════════
+// OPTIMIZED POLLING CONFIG FOR MAINNET
+// ═══════════════════════════════════════════════════════════════════════════
+const POLLING_CONFIG = {
+  BATTLE_INTERVAL: 10_000,    // 10s for active battles (Supabase can handle it)
+  IDLE_INTERVAL: 30_000,      // 30s for non-battle states
+  STALE_TIME: 5_000,          // 5s stale time
+  GC_TIME: 5 * 60 * 1000,     // 5 min cache
+};
+
+// Reduce logging in production
+const isDev = process.env.NODE_ENV === 'development';
+const log = isDev ? console.log : () => { };
+
 /**
- * Parsed Token Battle State V2 - matches on-chain structure
+ * Parsed Token Battle State
  */
 export interface ParsedTokenBattleState {
   mint: PublicKey;
@@ -70,8 +62,8 @@ export interface ParsedTokenBattleState {
   symbol: string;
   uri: string;
   image?: string;
-  creatorWallet?: string; // Creator wallet address from Supabase
-  // V3: Computed SOL-based progress
+  creatorWallet?: string;
+  // Computed SOL-based progress
   solCollectedSol?: number;
   totalVolumeSol?: number;
   solProgress?: number;
@@ -89,257 +81,97 @@ export interface UseTokenBattleStateResult {
 }
 
 /**
- * Fetch token battle state from Supabase (priority) or RPC (fallback)
+ * ========================================================================
+ * SUPABASE-ONLY FETCH (No RPC!)
+ * ========================================================================
+ * 
+ * Why no RPC fallback?
+ * 1. Helius webhook syncs all blockchain events to Supabase
+ * 2. RPC reads are expensive and rate-limited
+ * 3. If token isn't in Supabase, it means webhook hasn't processed it yet
+ *    → Call /api/sync-token/[mint] to force sync, then retry
  */
 async function fetchTokenBattleState(
   mint: PublicKey
 ): Promise<ParsedTokenBattleState | null> {
   try {
-    // 1. ✅ TRY SUPABASE FIRST (instant, no rate limit)
+    const mintStr = mint.toString();
+
+    // ✅ FETCH FROM SUPABASE ONLY
     const { data: tokenData, error: supabaseError } = await supabase
       .from('tokens')
       .select('*')
-      .eq('mint', mint.toString())
+      .eq('mint', mintStr)
       .single();
 
-    if (tokenData && !supabaseError) {
-      console.log('⚡ Battle State V2 fetched from Supabase cache');
-
-      // Get metadata - prioritize direct fields, fallback to parsing URI
-      let name = tokenData.name || '';
-      let symbol = tokenData.symbol || '';
-      let image = tokenData.image || '';
-
-      // If URI is JSON, try to extract metadata from it
-      if (tokenData.uri && tokenData.uri.startsWith('{')) {
-        try {
-          const metadata = JSON.parse(tokenData.uri);
-          if (!name && metadata.name) name = metadata.name;
-          if (!symbol && metadata.symbol) symbol = metadata.symbol;
-          if (!image && metadata.image) image = metadata.image;
-        } catch {
-          // URI is not valid JSON, ignore
-        }
-      }
-
-      console.log('📊 Supabase V2 data:', {
-        name,
-        symbol,
-        tier: tokenData.tier,
-        virtual_sol_reserves: tokenData.virtual_sol_reserves,
-        battle_status: tokenData.battle_status
-      });
-
-      return {
-        mint: new PublicKey(tokenData.mint),
-        tier: (tokenData.tier ?? 0) as BattleTier,
-        virtualSolReserves: parseFloat(tokenData.virtual_sol_reserves) || 0,
-        virtualTokenReserves: parseFloat(tokenData.virtual_token_reserves) || 0,
-        realSolReserves: parseFloat(tokenData.real_sol_reserves) || 0,
-        realTokenReserves: parseFloat(tokenData.real_token_reserves) || 0,
-        tokensSold: parseFloat(tokenData.tokens_sold) || 0,
-        totalTradeVolume: parseFloat(tokenData.total_trade_volume) || 0,
-        isActive: tokenData.is_active ?? true,
-        battleStatus: (tokenData.battle_status ?? 0) as BattleStatus,
-        opponentMint: new PublicKey(tokenData.opponent_mint || PublicKey.default.toString()),
-        creationTimestamp: Number(tokenData.creation_timestamp || 0),
-        lastTradeTimestamp: Number(tokenData.last_trade_timestamp || 0),
-        battleStartTimestamp: Number(tokenData.battle_start_timestamp || 0),
-        victoryTimestamp: Number(tokenData.victory_timestamp || 0),
-        listingTimestamp: Number(tokenData.listing_timestamp || 0),
-        bump: Number(tokenData.bump || 0),
-        name,
-        symbol,
-        uri: tokenData.uri || '',
-        image: image || undefined,
-        creatorWallet: tokenData.creator_wallet || undefined,
-        // V3: Computed SOL-based progress
-        solCollectedSol: lamportsToSol(Number(tokenData.real_sol_reserves || 0)),
-        totalVolumeSol: lamportsToSol(Number(tokenData.total_trade_volume || 0)),
-        solProgress: calculateSolProgress(lamportsToSol(Number(tokenData.real_sol_reserves || 0))),
-        volumeProgress: calculateVolumeProgress(lamportsToSol(Number(tokenData.total_trade_volume || 0))),
-      };
+    if (supabaseError || !tokenData) {
+      // Token not in database - this is expected for brand new tokens
+      // The create page should call /api/sync-token after creation
+      log('ℹ️ Token not found in Supabase:', mintStr.slice(0, 8) + '...');
+      return null;
     }
 
-    // 2. ⚠️ FALLBACK TO RPC (with retry logic)
-    console.warn('⚠️ Token not in Supabase, falling back to RPC');
+    log('⚡ Token data from Supabase:', tokenData.symbol);
 
-    return await executeWithRetry(
-      async () => {
-        const [battleStatePDA] = getBattleStatePDA(mint);
+    // Parse metadata from URI if needed
+    let name = tokenData.name || '';
+    let symbol = tokenData.symbol || '';
+    let image = tokenData.image || '';
 
-        console.log('🔍 Fetching Battle State V2 from RPC for:', mint.toString());
+    if (tokenData.uri && tokenData.uri.startsWith('{')) {
+      try {
+        const metadata = JSON.parse(tokenData.uri);
+        if (!name && metadata.name) name = metadata.name;
+        if (!symbol && metadata.symbol) symbol = metadata.symbol;
+        if (!image && metadata.image) image = metadata.image;
+      } catch {
+        // URI is not valid JSON, ignore
+      }
+    }
 
-        const accountInfo = await connection.getAccountInfo(battleStatePDA);
+    // Parse numeric values safely
+    const realSolReserves = parseFloat(tokenData.real_sol_reserves) || 0;
+    const totalTradeVolume = parseFloat(tokenData.total_trade_volume) || 0;
 
-        if (!accountInfo) {
-          console.log('ℹ️ Battle State account not found');
-          return null;
-        }
-
-        if (!accountInfo.owner.equals(BONK_BATTLE_PROGRAM_ID)) {
-          throw new Error(`Invalid account owner`);
-        }
-
-        // Parse account data - V2 STRUCTURE
-        const data = accountInfo.data;
-        let offset = 8; // Skip discriminator
-
-        // Helper to parse u64 (little-endian)
-        const parseU64 = (): number => {
-          let value = 0n;
-          for (let i = 0; i < 8; i++) {
-            value |= BigInt(data[offset + i]) << BigInt(i * 8);
-          }
-          offset += 8;
-          return Number(value);
-        };
-
-        // Helper to parse i64 (little-endian, signed)
-        const parseI64 = (): number => {
-          let value = 0n;
-          for (let i = 0; i < 8; i++) {
-            value |= BigInt(data[offset + i]) << BigInt(i * 8);
-          }
-          offset += 8;
-          if (value > 0x7fffffffffffffffn) {
-            value = value - 0x10000000000000000n;
-          }
-          return Number(value);
-        };
-
-        // Helper to read Borsh string (4-byte length prefix + UTF-8 content)
-        const readString = (): string => {
-          if (offset + 4 > data.length) return '';
-          const length = data.readUInt32LE(offset);
-          offset += 4;
-          if (length === 0 || length > 500 || offset + length > data.length) return '';
-          const str = data.slice(offset, offset + length).toString('utf8').replace(/\0/g, '').trim();
-          offset += length;
-          return str;
-        };
-
-        // ========== PARSE V2 STRUCTURE ==========
-
-        // mint (32 bytes) - offset 8 → 40
-        const mintPubkey = new PublicKey(data.slice(offset, offset + 32));
-        offset += 32;
-
-        // tier (1 byte) - offset 40 → 41
-        const tier = data[offset] as BattleTier;
-        offset += 1;
-
-        // virtual_sol_reserves (8 bytes) - offset 41 → 49
-        const virtualSolReserves = parseU64();
-
-        // virtual_token_reserves (8 bytes) - offset 49 → 57
-        const virtualTokenReserves = parseU64();
-
-        // real_sol_reserves (8 bytes) - offset 57 → 65
-        const realSolReserves = parseU64();
-
-        // real_token_reserves (8 bytes) - offset 65 → 73
-        const realTokenReserves = parseU64();
-
-        // tokens_sold (8 bytes) - offset 73 → 81
-        const tokensSold = parseU64();
-
-        // total_trade_volume (8 bytes) - offset 81 → 89
-        const totalTradeVolume = parseU64();
-
-        // is_active (1 byte) - offset 89 → 90
-        const isActive = data[offset] !== 0;
-        offset += 1;
-
-        // battle_status (1 byte) - offset 90 → 91
-        const battleStatusRaw = data[offset];
-        offset += 1;
-
-        // opponent_mint (32 bytes) - offset 91 → 123
-        const opponentMint = new PublicKey(data.slice(offset, offset + 32));
-        offset += 32;
-
-        // timestamps (5 x i64 = 40 bytes)
-        const creationTimestamp = parseI64();
-        const lastTradeTimestamp = parseI64();
-        const battleStartTimestamp = parseI64();
-        const victoryTimestamp = parseI64();
-        const listingTimestamp = parseI64();
-
-        // bump (1 byte)
-        const bump = data[offset];
-        offset += 1;
-
-        // metadata strings (Borsh format)
-        const name = readString();
-        const symbol = readString();
-        const uri = readString();
-
-        // Extract image from URI if it's JSON
-        let image: string | undefined;
-        if (uri) {
-          try {
-            if (uri.startsWith('{')) {
-              const metadata = JSON.parse(uri);
-              image = metadata.image || metadata.IMAGE;
-            }
-          } catch {
-            // URI is not JSON
-          }
-        }
-
-        const parsedState: ParsedTokenBattleState = {
-          mint: mintPubkey,
-          tier,
-          virtualSolReserves,
-          virtualTokenReserves,
-          realSolReserves,
-          realTokenReserves,
-          tokensSold,
-          totalTradeVolume,
-          isActive,
-          battleStatus: battleStatusRaw as BattleStatus,
-          opponentMint,
-          creationTimestamp,
-          lastTradeTimestamp,
-          battleStartTimestamp,
-          victoryTimestamp,
-          listingTimestamp,
-          bump,
-          name,
-          symbol,
-          uri,
-          image,
-          // V3: Computed SOL-based progress
-          solCollectedSol: lamportsToSol(realSolReserves),
-          totalVolumeSol: lamportsToSol(totalTradeVolume),
-          solProgress: calculateSolProgress(lamportsToSol(realSolReserves)),
-          volumeProgress: calculateVolumeProgress(lamportsToSol(totalTradeVolume)),
-        };
-
-        console.log('✅ Battle State V3 fetched from RPC:', {
-          name: parsedState.name,
-          symbol: parsedState.symbol,
-          tier: parsedState.tier,
-          virtualSolReserves: parsedState.virtualSolReserves,
-          battleStatus: parsedState.battleStatus
-        });
-
-        return parsedState;
-      },
-      `battleState-${mint.toString()}`,
-      3
-    );
+    return {
+      mint: new PublicKey(tokenData.mint),
+      tier: (tokenData.tier ?? 1) as BattleTier, // Default to Production tier
+      virtualSolReserves: parseFloat(tokenData.virtual_sol_reserves) || 0,
+      virtualTokenReserves: parseFloat(tokenData.virtual_token_reserves) || 0,
+      realSolReserves,
+      realTokenReserves: parseFloat(tokenData.real_token_reserves) || 0,
+      tokensSold: parseFloat(tokenData.tokens_sold) || 0,
+      totalTradeVolume,
+      isActive: tokenData.is_active ?? true,
+      battleStatus: (tokenData.battle_status ?? 0) as BattleStatus,
+      opponentMint: new PublicKey(tokenData.opponent_mint || PublicKey.default.toString()),
+      creationTimestamp: Number(tokenData.creation_timestamp || 0),
+      lastTradeTimestamp: Number(tokenData.last_trade_timestamp || 0),
+      battleStartTimestamp: Number(tokenData.battle_start_timestamp || 0),
+      victoryTimestamp: Number(tokenData.victory_timestamp || 0),
+      listingTimestamp: Number(tokenData.listing_timestamp || 0),
+      bump: Number(tokenData.bump || 0),
+      name,
+      symbol,
+      uri: tokenData.uri || '',
+      image: image || undefined,
+      creatorWallet: tokenData.creator_wallet || undefined,
+      // Computed SOL-based progress
+      solCollectedSol: lamportsToSol(realSolReserves),
+      totalVolumeSol: lamportsToSol(totalTradeVolume),
+      solProgress: calculateSolProgress(realSolReserves),
+      volumeProgress: calculateVolumeProgress(totalTradeVolume),
+    };
 
   } catch (err) {
-    console.error('❌ Error fetching Battle State V2:', err);
+    console.error('❌ Error fetching token state:', err);
     throw err;
   }
 }
 
 /**
  * ========================================================================
- * MAIN HOOK WITH REACT QUERY
+ * MAIN HOOK - OPTIMIZED FOR MAINNET
  * ========================================================================
  */
 export function useTokenBattleState(
@@ -358,22 +190,37 @@ export function useTokenBattleState(
     },
     enabled: !!mint,
 
-    staleTime: 5_000,
-    gcTime: 2 * 60 * 1000,
+    staleTime: POLLING_CONFIG.STALE_TIME,
+    gcTime: POLLING_CONFIG.GC_TIME,
 
+    // Smart polling based on battle status
     refetchInterval: (query) => {
       const data = query.state.data;
       if (!data) return false;
 
-      const shouldPollFast =
-        data.battleStatus === BattleStatus.InBattle ||
-        data.battleStatus === BattleStatus.VictoryPending;
+      // Don't poll if tab is hidden
+      if (typeof document !== 'undefined' && document.hidden) {
+        return false;
+      }
 
-      return shouldPollFast ? 10_000 : false;
+      // Active battles: poll every 10s
+      if (data.battleStatus === BattleStatus.InBattle ||
+        data.battleStatus === BattleStatus.VictoryPending) {
+        return POLLING_CONFIG.BATTLE_INTERVAL;
+      }
+
+      // Qualified tokens waiting for battle: poll every 30s
+      if (data.battleStatus === BattleStatus.Qualified) {
+        return POLLING_CONFIG.IDLE_INTERVAL;
+      }
+
+      // Listed/Created: no polling needed
+      return false;
     },
 
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: true, // Fetch once on mount
+    refetchOnReconnect: false,
   });
 
   const refetch = async () => {
@@ -403,17 +250,12 @@ export function useCanTokenBattle(mint: PublicKey | null): boolean {
 
 /**
  * ========================================================================
- * V2 CALCULATION FUNCTIONS
+ * CALCULATION FUNCTIONS (unchanged)
  * ========================================================================
  */
 
-// Total supply: 1B tokens with 9 decimals
-const TOTAL_SUPPLY = 1_000_000_000_000_000_000; // 1B * 10^9
+const TOTAL_SUPPLY = 1_000_000_000_000_000_000;
 
-/**
- * Calculate market cap from virtual reserves (V2)
- * Formula: MC = (virtualSolReserves / virtualTokenReserves) * totalSupply * solPriceUsd
- */
 export function calculateMarketCapFromReserves(
   virtualSolReserves: number,
   virtualTokenReserves: number,
@@ -421,72 +263,39 @@ export function calculateMarketCapFromReserves(
   totalSupply: number = TOTAL_SUPPLY
 ): number {
   if (virtualTokenReserves === 0 || virtualSolReserves === 0) return 0;
-
-  // Price per token in SOL (lamports / token base units)
   const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
-
-  // MC in SOL = price per token * total supply
   const mcLamports = pricePerTokenLamports * totalSupply;
-
-  // Convert lamports to SOL, then to USD
-  // solPriceUsd is already in USD (e.g., 137.47)
   const mcUsd = (mcLamports / 1e9) * solPriceUsd;
-
-  console.log('📊 MC Calculation:', {
-    virtualSolReserves,
-    virtualTokenReserves,
-    pricePerTokenLamports,
-    mcLamports,
-    solPriceUsd,
-    mcUsd
-  });
-
   return mcUsd;
 }
 
-/**
- * Calculate price per token from reserves (V2)
- */
 export function calculatePricePerToken(
   virtualSolReserves: number,
   virtualTokenReserves: number,
   solPriceUsd: number
 ): number {
   if (virtualTokenReserves === 0) return 0;
-
-  // Price per token in lamports
   const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
-
-  // Convert to USD - solPriceUsd is already in USD (e.g., 137.47)
   const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * solPriceUsd;
-
   return pricePerTokenUsd;
 }
 
-/**
- * Calculate tokens out for a given SOL input (constant product formula)
- */
 export function calculateTokensOut(
   solIn: number,
   virtualSolReserves: number,
   virtualTokenReserves: number
 ): number {
   if (virtualSolReserves === 0) return 0;
-
   const tokensOut = (virtualTokenReserves * solIn) / (virtualSolReserves + solIn);
   return tokensOut;
 }
 
-/**
- * Calculate SOL out for a given token input (constant product formula)
- */
 export function calculateSolOut(
   tokensIn: number,
   virtualSolReserves: number,
   virtualTokenReserves: number
 ): number {
   if (virtualTokenReserves === 0) return 0;
-
   const solOut = (virtualSolReserves * tokensIn) / (virtualTokenReserves + tokensIn);
   return solOut;
 }
