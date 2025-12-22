@@ -1,6 +1,7 @@
-// app/src/hooks/useNotifications.ts
-// ⭐ FIXED: Stable callbacks + ref to prevent infinite loops
-import { useEffect, useState, useCallback, useRef } from 'react';
+// app/src/providers/NotificationsProvider.tsx
+'use client';
+
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from '@/lib/supabase';
 
@@ -15,13 +16,24 @@ interface Notification {
     token_launch_id?: string | null;
 }
 
-export function useNotifications() {
+interface NotificationsContextType {
+    notifications: Notification[];
+    unreadCount: number;
+    loading: boolean;
+    markAsRead: (id: string) => Promise<void>;
+    markAllAsRead: () => Promise<void>;
+    refresh: () => Promise<void>;
+}
+
+const NotificationsContext = createContext<NotificationsContextType | null>(null);
+
+export function NotificationsProvider({ children }: { children: ReactNode }) {
     const { publicKey } = useWallet();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
-    // ⭐ Use ref to track if markAllAsRead was already called
+    // Ref to prevent multiple markAllAsRead calls
     const markAllCalledRef = useRef(false);
 
     const fetchNotifications = useCallback(async () => {
@@ -42,7 +54,7 @@ export function useNotifications() {
             .limit(50);
 
         if (error) {
-            console.error('❌ Failed to fetch notifications:', error);
+            console.error('Failed to fetch notifications:', error);
             setLoading(false);
             return;
         }
@@ -92,7 +104,7 @@ export function useNotifications() {
                     setNotifications((prev) => [mapped, ...prev]);
                     setUnreadCount((prev) => prev + 1);
 
-                    // Reset flag so markAll can be called again if user returns to notifications page
+                    // Reset flag so markAll can be called again
                     markAllCalledRef.current = false;
 
                     playNotificationSound();
@@ -117,18 +129,17 @@ export function useNotifications() {
         setUnreadCount((prev) => Math.max(0, prev - 1));
     }, []);
 
-    // ⭐ FIX: Stable callback that prevents multiple calls
     const markAllAsRead = useCallback(async () => {
         if (!publicKey) return;
 
         // Prevent multiple calls
         if (markAllCalledRef.current) {
-            console.log('📭 markAllAsRead already called, skipping...');
+            console.log('markAllAsRead already called, skipping...');
             return;
         }
 
         markAllCalledRef.current = true;
-        console.log('📬 Marking all notifications as read...');
+        console.log('Marking all notifications as read...');
 
         const { error } = await supabase
             .from('notifications')
@@ -137,34 +148,55 @@ export function useNotifications() {
             .eq('read', false);
 
         if (error) {
-            console.error('❌ Failed to mark all as read:', error);
-            markAllCalledRef.current = false; // Allow retry on error
+            console.error('Failed to mark all as read:', error);
+            markAllCalledRef.current = false;
             return;
         }
 
         setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         setUnreadCount(0);
-        console.log('✅ All notifications marked as read');
+        console.log('All notifications marked as read');
     }, [publicKey]);
 
-    return {
-        notifications,
-        unreadCount,
-        loading,
-        markAsRead,
-        markAllAsRead,
-        refresh: fetchNotifications,
-    };
+    return (
+        <NotificationsContext.Provider
+            value={{
+                notifications,
+                unreadCount,
+                loading,
+                markAsRead,
+                markAllAsRead,
+                refresh: fetchNotifications,
+            }}
+        >
+            {children}
+        </NotificationsContext.Provider>
+    );
+}
+
+// Hook to use notifications context
+export function useNotifications() {
+    const context = useContext(NotificationsContext);
+
+    // If used outside provider, return empty state (for SSR safety)
+    if (!context) {
+        return {
+            notifications: [],
+            unreadCount: 0,
+            loading: false,
+            markAsRead: async () => {},
+            markAllAsRead: async () => {},
+            refresh: async () => {},
+        };
+    }
+
+    return context;
 }
 
 function playNotificationSound() {
     try {
         const audio = new Audio('/notification.mp3');
         audio.volume = 0.3;
-        audio.play().catch(() => {
-            // Ignore audio play errors
-        });
-    } catch {
-        // Ignore audio initialization errors
-    }
+        audio.play().catch(() => {});
+    } catch {}
 }

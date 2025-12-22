@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { useVictory } from '@/components/victory/VictoryProvider';
 import Image from 'next/image';
 

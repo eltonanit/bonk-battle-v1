@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { usePathname } from 'next/navigation';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { useVictory } from '@/components/victory/VictoryProvider';

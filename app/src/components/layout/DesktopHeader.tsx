@@ -9,7 +9,7 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { usePathname } from 'next/navigation';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';

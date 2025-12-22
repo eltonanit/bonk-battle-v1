@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useEffect, useState, useRef } from 'react';
+import { useNotifications } from '@/providers/NotificationsProvider';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Header } from '@/components/layout/Header';
@@ -46,20 +46,6 @@ function PlusIcon({ className }: { className?: string }) {
     );
 }
 
-// Trophy Icon Component for victory
-function TrophyIcon({ className }: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            className={className}
-            fill="currentColor"
-        >
-            <path d="M5 3h14v3c0 2.21-1.79 4-4 4h-1v2h1c1.1 0 2 .9 2 2v1h-4v3c0 1.1-.9 2-2 2s-2-.9-2-2v-3H5v-1c0-1.1.9-2 2-2h1v-2H7c-2.21 0-4-1.79-4-4V3zm2 2v1c0 1.1.9 2 2 2h6c1.1 0 2-.9 2-2V5H7z" />
-        </svg>
-    );
-}
-
 // Points action to message mapping
 const POINTS_MESSAGES: Record<string, string> = {
     create_token: 'Your new coin created',
@@ -80,16 +66,18 @@ export default function NotificationsPage() {
     const router = useRouter();
     const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
 
-    // ⭐ NEW: Cache for token images fetched from database
+    // Cache for token images fetched from database
     const [tokenImages, setTokenImages] = useState<Record<string, string>>({});
     const [imagesFetched, setImagesFetched] = useState(false);
 
-    // ⭐ NEW: Fetch missing token images from database
+    // ⭐ FIX: Use ref to ensure markAllAsRead is called only ONCE per page visit
+    const hasMarkedReadRef = useRef(false);
+
+    // Fetch missing token images from database
     useEffect(() => {
         if (loading || imagesFetched || notifications.length === 0) return;
 
         async function fetchMissingImages() {
-            // Find notifications with token_mint but no token_image
             const mintsToFetch: string[] = [];
 
             for (const notif of notifications) {
@@ -106,32 +94,25 @@ export default function NotificationsPage() {
                 return;
             }
 
-            console.log('📸 Fetching missing images for:', mintsToFetch.length, 'tokens');
-
             try {
-                // Fetch from tokens table - use correct column name 'image'
                 const { data: tokens, error } = await supabase
                     .from('tokens')
                     .select('mint, image, uri')
                     .in('mint', mintsToFetch);
 
                 if (error) {
-                    console.error('Error fetching token images:', error.message, error.code, error.details);
+                    console.error('Error fetching token images:', error.message);
                     setImagesFetched(true);
                     return;
                 }
 
-                // Build image map - try multiple sources
                 const imageMap: Record<string, string> = {};
                 for (const token of tokens || []) {
                     let imageUrl: string | null = null;
 
-                    // 1. Direct 'image' field
                     if (token.image) {
                         imageUrl = token.image;
-                    }
-                    // 2. Parse from URI if it's JSON
-                    else if (token.uri && token.uri.startsWith('{')) {
+                    } else if (token.uri && token.uri.startsWith('{')) {
                         try {
                             const metadata = JSON.parse(token.uri);
                             imageUrl = metadata.image || metadata.IMAGE || null;
@@ -145,7 +126,6 @@ export default function NotificationsPage() {
                     }
                 }
 
-                console.log('✅ Fetched images for', Object.keys(imageMap).length, 'tokens');
                 setTokenImages(imageMap);
             } catch (err) {
                 console.error('Exception fetching token images:', err);
@@ -157,17 +137,24 @@ export default function NotificationsPage() {
         fetchMissingImages();
     }, [notifications, loading, imagesFetched]);
 
-    // ⭐ FIX: Mark all as read when ENTERING the page (not leaving)
+    // ⭐ FIX: Mark all as read ONCE when page loads (using ref, no dependencies that cause loops)
     useEffect(() => {
-        // Small delay to let the page render first
+        // Only run once per page mount
+        if (hasMarkedReadRef.current) return;
+        if (loading) return;
+
+        // Mark as called immediately to prevent any re-runs
+        hasMarkedReadRef.current = true;
+
+        // Small delay to let the UI render first
         const timer = setTimeout(() => {
-            if (unreadCount > 0) {
-                markAllAsRead();
-            }
-        }, 500);
+            console.log('📬 Auto-marking all notifications as read...');
+            markAllAsRead();
+        }, 300);
 
         return () => clearTimeout(timer);
-    }, [markAllAsRead, unreadCount]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading]); // Only depend on loading - markAllAsRead is stable now
 
     function handleNotificationClick(notification: Notification) {
         markAsRead(notification.id);
@@ -188,29 +175,22 @@ export default function NotificationsPage() {
         }
     }
 
-    // ⭐ NEW: Get token image from notification data OR from fetched cache
     function getTokenImage(notif: Notification): string | null {
-        // First check notification data
         if (notif.data?.token_image) {
             return notif.data.token_image;
         }
-
-        // Then check fetched cache
         if (notif.data?.token_mint && tokenImages[notif.data.token_mint]) {
             return tokenImages[notif.data.token_mint];
         }
-
         return null;
     }
 
-    // ⭐ Check if this is a victory notification (10,000 points)
     function isVictoryNotification(notif: Notification): boolean {
         const points = notif.data?.points || 0;
         const action = notif.data?.action || '';
         return points >= 10000 || action === 'win_battle';
     }
 
-    // Render notification based on type
     function renderNotification(notif: Notification, isLast: boolean) {
         const isFollower = notif.type === 'new_follower' ||
             notif.title?.toLowerCase().includes('follower') ||
@@ -263,13 +243,10 @@ export default function NotificationsPage() {
             const points = notif.data?.points || 0;
             const action = notif.data?.action || '';
             const isVictory = isVictoryNotification(notif);
-
-            // ⭐ NEW: Use helper function to get image
             const tokenImage = getTokenImage(notif);
-
             const displayMessage = POINTS_MESSAGES[action] || notif.message;
 
-            // ⭐ VICTORY STYLE: Yellow/Gold for 10,000+ points
+            // Victory style (yellow/gold for 10,000+ points)
             if (isVictory) {
                 return (
                     <div
@@ -278,12 +255,10 @@ export default function NotificationsPage() {
                         className={`py-4 px-4 cursor-pointer hover:bg-yellow-500/10 transition-colors bg-yellow-500/5 ${!isLast ? 'border-b border-yellow-500/20' : ''}`}
                     >
                         <div className="flex items-center gap-3">
-                            {/* Gold circle with trophy - same size as regular */}
                             <div className="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
                                 <span className="text-xl">🏆</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                {/* Yellow points text - same size as regular */}
                                 <p className="text-yellow-400 text-lg font-bold">
                                     +{points.toLocaleString()} pts
                                 </p>
@@ -292,8 +267,6 @@ export default function NotificationsPage() {
                                     {formatTimeAgo(notif.created_at)}
                                 </p>
                             </div>
-
-                            {/* Token Image with gold border - same size as regular */}
                             {tokenImage && (
                                 <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-yellow-500/50">
                                     <Image
@@ -306,7 +279,6 @@ export default function NotificationsPage() {
                                     />
                                 </div>
                             )}
-
                             {!notif.read && (
                                 <div className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0 animate-pulse" />
                             )}
@@ -335,8 +307,6 @@ export default function NotificationsPage() {
                                 {formatTimeAgo(notif.created_at)}
                             </p>
                         </div>
-
-                        {/* ⭐ Token Image - shows from data OR from fetched cache */}
                         {tokenImage && (
                             <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-gray-700">
                                 <Image
@@ -349,7 +319,6 @@ export default function NotificationsPage() {
                                 />
                             </div>
                         )}
-
                         {!notif.read && (
                             <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
                         )}

@@ -5,7 +5,8 @@ import "@/styles/animations.css";
 import { SolanaProvider } from "@/components/providers/SolanaProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { WelcomePopupProvider } from "@/components/points/WelcomePopupProvider";
-import { VictoryProviderWrapper } from "@/components/victory/VictoryProviderWrapper";  // ✅ CAMBIATO
+import { VictoryProviderWrapper } from "@/components/victory/VictoryProviderWrapper";
+import { NotificationsProvider } from "@/providers/NotificationsProvider"; // ⭐ ADD
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,11 +33,13 @@ export default function RootLayout({
       <body suppressHydrationWarning className={geistSans.variable + ' ' + geistMono.variable + ' antialiased bg-[#1a1b21] text-white min-h-screen overflow-x-hidden'}>
         <QueryProvider>
           <SolanaProvider>
-            <VictoryProviderWrapper>  {/* ✅ CAMBIATO */}
-              <WelcomePopupProvider>
-                {children}
-              </WelcomePopupProvider>
-            </VictoryProviderWrapper>  {/* ✅ CAMBIATO */}
+            <NotificationsProvider>  {/* ⭐ ADD */}
+              <VictoryProviderWrapper>
+                <WelcomePopupProvider>
+                  {children}
+                </WelcomePopupProvider>
+              </VictoryProviderWrapper>
+            </NotificationsProvider>  {/* ⭐ ADD */}
           </SolanaProvider>
         </QueryProvider>
       </body>
