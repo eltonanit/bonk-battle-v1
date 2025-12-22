@@ -1,11 +1,11 @@
 // app/src/lib/indexer/sync-single-token.ts
 // ═══════════════════════════════════════════════════════════════════════════════
-// BONK BATTLE V2 - FIXED: Now reads TIER from on-chain data!
+// BONK BATTLE - Token Sync from On-Chain Data
+// Matches ACTUAL Rust struct (NO tier field in smart contract!)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { Connection, PublicKey } from '@solana/web3.js';
 import { createClient } from '@supabase/supabase-js';
-import { BONK_BATTLE_PROGRAM_ID } from '@/lib/solana/constants';
 import { getBattleStatePDA } from '@/lib/solana/pdas';
 import { RPC_ENDPOINT } from '@/config/solana';
 
@@ -45,8 +45,8 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
         const data = accountInfo.data;
         console.log(`📦 Account data length: ${data.length} bytes`);
 
-        // Minimum size check (with new struct)
-        if (data.length < 200) {
+        // Minimum size check
+        if (data.length < 139) {
             console.warn(`⚠️ Invalid account data size: ${data.length}`);
             return { success: false, error: 'Invalid data size' };
         }
@@ -123,51 +123,34 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
         };
 
         // ═══════════════════════════════════════════════════════════════════════
-        // PARSE V2 STRUCT (WITH TIER!)
+        // PARSE ACTUAL RUST STRUCT (from lib.rs lines 838-855)
         // ═══════════════════════════════════════════════════════════════════════
         // pub struct TokenBattleState {
-        //     pub mint: Pubkey,                    // 32
-        //     pub tier: BattleTier,                // 1  ⭐ NEW!
-        //     pub virtual_sol_reserves: u64,       // 8
-        //     pub virtual_token_reserves: u64,     // 8
-        //     pub real_sol_reserves: u64,          // 8
-        //     pub real_token_reserves: u64,        // 8
-        //     pub tokens_sold: u64,                // 8
-        //     pub total_trade_volume: u64,         // 8
-        //     pub is_active: bool,                 // 1
-        //     pub battle_status: BattleStatus,     // 1
-        //     pub opponent_mint: Pubkey,           // 32
-        //     pub creation_timestamp: i64,         // 8
-        //     pub last_trade_timestamp: i64,       // 8
-        //     pub battle_start_timestamp: i64,     // 8
-        //     pub victory_timestamp: i64,          // 8
-        //     pub listing_timestamp: i64,          // 8
-        //     pub bump: u8,                        // 1
-        //     pub name: String,
-        //     pub symbol: String,
-        //     pub uri: String,
+        //     pub mint: Pubkey,              // 32 bytes
+        //     pub sol_collected: u64,        // 8 bytes
+        //     pub tokens_sold: u64,          // 8 bytes
+        //     pub total_trade_volume: u64,   // 8 bytes
+        //     pub is_active: bool,           // 1 byte
+        //     pub battle_status: BattleStatus, // 1 byte
+        //     pub opponent_mint: Pubkey,     // 32 bytes
+        //     pub creation_timestamp: i64,   // 8 bytes
+        //     pub last_trade_timestamp: i64, // 8 bytes
+        //     pub battle_start_timestamp: i64, // 8 bytes
+        //     pub victory_timestamp: i64,    // 8 bytes
+        //     pub listing_timestamp: i64,    // 8 bytes
+        //     pub bump: u8,                  // 1 byte
+        //     pub name: String,              // 4 + len
+        //     pub symbol: String,            // 4 + len
+        //     pub uri: String,               // 4 + len
         // }
+        // NOTE: NO tier field in deployed contract!
 
         // mint: Pubkey (32 bytes)
         const mintFromData = new PublicKey(data.slice(offset, offset + 32));
         offset += 32;
 
-        // ⭐ tier: BattleTier (1 byte) - 0 = Test, 1 = Production
-        const tier = data[offset];
-        offset += 1;
-        console.log(`🎯 Tier: ${tier} (${tier === 0 ? 'Test' : tier === 1 ? 'Production' : 'Unknown'})`);
-
-        // ⭐ virtual_sol_reserves: u64 (8 bytes)
-        const virtualSolReserves = readU64('virtual_sol_reserves');
-
-        // ⭐ virtual_token_reserves: u64 (8 bytes)
-        const virtualTokenReserves = readU64('virtual_token_reserves', Number(MAX_REALISTIC_TOKENS));
-
-        // ⭐ real_sol_reserves: u64 (8 bytes)
-        const realSolReserves = readU64('real_sol_reserves');
-
-        // ⭐ real_token_reserves: u64 (8 bytes)
-        const realTokenReserves = readU64('real_token_reserves', Number(MAX_REALISTIC_TOKENS));
+        // sol_collected: u64 (8 bytes)
+        const solCollected = readU64('sol_collected');
 
         // tokens_sold: u64 (8 bytes)
         const tokensSold = readU64('tokens_sold', Number(MAX_REALISTIC_TOKENS));
@@ -198,12 +181,26 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
         const bump = data[offset];
         offset += 1;
 
-        console.log(`📍 Offset before strings: ${offset}`);
+        console.log(`📍 Offset before strings: ${offset} (should be ~139)`);
 
         // Strings
         const name = readString('name');
         const symbol = readString('symbol');
         const uri = readString('uri');
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CALCULATE VIRTUAL RESERVES (for MC calculation)
+        // ═══════════════════════════════════════════════════════════════════════
+        // The deployed contract doesn't store virtual reserves, so we calculate them
+        // using the bonding curve formula:
+        //   virtual_sol = VIRTUAL_SOL_INIT + sol_collected
+        //   virtual_tokens = BONDING_CURVE_SUPPLY - tokens_sold
+
+        const VIRTUAL_SOL_INIT = 2_050_000_000; // 2.05 SOL in lamports
+        const BONDING_CURVE_SUPPLY = BigInt("800000000000000000"); // 800M * 10^9
+
+        const calculatedVirtualSol = VIRTUAL_SOL_INIT + solCollected;
+        const calculatedVirtualTokens = BONDING_CURVE_SUPPLY - BigInt(tokensSold);
 
         // ═══════════════════════════════════════════════════════════════════════
         // EXTRACT IMAGE FROM URI
@@ -234,19 +231,22 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
 
         console.log(`✅ Parsed: ${mint.slice(0, 8)}...`);
         console.log(`   📝 name: "${name}" | symbol: "${symbol}"`);
-        console.log(`   🎯 tier: ${tier} (${tier === 0 ? 'Test' : tier === 1 ? 'Production' : 'Unknown'})`);
-        console.log(`   💰 real_sol_reserves: ${(realSolReserves / 1e9).toFixed(4)} SOL`);
+        console.log(`   💰 sol_collected: ${(solCollected / 1e9).toFixed(4)} SOL`);
         console.log(`   📊 tokens_sold: ${tokensSold}`);
         console.log(`   📈 total_volume: ${(totalTradeVolume / 1e9).toFixed(4)} SOL`);
         console.log(`   🎯 status: ${battleStatusRaw} | active: ${isActive}`);
-        console.log(`   💎 virtual_sol: ${(virtualSolReserves / 1e9).toFixed(4)} SOL`);
-        console.log(`   🪙 virtual_tokens: ${virtualTokenReserves}`);
+        console.log(`   💎 virtual_sol: ${(calculatedVirtualSol / 1e9).toFixed(4)} SOL`);
+        console.log(`   🪙 virtual_tokens: ${calculatedVirtualTokens.toString()}`);
         console.log(`   🖼️ image: ${image ? image.slice(0, 50) + '...' : 'none'}`);
-        if (uri) console.log(`   🔗 uri: ${uri.slice(0, 80)}...`);
 
         // ═══════════════════════════════════════════════════════════════════════
         // UPSERT TO SUPABASE
         // ═══════════════════════════════════════════════════════════════════════
+
+        // ⭐ Tier is determined by USE_TEST_TIER constant in smart contract
+        // Since we can't read it from on-chain, we use the frontend constant
+        // Import from constants or hardcode based on deployment
+        const tier = 1; // 1 = Production (era 0 = Test)
 
         const tokenData = {
             mint: mint,
@@ -254,12 +254,12 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
             symbol: symbol || null,
             uri: uri || null,
             image: image || null,
-            tier: tier, // ⭐ NOW READ FROM ON-CHAIN!
-            virtual_sol_reserves: virtualSolReserves,
-            virtual_token_reserves: virtualTokenReserves.toString(),
-            real_sol_reserves: realSolReserves,
-            real_token_reserves: realTokenReserves,
-            sol_collected: realSolReserves, // For backwards compatibility
+            tier: tier,
+            virtual_sol_reserves: calculatedVirtualSol,
+            virtual_token_reserves: calculatedVirtualTokens.toString(),
+            real_sol_reserves: solCollected,
+            real_token_reserves: 0,
+            sol_collected: solCollected,
             tokens_sold: tokensSold,
             total_trade_volume: totalTradeVolume,
             is_active: isActive,
@@ -289,7 +289,7 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
             return { success: false, error: error.message };
         }
 
-        console.log(`✅ Synced ${mint.slice(0, 8)}... to Supabase | tier: ${tier} | sol: ${(realSolReserves / 1e9).toFixed(4)} SOL`);
+        console.log(`✅ Synced ${mint.slice(0, 8)}... to Supabase | sol: ${(solCollected / 1e9).toFixed(4)} SOL`);
         return { success: true };
 
     } catch (err) {

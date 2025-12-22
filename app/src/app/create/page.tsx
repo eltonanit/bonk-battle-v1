@@ -9,7 +9,7 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
-import { createBattleToken, BattleTier, TIER_CONFIG } from '@/lib/solana/create-battle-token';
+import { createBattleToken, TIER_CONFIG } from '@/lib/solana/create-battle-token';
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 import { PointsNotification } from '@/components/shared/PointsNotification';
 import { addPointsForCreateToken, POINTS_VALUES } from '@/lib/points';
@@ -26,12 +26,12 @@ export default function CreatePage() {
     const [showSuccess, setShowSuccess] = useState(false);
     const [createdMint, setCreatedMint] = useState<string | null>(null);
 
-    // NEW: Tier selection state
-    const [selectedTier, setSelectedTier] = useState<BattleTier>(BattleTier.Test);
-
     // Points notification state
     const [showPointsNotification, setShowPointsNotification] = useState(false);
     const [createdTokenImage, setCreatedTokenImage] = useState<string>('');
+
+    // Fixed tier config (Production - no selector needed)
+    const currentTierConfig = TIER_CONFIG.PRODUCTION;
 
     const handleFileSelect = (file: File | null) => {
         if (file) {
@@ -103,9 +103,8 @@ export default function CreatePage() {
             console.log('📝 Name:', name);
             console.log('📝 Symbol:', symbol);
             console.log('📝 URI:', uri);
-            // ⚠️ Tier is now compile-time in contract (USE_TEST_TIER flag)
 
-            // Call createBattleToken function (tier is compile-time now)
+            // Call createBattleToken function
             const result = await createBattleToken(
                 publicKey,
                 name,
@@ -118,9 +117,23 @@ export default function CreatePage() {
             console.log('🎯 Signature:', result.signature);
             console.log('🪙 Mint:', result.mint.toString());
             console.log('⚔️ Battle State:', result.battleState.toString());
-            console.log('🏆 Tier:', result.tier === BattleTier.Test ? 'Test (compile-time)' : 'Production (compile-time)');
 
-            // ⭐ NEW: Save creator to database
+            // ⭐ SYNC TOKEN IMMEDIATELY after creation
+            // This ensures DB has correct data before redirect
+            try {
+                console.log('🔄 Syncing token to database...');
+                const syncRes = await fetch(`/api/sync-token/${result.mint.toString()}`);
+                const syncData = await syncRes.json();
+                if (syncData.success) {
+                    console.log('✅ Token synced successfully!');
+                } else {
+                    console.warn('⚠️ Token sync failed:', syncData.error);
+                }
+            } catch (syncErr) {
+                console.warn('⚠️ Token sync error:', syncErr);
+            }
+
+            // Save creator to database
             try {
                 const creatorRes = await fetch('/api/tokens/set-creator', {
                     method: 'POST',
@@ -140,7 +153,7 @@ export default function CreatePage() {
                 console.warn('⚠️ Error saving creator:', err);
             }
 
-            // ⭐ Add points for creating token
+            // Add points for creating token
             try {
                 const pointsResult = await addPointsForCreateToken(
                     publicKey.toBase58(),
@@ -164,11 +177,8 @@ export default function CreatePage() {
 
         } catch (error: unknown) {
             console.error('❌ Error creating battle token:', error);
-
             const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
             alert(`Failed to create battle token: ${errorMessage}\n\nCheck console for details.`);
-
         } finally {
             setIsCreating(false);
         }
@@ -181,9 +191,6 @@ export default function CreatePage() {
             router.push(`/token/${createdMint}`);
         }
     }, [createdMint, router]);
-
-    // Get current tier config for display (using new string keys)
-    const currentTierConfig = TIER_CONFIG[selectedTier === BattleTier.Test ? 'TEST' : 'PRODUCTION'];
 
     return (
         <div className="min-h-screen bg-bonk-dark">
@@ -233,129 +240,7 @@ export default function CreatePage() {
                     </div>
 
                     <form onSubmit={handleCreateToken}>
-                        {/* ⭐ NEW: Tier Selection Section */}
-                        <section className="mb-10">
-                            <h2 className="text-xl font-bold mb-2">Select Battle Tier</h2>
-                            <p className="text-sm text-gray-400 mb-6">Choose the tier for your battle token</p>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Test Tier Button */}
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedTier(BattleTier.Test)}
-                                    className={`relative p-6 rounded-xl border-2 transition-all duration-200 text-left ${selectedTier === BattleTier.Test
-                                            ? 'border-yellow-500 bg-yellow-500/10 shadow-lg shadow-yellow-500/20'
-                                            : 'border-bonk-border bg-bonk-card hover:border-yellow-500/50 hover:bg-yellow-500/5'
-                                        }`}
-                                >
-                                    {/* Selected indicator */}
-                                    {selectedTier === BattleTier.Test && (
-                                        <div className="absolute top-3 right-3">
-                                            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <span className="text-3xl">🧪</span>
-                                        <div>
-                                            <h3 className="text-xl font-bold text-yellow-500">Test Tier</h3>
-                                            <p className="text-sm text-gray-400">Perfect for devnet testing</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Target SOL:</span>
-                                            <span className="text-white font-semibold">{TIER_CONFIG.TEST.TARGET_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Victory Volume:</span>
-                                            <span className="text-yellow-500 font-semibold">{TIER_CONFIG.TEST.VICTORY_VOLUME_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Qualification:</span>
-                                            <span className="text-white font-semibold">{TIER_CONFIG.TEST.QUALIFICATION_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Est. Final MC:</span>
-                                            <span className="text-white font-semibold">~${TIER_CONFIG.TEST.ESTIMATED_MC_FINAL_USD}</span>
-                                        </div>
-                                    </div>
-                                </button>
-
-                                {/* Production Tier Button */}
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedTier(BattleTier.Production)}
-                                    className={`relative p-6 rounded-xl border-2 transition-all duration-200 text-left ${selectedTier === BattleTier.Production
-                                            ? 'border-green-500 bg-green-500/10 shadow-lg shadow-green-500/20'
-                                            : 'border-bonk-border bg-bonk-card hover:border-green-500/50 hover:bg-green-500/5'
-                                        }`}
-                                >
-                                    {/* Selected indicator */}
-                                    {selectedTier === BattleTier.Production && (
-                                        <div className="absolute top-3 right-3">
-                                            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                                <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <span className="text-3xl">🚀</span>
-                                        <div>
-                                            <h3 className="text-xl font-bold text-green-500">Production Tier</h3>
-                                            <p className="text-sm text-gray-400">For mainnet battles</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Target SOL:</span>
-                                            <span className="text-white font-semibold">{TIER_CONFIG.PRODUCTION.TARGET_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Victory Volume:</span>
-                                            <span className="text-green-500 font-semibold">{TIER_CONFIG.PRODUCTION.VICTORY_VOLUME_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Qualification:</span>
-                                            <span className="text-white font-semibold">{TIER_CONFIG.PRODUCTION.QUALIFICATION_SOL} SOL</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-gray-400">Est. Final MC:</span>
-                                            <span className="text-white font-semibold">~${TIER_CONFIG.PRODUCTION.ESTIMATED_MC_FINAL_USD.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                </button>
-                            </div>
-
-                            {/* Selected Tier Info Banner */}
-                            <div className={`mt-4 p-4 rounded-lg border ${selectedTier === BattleTier.Test
-                                    ? 'bg-yellow-500/10 border-yellow-500/30'
-                                    : 'bg-green-500/10 border-green-500/30'
-                                }`}>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl">{selectedTier === BattleTier.Test ? '🧪' : '🚀'}</span>
-                                    <span className={`font-bold ${selectedTier === BattleTier.Test ? 'text-yellow-500' : 'text-green-500'}`}>
-                                        {selectedTier === BattleTier.Test ? 'Test' : 'Production'} Tier Selected
-                                    </span>
-                                </div>
-                                <p className="text-sm text-gray-300 mt-1">
-                                    {selectedTier === BattleTier.Test
-                                        ? `Lower thresholds for quick testing. Reach ${TIER_CONFIG.TEST.TARGET_SOL} SOL + ${TIER_CONFIG.TEST.VICTORY_VOLUME_SOL} SOL volume to win!`
-                                        : `Full thresholds for real battles. Reach ${TIER_CONFIG.PRODUCTION.TARGET_SOL} SOL + ${TIER_CONFIG.PRODUCTION.VICTORY_VOLUME_SOL} SOL volume to win!`
-                                    }
-                                </p>
-                            </div>
-                        </section>
-
+                        {/* Token Details Section */}
                         <section>
                             <h2 className="text-xl font-bold mb-2">Token details</h2>
                             <p className="text-sm text-gray-400 mb-6">Choose carefully, these cannot be changed once the token is created</p>
@@ -409,19 +294,17 @@ export default function CreatePage() {
                             </div>
                         </section>
 
+                        {/* Battle Information Section */}
                         <section className="mt-10">
                             <h2 className="text-xl font-bold mb-2">Battle Information</h2>
                             <p className="text-sm text-gray-400 mb-6">How BONK Battle tokens work</p>
 
-                            <div className={`rounded-xl p-6 space-y-4 border ${selectedTier === BattleTier.Test
-                                    ? 'bg-yellow-500/10 border-yellow-500/30'
-                                    : 'bg-green-500/10 border-green-500/30'
-                                }`}>
+                            <div className="rounded-xl p-6 space-y-4 border bg-green-500/10 border-green-500/30">
                                 <div className="flex gap-3 items-start">
                                     <div className="text-2xl">🎮</div>
                                     <div>
-                                        <div className={`font-bold mb-2 ${selectedTier === BattleTier.Test ? 'text-yellow-500' : 'text-green-500'}`}>
-                                            {selectedTier === BattleTier.Test ? '🧪 Test Tier' : '🚀 Production Tier'} Battle Flow
+                                        <div className="font-bold mb-2 text-green-500">
+                                            🚀 Battle Flow
                                         </div>
                                         <div className="text-sm text-gray-300 space-y-2">
                                             <div>├─ <strong>Created:</strong> Your token starts here</div>
@@ -438,7 +321,7 @@ export default function CreatePage() {
                                     <div>
                                         <div className="text-gray-300 text-sm">
                                             <p><strong>Bonding Curve:</strong> Constant product (xy=k) like Pump.fun</p>
-                                            <p className="mt-1"><strong>Platform Fee:</strong> 2% on sells</p>
+                                            <p className="mt-1"><strong>Platform Fee:</strong> 2% on trades</p>
                                             <p className="mt-1"><strong>Target SOL:</strong> {currentTierConfig.TARGET_SOL} SOL to reach victory</p>
                                         </div>
                                     </div>
@@ -446,6 +329,7 @@ export default function CreatePage() {
                             </div>
                         </section>
 
+                        {/* Image Upload Section */}
                         <section className="mt-10">
                             <h2 className="text-xl font-bold mb-6">Add image</h2>
 
@@ -511,15 +395,13 @@ export default function CreatePage() {
                             </div>
                         </section>
 
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={isCreating || !publicKey}
-                            className={`mt-10 w-full max-w-xs px-8 py-4 rounded-lg font-semibold text-lg transition-all hover:scale-105 disabled:cursor-not-allowed ${selectedTier === BattleTier.Test
-                                    ? 'bg-yellow-500 text-black hover:bg-yellow-400 disabled:bg-bonk-border'
-                                    : 'bg-green-500 text-black hover:bg-green-400 disabled:bg-bonk-border'
-                                }`}
+                            className="mt-10 w-full max-w-xs px-8 py-4 rounded-lg font-semibold text-lg transition-all hover:scale-105 disabled:cursor-not-allowed bg-green-500 text-black hover:bg-green-400 disabled:bg-bonk-border"
                         >
-                            {isCreating ? 'Creating Coin...' : `Create ${selectedTier === BattleTier.Test ? '🧪 Test' : '🚀 Production'} Coin`}
+                            {isCreating ? 'Creating Coin...' : 'Create 🚀 Coin'}
                         </button>
                     </form>
                 </div>
