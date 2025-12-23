@@ -1280,9 +1280,12 @@ pub struct FinalizeDuel<'info> {
     /// CHECK: Treasury wallet address is hardcoded and verified
     pub treasury_wallet: AccountInfo<'info>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
+    )]
     pub keeper_authority: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
 }
 
@@ -1315,9 +1318,12 @@ pub struct WithdrawForListing<'info> {
     )]
     pub keeper_token_account: InterfaceAccount<'info, TokenAccount>,
     
-    #[account(mut)]
+    #[account(
+        mut,
+        address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
+    )]
     pub keeper_authority: Signer<'info>,
-    
+
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
