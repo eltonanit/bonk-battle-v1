@@ -4,6 +4,8 @@
  * 
  * Withdraws SOL and reserved tokens from a Listed token
  * for creating Raydium liquidity pool.
+ * 
+ * ⭐ SECURITY FIX: Added CRON_SECRET authentication
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -26,6 +28,35 @@ import {
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
 const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ SECURITY: Authentication Check (NEW)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function verifyAuth(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+
+  // If no CRON_SECRET configured, allow requests (backward compatible)
+  // ⚠️ Set CRON_SECRET in production!
+  if (!cronSecret) {
+    console.warn('⚠️ CRON_SECRET not configured - allowing request');
+    return true;
+  }
+
+  // Check Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${cronSecret}`) {
+    return true;
+  }
+
+  // Check Vercel Cron header (automatically added by Vercel Cron)
+  const vercelCronHeader = request.headers.get('x-vercel-cron');
+  if (vercelCronHeader === '1') {
+    return true;
+  }
+
+  return false;
+}
 
 // Load keeper keypair
 function getKeeperKeypair(): Keypair {
@@ -77,6 +108,15 @@ async function getTokenProgramForMint(connection: Connection, mint: PublicKey): 
 }
 
 export async function POST(request: NextRequest) {
+  // ⭐ SECURITY: Verify authentication (NEW)
+  if (!verifyAuth(request)) {
+    console.log('❌ Unauthorized access attempt to withdraw-for-listing');
+    return NextResponse.json({
+      error: 'Unauthorized',
+      message: 'Valid CRON_SECRET required'
+    }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const tokenMint = body.tokenMint || body.mint;
@@ -298,6 +338,7 @@ export async function GET(request: NextRequest) {
   // Redirect GET to POST logic
   const response = await POST(new NextRequest(request.url, {
     method: 'POST',
+    headers: request.headers,
     body: JSON.stringify({ tokenMint: mint }),
   }));
 

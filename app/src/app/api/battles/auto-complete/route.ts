@@ -17,6 +17,8 @@
  * - ADDED: spoils_transferred and finalize_signature to battles table
  * - Platform fee calculation fixed (5% of winner+spoils)
  * - Added plunder verification logging
+ * 
+ * ⭐ SECURITY FIX: Added CRON_SECRET authentication
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -57,6 +59,35 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ SECURITY: Authentication Check (NEW)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function verifyAuth(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET;
+
+  // If no CRON_SECRET configured, allow requests (backward compatible)
+  // ⚠️ Set CRON_SECRET in production!
+  if (!cronSecret) {
+    console.warn('⚠️ CRON_SECRET not configured - allowing request');
+    return true;
+  }
+
+  // Check Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (authHeader === `Bearer ${cronSecret}`) {
+    return true;
+  }
+
+  // Check Vercel Cron header (automatically added by Vercel Cron)
+  const vercelCronHeader = request.headers.get('x-vercel-cron');
+  if (vercelCronHeader === '1') {
+    return true;
+  }
+
+  return false;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ⭐ VICTORY THRESHOLDS (TEST tier) - WITH 99.5% TOLERANCE!
@@ -913,6 +944,15 @@ async function scanForWinners(): Promise<{
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
+  // ⭐ SECURITY: Verify authentication (NEW)
+  if (!verifyAuth(request)) {
+    console.log('❌ Unauthorized POST to auto-complete');
+    return NextResponse.json({
+      error: 'Unauthorized',
+      message: 'Valid CRON_SECRET required'
+    }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { tokenMint } = body;
@@ -939,7 +979,16 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // ⭐ SECURITY: Verify authentication (NEW)
+  if (!verifyAuth(request)) {
+    console.log('❌ Unauthorized GET to auto-complete');
+    return NextResponse.json({
+      error: 'Unauthorized',
+      message: 'Valid CRON_SECRET required'
+    }, { status: 401 });
+  }
+
   try {
     const result = await scanForWinners();
 

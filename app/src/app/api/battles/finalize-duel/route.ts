@@ -7,9 +7,11 @@
  * Updates: VictoryPending → Listed
  * 
  * Run every 2 minutes via Vercel Cron
+ * 
+ * ⭐ SECURITY FIX: Added CRON_SECRET authentication
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import {
     Connection,
     PublicKey,
@@ -50,6 +52,35 @@ const V1_OFFSET_OPPONENT_MINT = 66;
 
 // Anchor discriminator for finalize_duel
 const FINALIZE_DUEL_DISCRIMINATOR = Buffer.from([57, 165, 69, 195, 50, 206, 212, 134]);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ SECURITY: Authentication Check (NEW)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function verifyAuth(request: NextRequest): boolean {
+    const cronSecret = process.env.CRON_SECRET;
+
+    // If no CRON_SECRET configured, allow requests (backward compatible)
+    // ⚠️ Set CRON_SECRET in production!
+    if (!cronSecret) {
+        console.warn('⚠️ CRON_SECRET not configured - allowing request');
+        return true;
+    }
+
+    // Check Authorization header
+    const authHeader = request.headers.get('authorization');
+    if (authHeader === `Bearer ${cronSecret}`) {
+        return true;
+    }
+
+    // Check Vercel Cron header (automatically added by Vercel Cron)
+    const vercelCronHeader = request.headers.get('x-vercel-cron');
+    if (vercelCronHeader === '1') {
+        return true;
+    }
+
+    return false;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -161,8 +192,18 @@ async function finalizeDuelForToken(
 // API HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     const startTime = Date.now();
+
+    // ⭐ SECURITY: Verify authentication (NEW)
+    if (!verifyAuth(request)) {
+        console.log('❌ Unauthorized access attempt to finalize-duel');
+        return NextResponse.json({
+            error: 'Unauthorized',
+            message: 'Valid CRON_SECRET required'
+        }, { status: 401 });
+    }
+
     console.log('\n⚔️ ═══════════════════════════════════════════════════════');
     console.log('CRON 2: FINALIZE DUEL');
     console.log('═══════════════════════════════════════════════════════\n');
