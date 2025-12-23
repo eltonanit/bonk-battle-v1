@@ -109,57 +109,34 @@ export async function GET(request: NextRequest) {
 
         console.log(`✅ Oracle updated on-chain! TX: ${signature}`);
 
-        // ⭐ NEW: Update Supabase cache
+        // ⭐ Update Supabase cache with CORRECT column names
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        let supabaseUpdated = false;
 
         if (supabaseUrl && supabaseKey) {
             const supabase = createClient(supabaseUrl, supabaseKey);
 
             const now = Math.floor(Date.now() / 1000);
-            const nextUpdate = now + (12 * 60 * 60); // 12 hours from now
+            const nextUpdateTime = now + (12 * 60 * 60); // 12 hours from now
 
-            // Try to update existing record first
-            const { data: existingData, error: selectError } = await supabase
+            // ⭐ FIXED: Use correct column names from Supabase schema
+            const { error: updateError } = await supabase
                 .from('price_oracle')
-                .select('id')
-                .limit(1)
-                .single();
+                .update({
+                    sol_price_usd: solPrice,      // micro-USD (125750000)
+                    last_update: now,              // ✅ FIXED: was last_update_timestamp
+                    next_update: nextUpdateTime,   // ✅ FIXED: was next_update_timestamp
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', 1);
 
-            if (existingData) {
-                // Update existing record
-                const { error: updateError } = await supabase
-                    .from('price_oracle')
-                    .update({
-                        sol_price_usd: solPrice, // Store in micro-USD (same as on-chain)
-                        last_update_timestamp: now,
-                        next_update_timestamp: nextUpdate,
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', existingData.id);
-
-                if (updateError) {
-                    console.error('⚠️ Supabase update error:', updateError);
-                } else {
-                    console.log('✅ Supabase cache updated!');
-                }
+            if (updateError) {
+                console.error('⚠️ Supabase update error:', updateError);
             } else {
-                // Insert new record if none exists
-                const { error: insertError } = await supabase
-                    .from('price_oracle')
-                    .insert({
-                        sol_price_usd: solPrice,
-                        last_update_timestamp: now,
-                        next_update_timestamp: nextUpdate,
-                        keeper_authority: keeper.publicKey.toString(),
-                        update_count: 1,
-                    });
-
-                if (insertError) {
-                    console.error('⚠️ Supabase insert error:', insertError);
-                } else {
-                    console.log('✅ Supabase record created!');
-                }
+                console.log('✅ Supabase cache updated!');
+                supabaseUpdated = true;
             }
         } else {
             console.warn('⚠️ Supabase not configured, skipping cache update');
@@ -171,7 +148,7 @@ export async function GET(request: NextRequest) {
             priceWithDecimals: solPrice,
             signature,
             timestamp: new Date().toISOString(),
-            supabaseUpdated: !!(supabaseUrl && supabaseKey),
+            supabaseUpdated,
         });
 
     } catch (error: any) {
