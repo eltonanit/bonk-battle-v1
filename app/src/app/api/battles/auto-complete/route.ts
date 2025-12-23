@@ -90,12 +90,21 @@ function verifyAuth(request: NextRequest): boolean {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ⭐ VICTORY THRESHOLDS (TEST tier) - WITH 99.5% TOLERANCE!
+// ⭐ VICTORY THRESHOLDS - MUST MATCH CONTRACT!
 // ═══════════════════════════════════════════════════════════════════════════
 
-const TARGET_SOL = 6_000_000_000; // 6 SOL in lamports
-const VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL in lamports
-const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 5.97 SOL
+// ⭐ Set this to match USE_TEST_TIER in smart contract!
+const USE_TEST_TIER = false; // false = PRODUCTION (37.7 SOL), true = TEST (6 SOL)
+
+const TEST_TARGET_SOL = 6_000_000_000; // 6 SOL
+const TEST_VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL
+
+const PROD_TARGET_SOL = 37_700_000_000; // 37.7 SOL
+const PROD_VICTORY_VOLUME_SOL = 41_500_000_000; // 41.5 SOL
+
+const TARGET_SOL = USE_TEST_TIER ? TEST_TARGET_SOL : PROD_TARGET_SOL;
+const VICTORY_VOLUME_SOL = USE_TEST_TIER ? TEST_VICTORY_VOLUME_SOL : PROD_VICTORY_VOLUME_SOL;
+const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 99.5%
 
 // Fee constants (must match smart contract!)
 const PLATFORM_FEE_BPS = 500; // 5%
