@@ -1008,3 +1008,5 @@ export async function GET(request: NextRequest) {
     }, { status: 500 });
   }
 }
+
+export const maxDuration = 300; // 5 minutes for full pipeline
