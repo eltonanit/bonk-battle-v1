@@ -81,7 +81,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     symbolB: tokenB.symbol,
     marketCapA: marketCapA,
     marketCapB: marketCapB,
-    v: '2', // Version parameter to invalidate Twitter cache
+    t: Date.now().toString(), // Timestamp to invalidate Twitter cache
   });
 
   // Add token images if available
