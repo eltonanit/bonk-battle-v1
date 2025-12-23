@@ -1,6 +1,6 @@
 // app/src/components/shared/BattleCard.tsx
-// ⭐ UPDATED: Shows USD values using ON-CHAIN Price Oracle
-// NO hardcoded prices - everything from blockchain!
+// ⭐ UPDATED: Uses CORRECT Pump.fun bonding curve formula (xy=k)
+// MC = (virtualSol / virtualToken) × totalSupply × solPrice
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,47 +8,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// ⭐ IMPORT FROM CENTRALIZED TIER CONFIG
+// ⭐ IMPORT FROM CENTRALIZED TIER CONFIG (with correct formula)
 import {
   TARGET_SOL,
   VICTORY_VOLUME_SOL,
   ACTIVE_TIER,
+  calculateMarketCapUsd,
+  getFinalMarketCapUsd,
 } from '@/config/tier-config';
 
-// ⭐ USE ON-CHAIN PRICE ORACLE - NO EXTERNAL APIs!
+// ⭐ USE ON-CHAIN PRICE ORACLE
 import { usePriceOracle } from '@/hooks/usePriceOracle';
-
-// ========================================================================
-// MARKET CAP CALCULATION (from smart contract formula)
-// ========================================================================
-
-const MULTIPLIER = ACTIVE_TIER.MULTIPLIER; // ~14.68 for Production
-const BASE_MC_SOL = TARGET_SOL / MULTIPLIER; // Initial MC in SOL terms
-
-/**
- * Calculate Market Cap in USD based on bonding curve
- * Formula matches smart contract exactly!
- */
-function calculateMarketCapUsd(solCollected: number, solPriceUsd: number): number {
-  if (!solPriceUsd || solPriceUsd <= 0) return 0;
-
-  if (solCollected <= 0) {
-    // Initial MC when nothing collected
-    return BASE_MC_SOL * solPriceUsd;
-  }
-
-  // Progress through bonding curve (0 to 1)
-  const progress = Math.min(solCollected / TARGET_SOL, 1);
-
-  // MC range from base to target
-  const mcRange = TARGET_SOL - BASE_MC_SOL;
-
-  // Current MC in SOL terms
-  const currentMcSol = BASE_MC_SOL + (mcRange * progress);
-
-  // Convert to USD using oracle price
-  return currentMcSol * solPriceUsd;
-}
 
 /**
  * Convert SOL to USD using oracle price
@@ -73,7 +43,7 @@ function formatUsd(usd: number): string {
   return `$${Math.round(usd).toLocaleString()}`;
 }
 
-// Helper function to format SOL values (kept for tooltips)
+// Helper function to format SOL values
 function formatSol(value: number, decimals: number = 2): string {
   if (value >= 1000) {
     return (value / 1000).toFixed(1) + 'K';
@@ -255,10 +225,8 @@ export function BattleCard({
 }: BattleCardProps) {
   const router = useRouter();
 
-  // ⭐ GET SOL PRICE FROM ON-CHAIN ORACLE - NOT HARDCODED!
+  // ⭐ GET SOL PRICE FROM ON-CHAIN ORACLE
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
-
-  // Use oracle price, fallback to 0 if not loaded yet
   const solPrice = solPriceUsd || 0;
 
   // ⚔️ Battle animation states
@@ -266,12 +234,12 @@ export function BattleCard({
   const [attackB, setAttackB] = useState(false);
   const [clash, setClash] = useState(false);
 
-  // ⭐ Calculate Market Caps in USD using ON-CHAIN oracle price
+  // ⭐ Calculate Market Caps using CORRECT bonding curve formula (xy=k)
   const mcUsdA = calculateMarketCapUsd(tokenA.solCollected, solPrice);
   const mcUsdB = calculateMarketCapUsd(tokenB.solCollected, solPrice);
 
-  // ⭐ Calculate target MC in USD (at graduation)
-  const targetMcUsd = calculateMarketCapUsd(targetSol, solPrice);
+  // ⭐ Target MC = Final MC when bonding curve is full
+  const targetMcUsd = getFinalMarketCapUsd(solPrice);
 
   // ⭐ Calculate volumes in USD
   const volUsdA = solToUsd(tokenA.totalVolumeSol, solPrice);
@@ -397,7 +365,7 @@ export function BattleCard({
                 </h3>
                 <p className="text-gray-300 text-sm mb-2">{winnerToken.name}</p>
 
-                {/* ⭐ Final Stats in USD */}
+                {/* Final Stats in USD */}
                 <div className="flex gap-3">
                   <div className="bg-black/30 rounded px-2 py-1">
                     <span className="text-gray-500 text-xs">MC </span>
@@ -503,7 +471,7 @@ export function BattleCard({
                   {formatUsd(mcUsdA)} - {formatUsd(mcUsdB)}
                 </span>
               )}
-              {/* ⭐ Show oracle SOL price */}
+              {/* Show oracle SOL price */}
               {solPrice > 0 && (
                 <span className="text-[10px] text-gray-500 mt-1">
                   SOL ${solPrice.toFixed(0)}
@@ -550,7 +518,7 @@ export function BattleCard({
                 )}
               </div>
 
-              {/* ⭐ MC Row in USD */}
+              {/* MC Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
@@ -567,7 +535,7 @@ export function BattleCard({
                 </span>
               </div>
 
-              {/* ⭐ VOL Row in USD */}
+              {/* VOL Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2">
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
                 <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
@@ -585,7 +553,7 @@ export function BattleCard({
               </div>
             </div>
 
-            {/* ⭐ Center Target - USD from Oracle */}
+            {/* Center Target - USD from Oracle */}
             <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
               <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-1">
@@ -616,7 +584,7 @@ export function BattleCard({
                 </p>
               </div>
 
-              {/* ⭐ MC Row in USD */}
+              {/* MC Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
                   {formatUsd(mcUsdB)}
@@ -633,7 +601,7 @@ export function BattleCard({
                 <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
               </div>
 
-              {/* ⭐ VOL Row in USD */}
+              {/* VOL Row in USD */}
               <div className="flex items-center gap-1 lg:gap-2">
                 <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
                   {formatUsd(volUsdB)}
@@ -653,7 +621,7 @@ export function BattleCard({
           </div>
         </div>
 
-        {/* ⭐ Share Footer - Black stripe at bottom (entire stripe is clickable) */}
+        {/* Share Footer */}
         {showShareButton && (
           <a
             href={getShareUrl()}
