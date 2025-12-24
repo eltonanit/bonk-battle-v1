@@ -49,8 +49,8 @@ const TEST_TARGET_SOL: u64 = 6_000_000_000; // 6 SOL in lamports
 /// Volume target per vittoria TIER TEST (110% di TARGET_SOL)
 const TEST_VICTORY_VOLUME_SOL: u64 = 6_600_000_000; // 6.6 SOL in lamports
 
-/// Qualification threshold TIER TEST (circa 2% del target)
-const TEST_QUALIFICATION_SOL: u64 = 120_000_000; // 0.12 SOL (~$16 @ $137)
+/// Qualification threshold TIER TEST - Qualsiasi acquisto qualifica
+const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
 
 
 // ============ TIER PRODUCTION (AGGRESSIVO) ============
@@ -63,8 +63,8 @@ const PROD_TARGET_SOL: u64 = 37_700_000_000; // 37.7 SOL in lamports
 /// Volume target per vittoria TIER PROD (110% di TARGET_SOL)
 const PROD_VICTORY_VOLUME_SOL: u64 = 41_500_000_000; // 41.5 SOL in lamports
 
-/// Qualification threshold TIER PROD (circa 2% del target)
-const PROD_QUALIFICATION_SOL: u64 = 750_000_000; // 0.75 SOL (~$103 @ $137)
+/// Qualification threshold TIER PROD - Qualsiasi acquisto qualifica
+const PROD_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
 
 
 // =================================================================

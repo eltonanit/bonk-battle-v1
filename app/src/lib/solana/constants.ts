@@ -66,14 +66,14 @@ export const TIER_CONFIG = {
   TEST: {
     TARGET_SOL: 6,              // 6 SOL to fill curve
     VICTORY_VOLUME_SOL: 6.6,    // 6.6 SOL volume (110%)
-    QUALIFICATION_SOL: 0.12,    // 0.12 SOL to qualify
+    QUALIFICATION_SOL: 0.000000001, // Any buy qualifies (1 lamport)
     MATCHMAKING_TOLERANCE_SOL: 3,
     ESTIMATED_MC_FINAL_USD: 820, // @ $137/SOL
   },
   PRODUCTION: {
     TARGET_SOL: 37.7,           // 37.7 SOL to fill curve
     VICTORY_VOLUME_SOL: 41.5,   // 41.5 SOL volume (110%)
-    QUALIFICATION_SOL: 0.75,    // 0.75 SOL to qualify
+    QUALIFICATION_SOL: 0.000000001, // Any buy qualifies (1 lamport)
     MATCHMAKING_TOLERANCE_SOL: 18.85,
     ESTIMATED_MC_FINAL_USD: 25000, // @ $137/SOL
   }
