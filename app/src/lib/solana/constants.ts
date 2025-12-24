@@ -103,7 +103,7 @@ export const TREASURY_WALLET = new PublicKey(
 );
 
 export const KEEPER_AUTHORITY = new PublicKey(
-  '753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3'
+  '65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea'
 );
 
 /**

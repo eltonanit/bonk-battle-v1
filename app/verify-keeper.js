@@ -13,20 +13,15 @@ try {
     console.log('✅ Public Key from keypair file:');
     console.log(keypair.publicKey.toString());
     console.log();
-    console.log('📋 Expected keeper address:');
-    console.log('Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH');
-    console.log();
-    console.log('📋 Address you imported in Phantom:');
-    console.log('753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3');
+    console.log('📋 Expected KEEPER_AUTHORITY (hardcoded in contract):');
+    console.log('65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
     console.log();
 
-    if (keypair.publicKey.toString() === 'Akw7GSQ8uyk4DeT3wtNddRXJrMDg3Nx8tGwtEmfKDPaH') {
+    if (keypair.publicKey.toString() === '65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea') {
         console.log('✅ MATCH! The keypair file contains the correct keeper wallet!');
-    } else if (keypair.publicKey.toString() === '753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3') {
-        console.log('❌ MISMATCH! The imported wallet matches the keypair file,');
-        console.log('   but this is NOT the keeper authority expected by the contract!');
     } else {
-        console.log('❌ Neither address matches!');
+        console.log('❌ MISMATCH! This keypair does NOT match the contract KEEPER_AUTHORITY!');
+        console.log('   Contract expects: 65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
     }
 
 } catch (error) {
