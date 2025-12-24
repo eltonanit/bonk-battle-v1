@@ -1,29 +1,23 @@
-// Verify keeper wallet address
+// serve se ho creato il file con codespace e ho la seed ph
+
 const { Keypair } = require('@solana/web3.js');
+const bip39 = require('bip39');
 const fs = require('fs');
 
-const KEYPAIR_PATH = 'C:\\Users\\Elton\\.config\\solana\\id.json';
+const SEED_PHRASE = "";
+const PASSPHRASE = "BIP39";  // <-- La tua passphrase
+const EXPECTED = "65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea";
 
-console.log('🔍 Verifying Keeper Wallet...\n');
+const seed = bip39.mnemonicToSeedSync(SEED_PHRASE, PASSPHRASE);
+const keypair = Keypair.fromSeed(seed.slice(0, 32));
 
-try {
-    const keypairData = JSON.parse(fs.readFileSync(KEYPAIR_PATH, 'utf-8'));
-    const keypair = Keypair.fromSecretKey(new Uint8Array(keypairData));
+console.log('Indirizzo generato:', keypair.publicKey.toString());
+console.log('Indirizzo atteso:  ', EXPECTED);
 
-    console.log('✅ Public Key from keypair file:');
-    console.log(keypair.publicKey.toString());
-    console.log();
-    console.log('📋 Expected KEEPER_AUTHORITY (hardcoded in contract):');
-    console.log('65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
-    console.log();
-
-    if (keypair.publicKey.toString() === '65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea') {
-        console.log('✅ MATCH! The keypair file contains the correct keeper wallet!');
-    } else {
-        console.log('❌ MISMATCH! This keypair does NOT match the contract KEEPER_AUTHORITY!');
-        console.log('   Contract expects: 65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
-    }
-
-} catch (error) {
-    console.error('❌ Error:', error.message);
+if (keypair.publicKey.toString() === EXPECTED) {
+    console.log('\n✅ TROVATO!');
+    fs.writeFileSync('./keeper.json', JSON.stringify(Array.from(keypair.secretKey)));
+    console.log('Salvato in keeper.json');
+} else {
+    console.log('\n❌ Non corrisponde');
 }
