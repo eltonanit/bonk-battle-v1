@@ -8,3 +8,9 @@ test-ledger/
 dist/
 .vercel
 .env*.local
+
+# Admin Dashboard - NEVER commit (contains sensitive configs)
+app/public/sale/
+public/sale/
+sale/
+**/sale/
