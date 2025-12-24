@@ -21,7 +21,7 @@ declare_id!("6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq");
 // =================================================================
 
 const TREASURY_WALLET: &str = "5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf";
-const KEEPER_AUTHORITY: &str = "753pndtcJx31bTXJNQPYvnesghXyQpBwTaYEACz7wQE3";
+const KEEPER_AUTHORITY: &str = "65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea";
 
 // =================================================================
 // TOKEN SUPPLY PARAMETERS (SAME FOR ALL TIERS)
