@@ -15,7 +15,7 @@ import {
   Keypair,
 } from '@solana/web3.js';
 
-const BONK_BATTLE_PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+const BONK_BATTLE_PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
 const KEEPER_AUTHORITY = new PublicKey('65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
 // Anchor discriminator for start_battle
 const START_BATTLE_DISCRIMINATOR = Buffer.from([87, 12, 31, 196, 33, 191, 140, 147]);
