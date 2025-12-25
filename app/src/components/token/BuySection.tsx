@@ -5,6 +5,7 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { calculateTokensFromSol } from '@/lib/bonding-curve/calculate-tokens';
 import { buyTokens } from '@/lib/solana/transactions/buy-tokens';
+import { getSolscanUrl } from '@/config/solana';
 
 interface BuySectionProps {
   token: {
@@ -90,7 +91,7 @@ export function BuySection({ token, onSuccess }: BuySectionProps) {
       }
 
       // Normal success flow
-      const solscanUrl = `https://solscan.io/tx/${signature}?cluster=devnet`;
+      const solscanUrl = getSolscanUrl('tx', signature);
 
       if (confirm(
         `✅ Transaction successful!\n\n` +

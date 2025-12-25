@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT, REFUND_FEE_BPS } from '@/config/solana';
+import { PROGRAM_ID, RPC_ENDPOINT, REFUND_FEE_BPS, getSolscanUrl } from '@/config/solana';
 import { deserializeTokenLaunch } from '@/lib/solana/deserialize';
 import { claimRefund } from '@/lib/solana/transactions/claim-refund';
 import Image from 'next/image';
@@ -225,7 +225,7 @@ export function RefundsTab() {
         signTransaction
       );
 
-      const solscanUrl = `https://solscan.io/tx/${result.signature}?cluster=devnet`;
+      const solscanUrl = getSolscanUrl('tx', result.signature);
 
       console.log('✅ Refund claimed!');
       console.log('   Signature:', result.signature);

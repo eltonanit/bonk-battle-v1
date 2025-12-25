@@ -1,16 +1,38 @@
 // app/src/components/home/TokenGrid.BONK.tsx
-// SOL-BASED - Uses centralized constants from lib/solana/constants.ts
+// ⭐ UPDATED: Uses each token's tier to get correct targets
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import type { ParsedTokenBattleState } from '@/types/bonk';
-import { BattleStatus } from '@/types/bonk';
+import { BattleStatus, BattleTier } from '@/types/bonk';
 import { TokenCardBonk } from '@/components/shared/TokenCard.BONK';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { supabase } from '@/lib/supabase';
-import { TARGET_SOL, VICTORY_VOLUME_SOL, lamportsToSol } from '@/lib/solana/constants';
+import { lamportsToSol } from '@/lib/solana/constants';
+
+// ⭐ TIER TARGETS - Must match smart contract!
+const TIER_TARGETS = {
+  [BattleTier.Test]: {
+    TARGET_SOL: 6,
+    VICTORY_VOLUME_SOL: 6.6,
+  },
+  [BattleTier.Production]: {
+    TARGET_SOL: 37.7,
+    VICTORY_VOLUME_SOL: 41.5,
+  },
+} as const;
+
+// ⭐ Helper to get tier-specific targets from a token
+function getTierTargets(tier: BattleTier | number | undefined) {
+  const tierValue = tier ?? BattleTier.Test;
+  const targets = TIER_TARGETS[tierValue as BattleTier] ?? TIER_TARGETS[BattleTier.Test];
+  return {
+    targetSol: targets.TARGET_SOL,
+    victoryVolumeSol: targets.VICTORY_VOLUME_SOL,
+  };
+}
 
 type FilterTab = 'battle' | 'new' | 'aboutToWin' | 'winners';
 
@@ -172,7 +194,7 @@ export function TokenGridBonk() {
       .sort((a, b) => b.creationTimestamp - a.creationTimestamp);
   }, [allTokens]);
 
-  // Group tokens into battle pairs
+  // ⭐ Group tokens into battle pairs WITH TIER INFO
   const battlePairs = useMemo((): (BattlePair & { winner?: 'A' | 'B' | null })[] => {
     const pairs: (BattlePair & { winner?: 'A' | 'B' | null })[] = [];
     const processed = new Set<string>();
@@ -222,7 +244,7 @@ export function TokenGridBonk() {
     return pairs;
   }, [allTokens]);
 
-  // Get tokens "About to Win"
+  // ⭐ Get tokens "About to Win" - uses each token's tier for progress calculation
   const aboutToWinTokens = useMemo((): ParsedTokenBattleState[] => {
     return allTokens
       .filter(t => t.battleStatus === BattleStatus.InBattle)
@@ -230,8 +252,11 @@ export function TokenGridBonk() {
         const solCollected = lamportsToSol(token.realSolReserves ?? 0);
         const volumeSol = lamportsToSol(token.totalTradeVolume ?? 0);
 
-        const solProgress = Math.min((solCollected / TARGET_SOL) * 100, 100);
-        const volProgress = Math.min((volumeSol / VICTORY_VOLUME_SOL) * 100, 100);
+        // ⭐ Use token's tier for correct targets
+        const { targetSol, victoryVolumeSol } = getTierTargets(token.tier);
+
+        const solProgress = Math.min((solCollected / targetSol) * 100, 100);
+        const volProgress = Math.min((volumeSol / victoryVolumeSol) * 100, 100);
         const avgProgress = (solProgress + volProgress) / 2;
 
         return { token, avgProgress, solProgress, volProgress };
@@ -244,7 +269,7 @@ export function TokenGridBonk() {
   const getFilteredTokens = (): ParsedTokenBattleState[] => {
     if (activeFilter === 'battle') return [];
     if (activeFilter === 'aboutToWin') return aboutToWinTokens;
-    if (activeFilter === 'new') return newAndQualifiedTokens; // ⭐ CHANGED: Use filtered list
+    if (activeFilter === 'new') return newAndQualifiedTokens;
 
     return [];
   };
@@ -279,7 +304,7 @@ export function TokenGridBonk() {
     if (activeFilter === 'battle') return battlePairs.length;
     if (activeFilter === 'aboutToWin') return aboutToWinTokens.length;
     if (activeFilter === 'winners') return winners.length;
-    if (activeFilter === 'new') return newAndQualifiedTokens.length; // ⭐ CHANGED
+    if (activeFilter === 'new') return newAndQualifiedTokens.length;
     return filteredTokens.length;
   };
 
@@ -340,7 +365,7 @@ export function TokenGridBonk() {
         </button>
       </div>
 
-      {/* Count Display - ⭐ UPDATED for new tab */}
+      {/* Count Display */}
       <div className="mb-4 text-sm text-bonk-text">
         {isLoading ? (
           'Loading tokens...'
@@ -368,7 +393,7 @@ export function TokenGridBonk() {
           ))}
         </div>
       ) : activeFilter === 'battle' ? (
-        // BATTLE TAB
+        // BATTLE TAB - ⭐ UPDATED: Uses each battle's tier
         battlePairs.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">⚔️</div>
@@ -381,16 +406,21 @@ export function TokenGridBonk() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {battlePairs.map((pair, idx) => (
-              <BattleCard
-                key={`${pair.tokenA.mint}-${pair.tokenB.mint}-${idx}`}
-                tokenA={toBattleToken(pair.tokenA)}
-                tokenB={toBattleToken(pair.tokenB)}
-                targetSol={TARGET_SOL}
-                targetVolumeSol={VICTORY_VOLUME_SOL}
-                winner={pair.winner}
-              />
-            ))}
+            {battlePairs.map((pair, idx) => {
+              // ⭐ KEY FIX: Get tier-specific targets for THIS battle
+              const { targetSol, victoryVolumeSol } = getTierTargets(pair.tokenA.tier);
+
+              return (
+                <BattleCard
+                  key={`${pair.tokenA.mint}-${pair.tokenB.mint}-${idx}`}
+                  tokenA={toBattleToken(pair.tokenA)}
+                  tokenB={toBattleToken(pair.tokenB)}
+                  targetSol={targetSol}
+                  targetVolumeSol={victoryVolumeSol}
+                  winner={pair.winner}
+                />
+              );
+            })}
           </div>
         )
       ) : activeFilter === 'aboutToWin' ? (
@@ -506,7 +536,7 @@ export function TokenGridBonk() {
                   </a>
                   {winner.pool_id && (
                     <a
-                      href={`https://raydium.io/swap/?inputMint=sol&outputMint=${winner.mint}&cluster=devnet`}
+                      href={`https://raydium.io/swap/?inputMint=sol&outputMint=${winner.mint}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white text-center text-sm font-semibold py-2 px-3 rounded-lg transition-all"
@@ -525,7 +555,7 @@ export function TokenGridBonk() {
           </div>
         )
       ) : (
-        // NEW COINS TAB - ⭐ UPDATED: Shows Created + Qualified only
+        // NEW COINS TAB
         newAndQualifiedTokens.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-6xl mb-4">🎮</div>

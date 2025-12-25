@@ -45,7 +45,7 @@ import { createClient } from '@supabase/supabase-js';
 // ═══════════════════════════════════════════════════════════════════════════
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
-const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+const PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
 const RAYDIUM_CPMM_PROGRAM = new PublicKey('CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW');
 
 const supabase = createClient(
@@ -157,7 +157,7 @@ async function updateDatabaseWithPool(
 ): Promise<boolean> {
     console.log(`💾 Updating database for ${tokenSymbol}...`);
 
-    const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol&cluster=devnet`;
+    const raydiumUrl = `https://raydium.io/swap/?inputMint=${tokenMint}&outputMint=sol`;
 
     try {
         // 1. Update token status

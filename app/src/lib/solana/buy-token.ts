@@ -16,7 +16,7 @@ import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
-import { BONK_BATTLE_PROGRAM_ID } from './constants';
+import { BONK_BATTLE_PROGRAM_ID, getSolscanUrl } from './constants';
 import { getBattleStatePDA, getPriceOraclePDA } from './pdas';
 import { RPC_ENDPOINT } from '@/config/solana';
 
@@ -284,7 +284,7 @@ export async function buyToken(
 
     console.log('✅ Transaction sent!');
     console.log('📝 Signature:', signature);
-    console.log('🔗 Solscan:', `https://solscan.io/tx/${signature}?cluster=devnet`);
+    console.log('🔗 Solscan:', getSolscanUrl('tx', signature));
 
     // ========================================================================
     // Step 7: Wait for confirmation

@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { syncSingleToken } from '@/lib/indexer/sync-single-token';
 import { createClient } from '@supabase/supabase-js';
 
-const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
+const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
 const TREASURY_WALLET = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
 
 const supabase = createClient(

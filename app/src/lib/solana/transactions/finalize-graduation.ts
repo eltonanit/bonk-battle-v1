@@ -6,7 +6,7 @@ import {
     SystemProgram,
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
-import { PROGRAM_ID, RPC_ENDPOINT, TREASURY } from '@/config/solana';
+import { PROGRAM_ID, RPC_ENDPOINT, TREASURY, getSolscanUrl } from '@/config/solana';
 
 /**
  * ⭐ FINALIZE GRADUATION V2 - 2 TRANSACTIONS
@@ -93,7 +93,7 @@ export async function finalizeGraduationStep1(
         }
 
         console.log('✅ STEP 1 COMPLETE!');
-        console.log('🔗 https://solscan.io/tx/' + signature + '?cluster=devnet');
+        console.log('🔗', getSolscanUrl('tx', signature));
 
         return signature;
     } catch (error: unknown) {
@@ -210,7 +210,7 @@ export async function finalizeGraduationStep2(
 
         console.log('✅ STEP 2 COMPLETE!');
         console.log('🎉 GRADUATION FINISHED!');
-        console.log('🔗 https://solscan.io/tx/' + signature + '?cluster=devnet');
+        console.log('🔗', getSolscanUrl('tx', signature));
 
         return signature;
     } catch (error: unknown) {

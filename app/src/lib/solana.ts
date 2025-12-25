@@ -24,9 +24,9 @@ export const SOLANA_NETWORK = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet
 // ✅ FIX CRITICO: Usa sempre Helius invece di clusterApiUrl
 export const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://devnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
 
-// ✅ FIX: Program ID corretto per BONK BATTLE (non STONKS)
+// ✅ FIX: Program ID corretto per BONK BATTLE MAINNET
 export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
+  process.env.NEXT_PUBLIC_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD'
 );
 
 /**

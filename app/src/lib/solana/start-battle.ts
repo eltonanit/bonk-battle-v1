@@ -14,8 +14,7 @@ import {
   SystemProgram,
   Keypair,
 } from '@solana/web3.js';
-
-const BONK_BATTLE_PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
+import { getSolscanUrl, BONK_BATTLE_PROGRAM_ID } from './constants';
 const KEEPER_AUTHORITY = new PublicKey('65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea');
 // Anchor discriminator for start_battle
 const START_BATTLE_DISCRIMINATOR = Buffer.from([87, 12, 31, 196, 33, 191, 140, 147]);
@@ -189,7 +188,7 @@ export async function startBattle(
     await connection.confirmTransaction({ signature, blockhash, lastValidBlockHeight }, 'confirmed');
 
     console.log('✅ BATTLE STARTED! Signature:', signature);
-    console.log(`🔗 https://solscan.io/tx/${signature}?cluster=devnet`);
+    console.log('🔗', getSolscanUrl('tx', signature));
 
     return { success: true, signature, tokenA: tokenAMint, tokenB: tokenBMint };
 

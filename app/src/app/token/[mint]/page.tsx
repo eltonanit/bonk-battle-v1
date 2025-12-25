@@ -169,7 +169,7 @@ export default function TokenDetailPage() {
 
             setWinnerData({
               pool_id: tokenData.raydium_pool_id,
-              raydium_url: `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`,
+              raydium_url: `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}`,
               final_sol_collected: tokenData.sol_collected,
               final_volume_sol: tokenData.total_trade_volume
             });
@@ -398,7 +398,7 @@ export default function TokenDetailPage() {
 
                   {/* Trade Button - Always show for winners */}
                   <a
-                    href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`}
+                    href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold px-6 py-3 rounded-xl hover:from-blue-400 hover:to-purple-400 transition-all flex items-center gap-2 shadow-lg shadow-purple-500/30"
@@ -532,7 +532,7 @@ export default function TokenDetailPage() {
                       This token graduated and is now available on Raydium DEX
                     </p>
                     <a
-                      href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}&cluster=devnet`}
+                      href={winnerData?.raydium_url || `https://raydium.io/swap/?inputMint=sol&outputMint=${mintAddress}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold py-3 rounded-xl hover:from-blue-400 hover:to-purple-400 transition-all"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { getSolscanUrl } from '@/config/solana';
 
 interface Trade {
   id: string;
@@ -204,7 +205,7 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
                         🐸
                       </div>
                       <a
-                        href={`https://solscan.io/account/${trade.wallet_address}?cluster=devnet`}
+                        href={getSolscanUrl('account', trade.wallet_address)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-white hover:text-cyan-400 font-mono"
@@ -245,7 +246,7 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
                   {/* Transaction */}
                   <td className="py-3 px-2 text-right">
                     <a
-                      href={`https://solscan.io/tx/${trade.signature}?cluster=devnet`}
+                      href={getSolscanUrl('tx', trade.signature)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-400 hover:text-cyan-400 font-mono text-sm"

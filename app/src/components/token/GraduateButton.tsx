@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { PublicKey } from '@solana/web3.js';
 import { finalizeGraduationStep1, finalizeGraduationStep2 } from '@/lib/solana/transactions/finalize-graduation';
+import { getSolscanUrl } from '@/config/solana';
 
 interface Props {
     token: {
@@ -70,7 +71,7 @@ export function GraduateButton({ token, onSuccess }: Props) {
                 `Step 1 (Transfer): ${sig1}\n` +
                 `Step 2 (Mint): ${sig2}\n\n` +
                 `View final transaction:\n` +
-                `https://solscan.io/tx/${sig2}?cluster=devnet`
+                getSolscanUrl('tx', sig2)
             );
 
             onSuccess(); // Refresh token data

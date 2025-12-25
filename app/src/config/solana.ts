@@ -2,12 +2,12 @@
 // BONK BATTLE - SOLANA CONFIGURATION
 // ========================================================================
 
-// ✅ VERIFICATO: Program ID dal smart contract
-export const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
-export const NETWORK = 'devnet';
+// ✅ VERIFICATO: Program ID dal smart contract (MAINNET)
+export const PROGRAM_ID = 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
+export const NETWORK = 'mainnet-beta';
 
-// ✅ FIX CRITICO: Usa variabile env corretta + Helius come fallback sicuro
-export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://devnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
+// ✅ FIX CRITICO: Usa variabile env corretta + Helius MAINNET come fallback
+export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
 
 // ✅ FIX CRITICO: Treasury address dal smart contract (riga 21)
 export const TREASURY = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
@@ -34,3 +34,11 @@ export const TIER_TARGETS = {
 export const PLATFORM_FEE_BPS = 200; // 2%
 export const REFUND_FEE_BPS = 200; // 2%
 export const CREATION_FEE = 0.01; // SOL
+
+/**
+ * Generate Solscan URL (mainnet doesn't need cluster param, devnet does)
+ */
+export function getSolscanUrl(type: 'tx' | 'token' | 'account', address: string): string {
+  const base = `https://solscan.io/${type}/${address}`;
+  return NETWORK === 'mainnet-beta' ? base : `${base}?cluster=${NETWORK}`;
+}

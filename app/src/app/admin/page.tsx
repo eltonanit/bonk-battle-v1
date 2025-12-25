@@ -5,6 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
+import { getSolscanUrl } from '@/config/solana';
 
 export default function AdminPage() {
     const { publicKey, signTransaction } = useWallet();
@@ -33,7 +34,7 @@ export default function AdminPage() {
             console.log('🔑 Connected wallet:', publicKey.toString());
 
             // 2. Build transaction
-            const programId = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+            const programId = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
             const [priceOraclePDA] = PublicKey.findProgramAddressSync(
                 [Buffer.from('price_oracle')],
                 programId
@@ -82,7 +83,7 @@ export default function AdminPage() {
 
             await connection.confirmTransaction(signature);
 
-            setResult(`✅ SUCCESS!\n\nSOL Price: $${solPrice}\nTransaction: ${signature}\n\nSolscan: https://solscan.io/tx/${signature}?cluster=devnet`);
+            setResult(`✅ SUCCESS!\n\nSOL Price: $${solPrice}\nTransaction: ${signature}\n\nSolscan: ${getSolscanUrl('tx', signature)}`);
 
         } catch (error: any) {
             console.error(error);

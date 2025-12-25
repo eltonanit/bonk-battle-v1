@@ -24,7 +24,7 @@ import Link from 'next/link';
 const DEFAULT_SOL_PRICE = 230;
 const SOL_DECIMALS = 1_000_000_000; // 10^9 lamports per SOL
 const TOKEN_DECIMALS = 1_000_000_000; // 10^9
-const BONK_BATTLE_PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+const BONK_BATTLE_PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

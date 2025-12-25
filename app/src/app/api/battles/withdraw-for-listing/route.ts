@@ -27,7 +27,14 @@ import {
 } from '@solana/spl-token';
 
 const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
-const PROGRAM_ID = new PublicKey('6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq');
+const PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
+const NETWORK = 'mainnet-beta';
+
+// Helper per generare link Solscan
+const getSolscanUrl = (type: 'tx' | 'token' | 'account', address: string): string => {
+  const base = `https://solscan.io/${type}/${address}`;
+  return NETWORK === 'mainnet-beta' ? base : `${base}?cluster=${NETWORK}`;
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ⭐ SECURITY: Authentication Check (NEW)
@@ -260,7 +267,7 @@ export async function POST(request: NextRequest) {
       );
 
       console.log('✅ Transaction confirmed:', signature);
-      console.log('🔗 https://solscan.io/tx/' + signature + '?cluster=devnet');
+      console.log('🔗', getSolscanUrl('tx', signature));
 
       // Re-read state
       const updatedAccount = await connection.getAccountInfo(battleStatePDA);
@@ -270,7 +277,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: '🚀 WITHDRAWAL COMPLETE! Ready for Raydium listing!',
         signature,
-        solscanUrl: `https://solscan.io/tx/${signature}?cluster=devnet`,
+        solscanUrl: getSolscanUrl('tx', signature),
         withdrawn: {
           sol: solInAccount,
           tokens: '206,900,000 (reserved for Raydium)',
