@@ -219,7 +219,7 @@ export async function createBattleToken(
     console.log('✅ Create instruction built');
 
     // ========================================================================
-    // Step 5: Build transaction with compute budget
+    // Step 5: Build transaction with compute budget + HIGH PRIORITY FEE
     // ========================================================================
     const instructions = [];
 
@@ -227,11 +227,11 @@ export async function createBattleToken(
     instructions.push(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 })
     );
-    // ✅ ADD PRIORITY FEE - Fix for "Block Height Exceeded"
+    // ✅ PRIORITY FEE AUMENTATA - Fix for "Block Height Exceeded"
     instructions.push(
-      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 })
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1_000_000 })
     );
-    console.log('✅ Added compute budget (500k units + 100k microLamports priority fee)');
+    console.log('✅ Added compute budget (500k units) + priority fee (1M microLamports)');
 
     // Add create instruction
     instructions.push(createInstruction);
