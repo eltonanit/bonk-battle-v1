@@ -144,7 +144,11 @@ export async function buyTokens(
     instructions.push(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 })
     );
-    console.log('✅ Added compute budget');
+    // ✅ ADD PRIORITY FEE - Fix for "Block Height Exceeded"
+    instructions.push(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 })
+    );
+    console.log('✅ Added compute budget (400k units + 100k microLamports priority fee)');
 
     // Add buy instruction (smart contract crea ATA automaticamente!)
     instructions.push(buyInstruction);
