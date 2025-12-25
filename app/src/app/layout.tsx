@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     description: "Launch your token, battle against rivals. Winner takes the spoils and gets listed on Raydium DEX!",
     images: [
       {
-        url: "https://bonkbattle.lol/bonk-og.png",
+        url: "https://bonkbattle.lol/bonk.og.png",
         width: 1200,
         height: 630,
         alt: "BONK BATTLE - Gladiator Arena for Meme Coins",
