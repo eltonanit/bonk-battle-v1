@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BONK BATTLE - Launch, Battle, Win",
     description: "Launch your token, battle against rivals. Winner gets listed on Raydium DEX!",
-    images: ["https://bonkbattle.lol/bonk-og.png"],
+    images: ["https://bonkbattle.lol/bonk.og.png"],
   },
 
   // ========================================================================
