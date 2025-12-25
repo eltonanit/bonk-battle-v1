@@ -236,7 +236,11 @@ export async function buyToken(
     instructions.push(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 })
     );
-    console.log('✅ Added compute budget (400k units)');
+    // ✅ ADD PRIORITY FEE - Fix for "Block Height Exceeded"
+    instructions.push(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 })
+    );
+    console.log('✅ Added compute budget (400k units + 100k microLamports priority fee)');
 
     // ⭐ CREATE USER ATA IF NEEDED (idempotent - safe even if already exists)
     if (needsATACreation) {

@@ -109,9 +109,9 @@ export const KEEPER_AUTHORITY = new PublicKey(
 /**
  * Network Configuration
  */
-export const NETWORK = 'devnet' as const;
-// RPC pubblico Solana
-export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://api.devnet.solana.com';
+export const NETWORK = 'mainnet-beta' as const;
+// RPC Helius Mainnet
+export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://mainnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
 
 /**
  * Transaction Limits
@@ -171,4 +171,12 @@ export function formatUsd(usd: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(usd);
+}
+
+/**
+ * Generate Solscan URL (mainnet doesn't need cluster param, devnet does)
+ */
+export function getSolscanUrl(type: 'tx' | 'token' | 'account', address: string): string {
+  const base = `https://solscan.io/${type}/${address}`;
+  return NETWORK === 'mainnet-beta' ? base : `${base}?cluster=${NETWORK}`;
 }

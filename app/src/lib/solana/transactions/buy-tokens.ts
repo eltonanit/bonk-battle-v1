@@ -8,7 +8,7 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js';
-import { PROGRAM_ID, RPC_ENDPOINT, TREASURY } from '@/config/solana';
+import { PROGRAM_ID, RPC_ENDPOINT, TREASURY, getSolscanUrl } from '@/config/solana';
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -178,7 +178,7 @@ export async function buyTokens(
 
     console.log('✅ Transaction sent!');
     console.log('📝 Signature:', signature);
-    console.log('🔗 Solscan:', `https://solscan.io/tx/${signature}?cluster=devnet`);
+    console.log('🔗 Solscan:', getSolscanUrl('tx', signature));
 
     // Wait for confirmation
     console.log('⏳ Waiting for confirmation...');

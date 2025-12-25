@@ -11,7 +11,7 @@ import {
   Keypair,
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { BONK_BATTLE_PROGRAM_ID } from './constants';
+import { BONK_BATTLE_PROGRAM_ID, getSolscanUrl } from './constants';
 import { getBattleStatePDA, getPriceOraclePDA } from './pdas';
 import { RPC_ENDPOINT } from '@/config/solana';
 
@@ -227,7 +227,11 @@ export async function createBattleToken(
     instructions.push(
       ComputeBudgetProgram.setComputeUnitLimit({ units: 500_000 })
     );
-    console.log('✅ Added compute budget (500k units)');
+    // ✅ ADD PRIORITY FEE - Fix for "Block Height Exceeded"
+    instructions.push(
+      ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 })
+    );
+    console.log('✅ Added compute budget (500k units + 100k microLamports priority fee)');
 
     // Add create instruction
     instructions.push(createInstruction);
@@ -271,8 +275,8 @@ export async function createBattleToken(
 
     console.log('✅ Transaction sent!');
     console.log('📝 Signature:', signature);
-    console.log('🔗 Solscan:', `https://solscan.io/tx/${signature}?cluster=devnet`);
-    console.log('🔗 Token Mint:', `https://solscan.io/token/${mintKeypair.publicKey.toString()}?cluster=devnet`);
+    console.log('🔗 Solscan:', getSolscanUrl('tx', signature));
+    console.log('🔗 Token Mint:', getSolscanUrl('token', mintKeypair.publicKey.toString()));
 
     // ========================================================================
     // Step 8: Wait for confirmation

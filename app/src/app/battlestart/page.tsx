@@ -609,7 +609,7 @@ export default function BattleArenaPage() {
             className={`flex-1 py-4 text-center font-semibold transition relative ${activeTab === 'qualify' ? 'text-yellow-400' : 'text-white/50'
               }`}
           >
-            Qualify
+            Qualified
             {qualifiedTokens.length > 0 && (
               <span className="ml-1 px-2 py-0.5 bg-yellow-400 text-black text-xs rounded-full">
                 {qualifiedTokens.length}
