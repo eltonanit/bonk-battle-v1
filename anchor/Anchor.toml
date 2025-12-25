@@ -4,6 +4,9 @@
 resolution = true
 skip-lint = false
 
+[programs.mainnet]
+bonk_battle = "F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD"
+
 [programs.devnet]
 bonk_battle = "6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq"
 
@@ -11,7 +14,7 @@ bonk_battle = "6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "Mainnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
