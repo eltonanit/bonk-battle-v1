@@ -14,7 +14,7 @@ use anchor_spl::{
     token_interface::{Mint, TokenAccount, TokenInterface, MintTo},
 };
 
-declare_id!("6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq");
+declare_id!("F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD");
 
 // =================================================================
 // SECURITY CONSTANTS - HARDCODED FOR BULLETPROOF OPERATION
