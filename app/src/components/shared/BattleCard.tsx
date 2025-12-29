@@ -1,6 +1,7 @@
-// app/src/components/shared/BattleCard.tsx
-// ⭐ UPDATED: Uses CORRECT Pump.fun bonding curve formula (xy=k)
-// MC = (virtualSol / virtualToken) × totalSupply × solPrice
+// =================================================================
+// FILE: app/src/components/shared/BattleCard.tsx
+// ⭐ UPDATED: Added "Buy Winner" buttons with chances + BuyToWin modal
+// =================================================================
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,7 +9,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// ⭐ IMPORT FROM CENTRALIZED TIER CONFIG (with correct formula)
+// ⭐ IMPORT FROM CENTRALIZED TIER CONFIG
 import {
   TARGET_SOL,
   VICTORY_VOLUME_SOL,
@@ -16,6 +17,12 @@ import {
   calculateMarketCapUsd,
   getFinalMarketCapUsd,
 } from '@/config/tier-config';
+
+// ⭐ IMPORT CHANCE CALCULATION
+import { calculateChances } from '@/utils/calculateBestToWin';
+
+// ⭐ IMPORT MODAL
+import { BuyToWinModal } from '@/components/BuyToWinModal';
 
 // ⭐ USE ON-CHAIN PRICE ORACLE
 import { usePriceOracle } from '@/hooks/usePriceOracle';
@@ -41,14 +48,6 @@ function formatUsd(usd: number): string {
     return `$${(usd / 1_000).toFixed(1)}K`;
   }
   return `$${Math.round(usd).toLocaleString()}`;
-}
-
-// Helper function to format SOL values
-function formatSol(value: number, decimals: number = 2): string {
-  if (value >= 1000) {
-    return (value / 1000).toFixed(1) + 'K';
-  }
-  return value.toFixed(decimals);
 }
 
 // CSS for radiating glow effect and diamond pattern
@@ -198,10 +197,11 @@ interface BattleToken {
   name: string;
   symbol: string;
   image: string | null;
-  marketCapUsd: number;       // Legacy - ignored, we calculate from oracle
-  solCollected: number;       // SOL collected (in SOL, not lamports)
-  totalVolumeSol: number;     // Total volume in SOL
+  marketCapUsd: number;
+  solCollected: number;
+  totalVolumeSol: number;
   holders?: number;
+  tokensSold?: number;
 }
 
 interface BattleCardProps {
@@ -212,6 +212,7 @@ interface BattleCardProps {
   winner?: 'A' | 'B' | null;
   isEpicBattle?: boolean;
   showShareButton?: boolean;
+  showBuyButtons?: boolean; // ⭐ NEW: Show buy buttons
 }
 
 export function BattleCard({
@@ -222,6 +223,7 @@ export function BattleCard({
   winner = null,
   isEpicBattle = false,
   showShareButton = true,
+  showBuyButtons = true, // ⭐ Default true
 }: BattleCardProps) {
   const router = useRouter();
 
@@ -234,7 +236,11 @@ export function BattleCard({
   const [attackB, setAttackB] = useState(false);
   const [clash, setClash] = useState(false);
 
-  // ⭐ Calculate Market Caps using CORRECT bonding curve formula (xy=k)
+  // ⭐ Modal states
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedSide, setSelectedSide] = useState<'A' | 'B'>('A');
+
+  // ⭐ Calculate Market Caps using CORRECT bonding curve formula
   const mcUsdA = calculateMarketCapUsd(tokenA.solCollected, solPrice);
   const mcUsdB = calculateMarketCapUsd(tokenB.solCollected, solPrice);
 
@@ -245,6 +251,9 @@ export function BattleCard({
   const volUsdA = solToUsd(tokenA.totalVolumeSol, solPrice);
   const volUsdB = solToUsd(tokenB.totalVolumeSol, solPrice);
   const targetVolUsd = solToUsd(targetVolumeSol, solPrice);
+
+  // ⭐ Calculate chances
+  const { chanceA, chanceB } = calculateChances(tokenA.solCollected, tokenB.solCollected);
 
   // ⚔️ Random battle animations
   useEffect(() => {
@@ -304,9 +313,25 @@ export function BattleCard({
   // Handle card click
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('a') || target.closest('[data-share-button]')) {
+    if (target.closest('a') || target.closest('[data-share-button]') || target.closest('[data-buy-button]')) {
       return;
     }
+    router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
+  };
+
+  // ⭐ Handle buy button click
+  const handleBuyClick = (side: 'A' | 'B', e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedSide(side);
+    setModalOpen(true);
+  };
+
+  // ⭐ Handle actual buy
+  const handleBuy = (amountSOL: number) => {
+    // TODO: Integrate with actual buy transaction
+    console.log(`Buying ${amountSOL} SOL of token ${selectedSide === 'A' ? tokenA.symbol : tokenB.symbol}`);
+    setModalOpen(false);
+    // Navigate to battle page for now
     router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
   };
 
@@ -426,8 +451,8 @@ export function BattleCard({
             className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#4DB5FF',
-              boxShadow: attackA ? (isEpicBattle ? '0 0 30px rgba(147, 51, 234, 0.6)' : '0 0 30px rgba(38, 157, 255, 0.6)') : 'none'
+              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#386BFD',
+              boxShadow: attackA ? (isEpicBattle ? '0 0 30px rgba(147, 51, 234, 0.6)' : '0 0 30px rgba(56, 107, 253, 0.6)') : 'none'
             }}
           />
           {/* Background Attack Strip - Token B */}
@@ -435,8 +460,8 @@ export function BattleCard({
             className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackB || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FF5A8E',
-              boxShadow: attackB ? (isEpicBattle ? '0 0 30px rgba(168, 85, 247, 0.6)' : '0 0 30px rgba(254, 42, 98, 0.6)') : 'none'
+              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FD1F6F',
+              boxShadow: attackB ? (isEpicBattle ? '0 0 30px rgba(168, 85, 247, 0.6)' : '0 0 30px rgba(253, 31, 111, 0.6)') : 'none'
             }}
           />
 
@@ -621,6 +646,37 @@ export function BattleCard({
           </div>
         </div>
 
+        {/* ⭐ NEW: Buy Winner Buttons Row */}
+        {showBuyButtons && (
+          <div className="bg-[#1a1f2e] px-3 py-3 flex items-center justify-between gap-4 border-t border-[#2a3544]">
+            {/* Token A - Blue Button */}
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-white font-bold text-lg">{Math.round(chanceA)}%</span>
+              <button
+                data-buy-button
+                onClick={(e) => handleBuyClick('A', e)}
+                className="flex-1 py-2.5 px-4 rounded-lg font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                style={{ backgroundColor: '#386BFD' }}
+              >
+                Buy winner
+              </button>
+            </div>
+
+            {/* Token B - Pink Button */}
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <button
+                data-buy-button
+                onClick={(e) => handleBuyClick('B', e)}
+                className="flex-1 py-2.5 px-4 rounded-lg font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                style={{ backgroundColor: '#FD1F6F' }}
+              >
+                Buy winner
+              </button>
+              <span className="text-white font-bold text-lg">{Math.round(chanceB)}%</span>
+            </div>
+          </div>
+        )}
+
         {/* Share Footer */}
         {showShareButton && (
           <a
@@ -639,6 +695,20 @@ export function BattleCard({
           </a>
         )}
       </div>
+
+      {/* ⭐ Buy To Win Modal */}
+      <BuyToWinModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        token={selectedSide === 'A' ? tokenA : tokenB}
+        opponent={selectedSide === 'A'
+          ? { solCollected: tokenB.solCollected, tokensSold: tokenB.tokensSold }
+          : { solCollected: tokenA.solCollected, tokensSold: tokenA.tokensSold }
+        }
+        solPriceUSD={solPrice}
+        side={selectedSide}
+        onBuy={handleBuy}
+      />
     </>
   );
 }

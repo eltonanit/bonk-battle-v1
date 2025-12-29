@@ -2,17 +2,48 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useWallet } from '@solana/wallet-adapter-react';
-import dynamic from 'next/dynamic';
-
-const WalletMultiButtonDynamic = dynamic(
-  async () => (await import('@solana/wallet-adapter-react-ui')).WalletMultiButton,
-  { ssr: false }
-);
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { useState, useEffect } from 'react';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
+  const [balanceUsd, setBalanceUsd] = useState<string | null>(null);
+
+  // Fetch balance and SOL price
+  useEffect(() => {
+    if (!connected || !publicKey) {
+      setBalanceUsd(null);
+      return;
+    }
+
+    const fetchBalance = async () => {
+      try {
+        // Get SOL balance
+        const balance = await connection.getBalance(publicKey);
+        const solBalance = balance / LAMPORTS_PER_SOL;
+
+        // Get SOL price
+        const priceRes = await fetch('/api/price/sol');
+        const priceData = await priceRes.json();
+        const solPrice = priceData.price || 0;
+
+        // Calculate USD value
+        const usdValue = solBalance * solPrice;
+        setBalanceUsd(usdValue.toFixed(2));
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        setBalanceUsd(null);
+      }
+    };
+
+    fetchBalance();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [connected, publicKey, connection]);
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -74,7 +105,7 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-bold">Start</span>
           </Link>
 
-          {/* PROFILE */}
+          {/* PROFILE - Shows balance instead of icon */}
           <Link
             href="/profile"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
@@ -82,11 +113,8 @@ export function MobileBottomNav() {
                 : 'text-white/60'
               }`}
           >
-            <span className="w-6 h-6">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+            <span className={`text-[15px] font-bold ${connected && balanceUsd ? 'text-green-400' : 'text-white/40'}`}>
+              ${connected && balanceUsd ? balanceUsd : '0'}
             </span>
             <span className="text-[11px] font-semibold">Profile</span>
           </Link>
