@@ -579,15 +579,15 @@ export function BattleCard({
             </div>
 
             {/* Center Target - USD from Oracle */}
-            <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[90px] lg:min-w-[120px]">
-              <span className="text-[10px] lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
+            <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[100px] lg:min-w-[130px]">
+              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
               <div className="flex items-center gap-1 mb-0.5 lg:mb-1">
-                <span className="text-[10px] lg:text-sm text-gray-400">MC</span>
-                <span className="text-[10px] lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
+                <span className="text-xs lg:text-sm text-gray-400">MC</span>
+                <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetMcUsd)}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[10px] lg:text-sm text-gray-400">VOL</span>
-                <span className="text-[10px] lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVolUsd)}</span>
+                <span className="text-xs lg:text-sm text-gray-400">VOL</span>
+                <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetVolUsd)}</span>
               </div>
             </div>
 
