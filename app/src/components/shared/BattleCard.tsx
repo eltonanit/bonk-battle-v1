@@ -644,7 +644,7 @@ export function BattleCard({
 
         {/* ⭐ NEW: Buy Winner Buttons Row */}
         {showBuyButtons && (
-          <div className="bg-[#1a1f2e] px-3 py-3 flex items-center justify-between gap-4 border-t border-[#2a3544]">
+          <div className="bg-[#1a1f2e] px-2 py-2 flex items-center justify-between gap-2 border-t border-[#2a3544]">
             {/* Token A - Blue Button */}
             <div className="flex items-center gap-2 flex-1">
               <span className="text-white font-bold text-lg">{Math.round(chanceA)}%</span>
