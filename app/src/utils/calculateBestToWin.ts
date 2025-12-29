@@ -8,6 +8,7 @@
 // ========================================================================
 
 import {
+  TOTAL_SUPPLY,
   BONDING_CURVE_TOKENS,
   VIRTUAL_TOKEN_INIT,
   TARGET_SOL,
@@ -19,8 +20,9 @@ import {
 // ========================================================================
 
 const TRADING_FEE_BPS = 200; // 2% fee
+const PLATFORM_FEE_BPS = 500; // 5% platform fee on winner
 const LOOT_PERCENT = 50; // 50% of loser's liquidity
-const LISTING_MULTIPLIER = 1.75; // Expected pump at Raydium listing
+const LISTING_MULTIPLIER = 1.75; // Fixed listing pump multiplier
 
 // ========================================================================
 // TYPES
@@ -32,20 +34,20 @@ export interface TokenBattleData {
 }
 
 export interface BestToWinResult {
-  // Main values
-  bestToWinSOL: number;
-  bestToWinUSD: number;
+  // Main values - "To Win" = investment + profit
+  toWinSOL: number;
+  toWinUSD: number;
 
   // Breakdown
   tokensReceived: number;
   mySharePercent: number;
   myLootShareSOL: number;
-  tokenValueSOL: number;
+  profitSOL: number; // Pure profit (excluding investment)
 
   // Chance
   chancePercent: number;
 
-  // Multiplier
+  // Multiplier - ALWAYS 1.75x
   multiplier: number;
 
   // Investment
@@ -84,8 +86,10 @@ function estimateTokensSold(solCollected: number): number {
 // ========================================================================
 
 /**
- * Calcola il "Best To Win" per un investimento
- *
+ * Calcola il "To Win" per un investimento
+ * TO WIN = Investimento + Profitto (NON solo il profitto!)
+ * MULTIPLIER = Sempre 1.75x (fisso)
+ * 
  * @param investmentSOL - Quanto l'utente vuole investire (in SOL)
  * @param tokenA - Dati del token che l'utente compra
  * @param tokenB - Dati del token avversario (fonte del loot)
@@ -107,7 +111,6 @@ export function calculateBestToWin(
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 1: Calcola token che riceverò dalla bonding curve
-  // Formula: tokensOut = (netSol / solRemaining) * tokensRemaining * 0.98
   // ═══════════════════════════════════════════════════════════════════════
   const tokensRemaining = BONDING_CURVE_TOKENS - tokensSoldA;
   const solRemaining = TARGET_SOL - tokenA.solCollected;
@@ -121,7 +124,7 @@ export function calculateBestToWin(
   const fee = investmentSOL * (TRADING_FEE_BPS / 10000);
   const netInvestment = investmentSOL - fee;
 
-  // Token ricevuti (con 2% slippage buffer come nello smart contract)
+  // Token ricevuti
   const tokensReceived = (netInvestment / solRemaining) * tokensRemaining * 0.98;
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -138,12 +141,8 @@ export function calculateBestToWin(
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 4: Calcola liquidità totale del winner dopo vittoria
-  // Winner riceve: sua liquidità + mio investimento + loot - 5% fee
   // ═══════════════════════════════════════════════════════════════════════
   const winnerLiquidityBeforeFee = tokenA.solCollected + netInvestment + totalLoot;
-
-  // Per "Best To Win" mostriamo PRIMA della platform fee (più attraente)
-  // La fee viene comunque applicata ma non la sottraiamo nel display
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 5: Calcola valore dei miei token (proporzionale alla liquidità)
@@ -151,10 +150,16 @@ export function calculateBestToWin(
   const myTokenValue = winnerLiquidityBeforeFee * (mySharePercent / 100);
 
   // ═══════════════════════════════════════════════════════════════════════
-  // STEP 6: Applica LISTING MULTIPLIER (1.75x)
+  // STEP 6: Applica LISTING MULTIPLIER FISSO (1.75x) e calcola profitto
   // ═══════════════════════════════════════════════════════════════════════
-  const bestToWinSOL = myTokenValue * LISTING_MULTIPLIER;
-  const bestToWinUSD = bestToWinSOL * solPriceUSD;
+  const myTokenValueAfterPump = myTokenValue * LISTING_MULTIPLIER;
+
+  // Profitto = Valore finale - Investimento iniziale
+  const profitSOL = myTokenValueAfterPump - investmentSOL;
+
+  // TO WIN = Investimento + Profitto = Valore finale dei token
+  const toWinSOL = investmentSOL + Math.max(0, profitSOL);
+  const toWinUSD = toWinSOL * solPriceUSD;
 
   // ═══════════════════════════════════════════════════════════════════════
   // STEP 7: Calcola chance di vittoria
@@ -164,20 +169,15 @@ export function calculateBestToWin(
     ? (tokenA.solCollected / totalSol) * 100
     : 50;
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // STEP 8: Calcola multiplier
-  // ═══════════════════════════════════════════════════════════════════════
-  const multiplier = investmentSOL > 0 ? bestToWinSOL / investmentSOL : 0;
-
   return {
-    bestToWinSOL,
-    bestToWinUSD,
+    toWinSOL,
+    toWinUSD,
     tokensReceived,
     mySharePercent,
     myLootShareSOL: myLootShare,
-    tokenValueSOL: myTokenValue,
+    profitSOL: Math.max(0, profitSOL),
     chancePercent,
-    multiplier,
+    multiplier: LISTING_MULTIPLIER, // SEMPRE 1.75x
     investmentSOL,
     investmentUSD: investmentSOL * solPriceUSD,
   };
@@ -199,14 +199,14 @@ function createEmptyResult(
     : 50;
 
   return {
-    bestToWinSOL: 0,
-    bestToWinUSD: 0,
+    toWinSOL: investmentSOL * LISTING_MULTIPLIER,
+    toWinUSD: investmentSOL * LISTING_MULTIPLIER * solPriceUSD,
     tokensReceived: 0,
     mySharePercent: 0,
     myLootShareSOL: 0,
-    tokenValueSOL: 0,
+    profitSOL: investmentSOL * 0.75,
     chancePercent,
-    multiplier: 0,
+    multiplier: LISTING_MULTIPLIER,
     investmentSOL,
     investmentUSD: investmentSOL * solPriceUSD,
   };
@@ -238,7 +238,7 @@ export function calculateChances(
 /**
  * Formatta il valore USD per display
  */
-export function formatBestToWinUSD(usd: number): string {
+export function formatToWinUSD(usd: number): string {
   if (usd >= 1000) {
     return `$${(usd / 1000).toFixed(1)}K`;
   }
@@ -248,7 +248,7 @@ export function formatBestToWinUSD(usd: number): string {
 /**
  * Formatta il valore SOL per display
  */
-export function formatBestToWinSOL(sol: number): string {
+export function formatToWinSOL(sol: number): string {
   if (sol >= 1000) {
     return `${(sol / 1000).toFixed(2)}K SOL`;
   }
@@ -266,7 +266,7 @@ export function formatChance(chance: number): string {
 }
 
 /**
- * Formatta il multiplier per display
+ * Formatta il multiplier per display - SEMPRE 1.75x
  */
 export function formatMultiplier(multiplier: number): string {
   return `${multiplier.toFixed(2)}x`;

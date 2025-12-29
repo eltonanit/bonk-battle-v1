@@ -1,10 +1,10 @@
 // =================================================================
 // FILE: app/src/components/shared/BattleCard.tsx
-// ⭐ UPDATED: Added "Buy Winner" buttons with chances + BuyToWin modal
+// ⭐ V2: Inline transformation (no popup) - ALL ANIMATIONS PRESERVED
 // =================================================================
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -18,11 +18,11 @@ import {
   getFinalMarketCapUsd,
 } from '@/config/tier-config';
 
-// ⭐ IMPORT CHANCE CALCULATION
-import { calculateChances } from '@/utils/calculateBestToWin';
-
-// ⭐ IMPORT MODAL
-import { BuyToWinModal } from '@/components/BuyToWinModal';
+// ⭐ IMPORT CALCULATION FUNCTIONS
+import {
+  calculateBestToWin,
+  calculateChances,
+} from '@/utils/calculateBestToWin';
 
 // ⭐ USE ON-CHAIN PRICE ORACLE
 import { usePriceOracle } from '@/hooks/usePriceOracle';
@@ -50,8 +50,14 @@ function formatUsd(usd: number): string {
   return `$${Math.round(usd).toLocaleString()}`;
 }
 
-// CSS for radiating glow effect and diamond pattern
-const radiateStyles = `
+// ========================================================================
+// CONSTANTS
+// ========================================================================
+const MIN_AMOUNT_USD = 1;
+const MAX_AMOUNT_USD = 10000;
+
+// CSS for all styles (epic battle + slider)
+const allStyles = `
   .epic-diamond-bg {
     background:
       linear-gradient(45deg, #581c87 25%, transparent 25%, transparent 75%, #581c87 75%),
@@ -190,6 +196,38 @@ const radiateStyles = `
       0 0 150px rgba(147, 51, 234, 0.5) !important;
     border: 3px solid rgba(255, 255, 255, 1) !important;
   }
+
+  .buy-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    margin-top: -8px;
+  }
+
+  .buy-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  .buy-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+  }
+
+  .buy-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+  }
 `;
 
 interface BattleToken {
@@ -212,7 +250,7 @@ interface BattleCardProps {
   winner?: 'A' | 'B' | null;
   isEpicBattle?: boolean;
   showShareButton?: boolean;
-  showBuyButtons?: boolean; // ⭐ NEW: Show buy buttons
+  showBuyButtons?: boolean;
 }
 
 export function BattleCard({
@@ -223,7 +261,7 @@ export function BattleCard({
   winner = null,
   isEpicBattle = false,
   showShareButton = true,
-  showBuyButtons = true, // ⭐ Default true
+  showBuyButtons = true,
 }: BattleCardProps) {
   const router = useRouter();
 
@@ -236,9 +274,9 @@ export function BattleCard({
   const [attackB, setAttackB] = useState(false);
   const [clash, setClash] = useState(false);
 
-  // ⭐ Modal states
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedSide, setSelectedSide] = useState<'A' | 'B'>('A');
+  // ⭐ BUY MODE STATE - null = normal view, 'A' or 'B' = buy mode
+  const [buyMode, setBuyMode] = useState<'A' | 'B' | null>(null);
+  const [amountUSD, setAmountUSD] = useState(10);
 
   // ⭐ Calculate Market Caps using CORRECT bonding curve formula
   const mcUsdA = calculateMarketCapUsd(tokenA.solCollected, solPrice);
@@ -255,7 +293,26 @@ export function BattleCard({
   // ⭐ Calculate chances
   const { chanceA, chanceB } = calculateChances(tokenA.solCollected, tokenB.solCollected);
 
-  // ⚔️ Random battle animations
+  // ⭐ Progress calculations (based on SOL for accuracy)
+  const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
+  const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
+  const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
+  const volProgressB = Math.min((tokenB.totalVolumeSol / targetVolumeSol) * 100, 100);
+
+  // ⭐ Calculate Best To Win when in buy mode
+  const amountSOL = solPrice > 0 ? amountUSD / solPrice : 0;
+  const selectedToken = buyMode === 'A' ? tokenA : tokenB;
+  const opponentToken = buyMode === 'A' ? tokenB : tokenA;
+  const selectedChance = buyMode === 'A' ? chanceA : chanceB;
+
+  const bestToWinResult = buyMode ? calculateBestToWin(
+    amountSOL,
+    { solCollected: selectedToken.solCollected, tokensSold: selectedToken.tokensSold || 0 },
+    { solCollected: opponentToken.solCollected, tokensSold: opponentToken.tokensSold || 0 },
+    solPrice
+  ) : null;
+
+  // ⚔️ Random battle animations - PRESERVED FROM ORIGINAL
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     let animationTimeoutId: NodeJS.Timeout;
@@ -301,9 +358,14 @@ export function BattleCard({
     };
   }, []);
 
+  // ⭐ Handle amount change
+  const handleAmountChange = useCallback((value: number) => {
+    setAmountUSD(Math.max(MIN_AMOUNT_USD, Math.min(MAX_AMOUNT_USD, value)));
+  }, []);
+
   // ⭐ Generate Twitter share URL
   const getShareUrl = () => {
-    const battleUrl = `${window.location.origin}/battle/${tokenA.mint}-${tokenB.mint}`;
+    const battleUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/battle/${tokenA.mint}-${tokenB.mint}`;
     const tweetText = `🚨 NEW BONKBATTLE: Will $${tokenA.symbol} defeat $${tokenB.symbol}? | Winner gets Listed on DEX! |
 
 #BonkBattle #Solana #Crypto #Memecoin`;
@@ -312,34 +374,33 @@ export function BattleCard({
 
   // Handle card click
   const handleCardClick = (e: React.MouseEvent) => {
+    if (buyMode) return; // Don't navigate when in buy mode
     const target = e.target as HTMLElement;
-    if (target.closest('a') || target.closest('[data-share-button]') || target.closest('[data-buy-button]')) {
+    if (target.closest('a') || target.closest('[data-share-button]') || target.closest('[data-buy-button]') || target.closest('[data-buy-area]')) {
       return;
     }
     router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
   };
 
-  // ⭐ Handle buy button click
+  // ⭐ Handle buy button click - TRANSFORMS THE CARD (no popup)
   const handleBuyClick = (side: 'A' | 'B', e: React.MouseEvent) => {
     e.stopPropagation();
-    setSelectedSide(side);
-    setModalOpen(true);
+    setBuyMode(side);
+    setAmountUSD(10);
+  };
+
+  // ⭐ Handle close buy mode
+  const handleCloseBuyMode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBuyMode(null);
   };
 
   // ⭐ Handle actual buy
-  const handleBuy = (amountSOL: number) => {
-    // TODO: Integrate with actual buy transaction
-    console.log(`Buying ${amountSOL} SOL of token ${selectedSide === 'A' ? tokenA.symbol : tokenB.symbol}`);
-    setModalOpen(false);
-    // Navigate to battle page for now
+  const handleBuy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    console.log(`Buying ${amountSOL.toFixed(4)} SOL of token ${selectedToken?.symbol}`);
     router.push(`/battle/${tokenA.mint}-${tokenB.mint}`);
   };
-
-  // ⭐ Progress calculations (based on SOL for accuracy)
-  const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
-  const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
-  const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
-  const volProgressB = Math.min((tokenB.totalVolumeSol / targetVolumeSol) * 100, 100);
 
   // Default image
   const getTokenImage = (token: BattleToken) => {
@@ -350,7 +411,9 @@ export function BattleCard({
   const winnerToken = winner === 'A' ? tokenA : winner === 'B' ? tokenB : null;
   const loserToken = winner === 'A' ? tokenB : winner === 'B' ? tokenA : null;
 
-  // Winner card (golden)
+  // ========================================================================
+  // WINNER CARD (Golden) - PRESERVED FROM ORIGINAL
+  // ========================================================================
   if (winner && winnerToken && loserToken) {
     const winnerMcUsd = calculateMarketCapUsd(winnerToken.solCollected, solPrice);
     const winnerVolUsd = solToUsd(winnerToken.totalVolumeSol, solPrice);
@@ -429,15 +492,21 @@ export function BattleCard({
     );
   }
 
+  // ========================================================================
+  // MAIN BATTLE CARD
+  // ========================================================================
   return (
     <>
-      {isEpicBattle && <style jsx global>{radiateStyles}</style>}
+      {/* All styles */}
+      <style jsx global>{allStyles}</style>
 
       <div
         onClick={handleCardClick}
         className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer"
       >
-        {/* Battle Header */}
+        {/* ════════════════════════════════════════════════════════════════
+            HEADER - Always visible (both tokens + MC) - PRESERVED
+        ════════════════════════════════════════════════════════════════ */}
         <div
           className={`${!isEpicBattle ? 'battle-grid-bg' : ''} px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
           style={isEpicBattle ? {
@@ -468,7 +537,7 @@ export function BattleCard({
           <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
             {/* Token A Image */}
             <div
-              className={`w-[88px] h-[88px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-[96px] h-[96px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -488,7 +557,7 @@ export function BattleCard({
 
             {/* ⭐ Score Center - SHOWS USD from Oracle */}
             <div className="flex flex-col items-center flex-1 px-2">
-              <span className="text-xs lg:text-base text-gray-400 font-semibold mb-1">MC</span>
+              <span className="text-base lg:text-xl text-yellow-400 mb-1">VS</span>
               {priceLoading ? (
                 <span className="text-lg lg:text-2xl font-black text-gray-500">Loading...</span>
               ) : (
@@ -506,7 +575,7 @@ export function BattleCard({
 
             {/* Token B Image */}
             <div
-              className={`w-[88px] h-[88px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-[96px] h-[96px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -526,185 +595,315 @@ export function BattleCard({
           </div>
         </div>
 
-        {/* Battle Content */}
-        <div className="bg-[#232a36] p-2 lg:p-4">
-          <div className="flex items-start justify-between">
-            {/* Left Token Stats */}
-            <div className="flex-1 pr-2 lg:pr-4">
-              <div className="flex items-center gap-2 mb-2 lg:mb-3">
-                <p className="text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
-                  ${tokenA.symbol}
-                </p>
-                {tokenA.holders !== undefined && (
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <span>👥</span>
-                    <span>{tokenA.holders}</span>
-                  </span>
+        {/* ════════════════════════════════════════════════════════════════
+            CONTENT AREA - Transforms based on buyMode
+        ════════════════════════════════════════════════════════════════ */}
+
+        {!buyMode ? (
+          /* ══════════════════════════════════════════════════════════════
+             NORMAL MODE - Stats + Buy Buttons (PRESERVED FROM ORIGINAL)
+          ══════════════════════════════════════════════════════════════ */
+          <>
+            {/* Battle Content */}
+            <div className="bg-[#232a36] p-2 lg:p-4">
+              <div className="flex items-start justify-between">
+                {/* Left Token Stats */}
+                <div className="flex-1 pr-2 lg:pr-4">
+                  <div className="flex items-center gap-2 mb-2 lg:mb-3">
+                    <p className="text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
+                      ${tokenA.symbol}
+                    </p>
+                    {tokenA.holders !== undefined && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <span>👥</span>
+                        <span>{tokenA.holders}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* MC Row in USD */}
+                  <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
+                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
+                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                          : 'bg-gradient-to-r from-green-400 to-green-600'
+                          }`}
+                        style={{ width: `${solProgressA}%` }}
+                      />
+                    </div>
+                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
+                      {formatUsd(mcUsdA)}
+                    </span>
+                  </div>
+
+                  {/* VOL Row in USD */}
+                  <div className="flex items-center gap-1 lg:gap-2">
+                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
+                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
+                          : 'bg-gradient-to-r from-green-400 to-green-600'
+                          }`}
+                        style={{ width: `${volProgressA}%` }}
+                      />
+                    </div>
+                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
+                      {formatUsd(volUsdA)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Center Target - USD from Oracle */}
+                <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[100px] lg:min-w-[130px]">
+                  <span className="text-xs lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
+                  <div className="flex items-center gap-1 mb-0.5 lg:mb-1">
+                    <span className="text-xs lg:text-sm text-gray-400">MC</span>
+                    <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetMcUsd)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs lg:text-sm text-gray-400">VOL</span>
+                    <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetVolUsd)}</span>
+                  </div>
+                </div>
+
+                {/* Right Token Stats */}
+                <div className="flex-1 pl-2 lg:pl-4">
+                  <div className="flex items-center justify-end gap-2 mb-2 lg:mb-3">
+                    {tokenB.holders !== undefined && (
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <span>{tokenB.holders}</span>
+                        <span>👥</span>
+                      </span>
+                    )}
+                    <p className="text-sm lg:text-base text-orange-400 font-bold truncate text-right uppercase">
+                      ${tokenB.symbol}
+                    </p>
+                  </div>
+
+                  {/* MC Row in USD */}
+                  <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
+                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
+                      {formatUsd(mcUsdB)}
+                    </span>
+                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${solProgressB >= 100
+                          ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
+                          : 'bg-gradient-to-r from-green-600 to-green-400'
+                          }`}
+                        style={{ width: `${solProgressB}%` }}
+                      />
+                    </div>
+                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
+                  </div>
+
+                  {/* VOL Row in USD */}
+                  <div className="flex items-center gap-1 lg:gap-2">
+                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
+                      {formatUsd(volUsdB)}
+                    </span>
+                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${volProgressB >= 100
+                          ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
+                          : 'bg-gradient-to-r from-green-600 to-green-400'
+                          }`}
+                        style={{ width: `${volProgressB}%` }}
+                      />
+                    </div>
+                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">VOL</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Buy Winner Buttons */}
+            {showBuyButtons && (
+              <div className="bg-[#1d2531] px-3 py-2 my-3 flex items-center justify-between">
+                {/* Token A - Blue Button */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-white font-bold text-base">{Math.round(chanceA)}%</span>
+                  <button
+                    data-buy-button
+                    onClick={(e) => handleBuyClick('A', e)}
+                    className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                    style={{ backgroundColor: '#386BFD' }}
+                  >
+                    Buy winner
+                  </button>
+                </div>
+
+                {/* Token B - Pink Button */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    data-buy-button
+                    onClick={(e) => handleBuyClick('B', e)}
+                    className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                    style={{ backgroundColor: '#FD1F6F' }}
+                  >
+                    Buy winner
+                  </button>
+                  <span className="text-white font-bold text-base">{Math.round(chanceB)}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Share Footer */}
+            {showShareButton && (
+              <a
+                href={getShareUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-share-button
+                onClick={(e) => e.stopPropagation()}
+                className="bg-black/80 py-2 px-4 flex items-center justify-center gap-3 hover:bg-black/90 transition-colors cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                <span className="font-semibold text-sm text-white">Share</span>
+                <span className="text-orange-400 font-bold text-sm">+250 Points</span>
+              </a>
+            )}
+          </>
+        ) : (
+          /* ══════════════════════════════════════════════════════════════
+             BUY MODE - Transformed view with GREEN button
+          ══════════════════════════════════════════════════════════════ */
+          <div className="bg-[#232a36] p-3 lg:p-4" data-buy-area>
+            {/* Header Row - Token + Chance centered, Close button on right */}
+            <div className="flex items-center justify-center mb-4 relative">
+              {/* Center: Token + Chance together */}
+              <div className="flex items-center gap-2">
+                {buyMode === 'A' && (
+                  <div
+                    className="w-9 h-9 rounded-lg overflow-hidden p-0.5"
+                    style={{ backgroundColor: '#386BFD' }}
+                  >
+                    <Image
+                      src={getTokenImage(selectedToken)}
+                      alt={selectedToken.symbol}
+                      width={36}
+                      height={36}
+                      className="w-full h-full object-cover rounded-md"
+                      unoptimized
+                    />
+                  </div>
+                )}
+                <span className="text-white font-bold text-sm">
+                  CHANCE {Math.round(selectedChance)}%
+                </span>
+                {buyMode === 'B' && (
+                  <div
+                    className="w-9 h-9 rounded-lg overflow-hidden p-0.5"
+                    style={{ backgroundColor: '#FD1F6F' }}
+                  >
+                    <Image
+                      src={getTokenImage(selectedToken)}
+                      alt={selectedToken.symbol}
+                      width={36}
+                      height={36}
+                      className="w-full h-full object-cover rounded-md"
+                      unoptimized
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* MC Row in USD */}
-              <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
-                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
-                      ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                      : 'bg-gradient-to-r from-green-400 to-green-600'
-                      }`}
-                    style={{ width: `${solProgressA}%` }}
-                  />
-                </div>
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
-                  {formatUsd(mcUsdA)}
-                </span>
-              </div>
-
-              {/* VOL Row in USD */}
-              <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
-                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
-                      ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                      : 'bg-gradient-to-r from-green-400 to-green-600'
-                      }`}
-                    style={{ width: `${volProgressA}%` }}
-                  />
-                </div>
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
-                  {formatUsd(volUsdA)}
-                </span>
-              </div>
-            </div>
-
-            {/* Center Target - USD from Oracle */}
-            <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[100px] lg:min-w-[130px]">
-              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
-              <div className="flex items-center gap-1 mb-0.5 lg:mb-1">
-                <span className="text-xs lg:text-sm text-gray-400">MC</span>
-                <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetMcUsd)}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs lg:text-sm text-gray-400">VOL</span>
-                <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetVolUsd)}</span>
-              </div>
-            </div>
-
-            {/* Right Token Stats */}
-            <div className="flex-1 pl-2 lg:pl-4">
-              <div className="flex items-center justify-end gap-2 mb-2 lg:mb-3">
-                {tokenB.holders !== undefined && (
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <span>{tokenB.holders}</span>
-                    <span>👥</span>
-                  </span>
-                )}
-                <p className="text-sm lg:text-base text-orange-400 font-bold truncate text-right uppercase">
-                  ${tokenB.symbol}
-                </p>
-              </div>
-
-              {/* MC Row in USD */}
-              <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
-                  {formatUsd(mcUsdB)}
-                </span>
-                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${solProgressB >= 100
-                      ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
-                      : 'bg-gradient-to-r from-green-600 to-green-400'
-                      }`}
-                    style={{ width: `${solProgressB}%` }}
-                  />
-                </div>
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
-              </div>
-
-              {/* VOL Row in USD */}
-              <div className="flex items-center gap-1 lg:gap-2">
-                <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
-                  {formatUsd(volUsdB)}
-                </span>
-                <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${volProgressB >= 100
-                      ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
-                      : 'bg-gradient-to-r from-green-600 to-green-400'
-                      }`}
-                    style={{ width: `${volProgressB}%` }}
-                  />
-                </div>
-                <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">VOL</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ⭐ NEW: Buy Winner Buttons Row */}
-        {showBuyButtons && (
-          <div className="bg-[#1d2531] px-3 py-2 my-3 flex items-center justify-between">
-            {/* Token A - Blue Button */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-white font-bold text-base">{Math.round(chanceA)}%</span>
+              {/* Close button - absolute right */}
               <button
-                data-buy-button
-                onClick={(e) => handleBuyClick('A', e)}
-                className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
-                style={{ backgroundColor: '#386BFD' }}
+                onClick={handleCloseBuyMode}
+                className="absolute right-0 text-gray-400 hover:text-white transition-colors p-1"
               >
-                Buy winner
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            {/* Token B - Pink Button */}
-            <div className="flex items-center gap-1.5">
+            {/* Amount Input Row */}
+            <div className="flex items-center gap-2 mb-3">
+              {/* USD Input */}
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-semibold">
+                  $
+                </span>
+                <input
+                  type="text"
+                  value={amountUSD || ''}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    if (value === '') {
+                      setAmountUSD(0);
+                    } else {
+                      handleAmountChange(Number(value));
+                    }
+                  }}
+                  className="w-full bg-[#1a1f2e] border border-[#3b415a] rounded-lg py-2.5 pl-8 pr-3 text-white text-lg font-bold focus:outline-none focus:border-[#4a5568]"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Preset Buttons */}
               <button
-                data-buy-button
-                onClick={(e) => handleBuyClick('B', e)}
-                className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
-                style={{ backgroundColor: '#FD1F6F' }}
+                onClick={() => handleAmountChange(amountUSD + 1)}
+                className="px-3 py-2.5 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
               >
-                Buy winner
+                +1
               </button>
-              <span className="text-white font-bold text-base">{Math.round(chanceB)}%</span>
+              <button
+                onClick={() => handleAmountChange(amountUSD + 10)}
+                className="px-3 py-2.5 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
+              >
+                +10
+              </button>
+
+              {/* Slider */}
+              <div className="flex-1 flex items-center">
+                <input
+                  type="range"
+                  min={MIN_AMOUNT_USD}
+                  max={MAX_AMOUNT_USD}
+                  value={amountUSD}
+                  onChange={(e) => handleAmountChange(Number(e.target.value))}
+                  className="buy-slider w-full h-1 bg-[#3b415a] rounded-full appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #22C55E 0%, #22C55E ${(amountUSD / MAX_AMOUNT_USD) * 100}%, #3b415a ${(amountUSD / MAX_AMOUNT_USD) * 100}%, #3b415a 100%)`,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* ⭐ GREEN BUY BUTTON with Best To Win */}
+            <button
+              onClick={handleBuy}
+              disabled={amountSOL <= 0}
+              className="w-full py-3 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98]"
+              style={{
+                backgroundColor: '#22C55E',
+                boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
+              }}
+            >
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-medium">Buy ${selectedToken.symbol}</span>
+                <span className="text-sm opacity-90">
+                  Best to win {formatUsd(bestToWinResult?.toWinUSD || 0)}
+                </span>
+              </div>
+            </button>
+
+            {/* Multiplier info - ALWAYS 1.75x */}
+            <div className="mt-2 text-center">
+              <span className="text-yellow-400 text-sm font-semibold">
+                ⚡ 1.75x potential
+              </span>
             </div>
           </div>
-        )}
-
-        {/* Share Footer */}
-        {showShareButton && (
-          <a
-            href={getShareUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-share-button
-            onClick={(e) => e.stopPropagation()}
-            className="bg-black/80 py-2 px-4 flex items-center justify-center gap-3 hover:bg-black/90 transition-colors cursor-pointer"
-          >
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            <span className="font-semibold text-sm text-white">Share</span>
-            <span className="text-orange-400 font-bold text-sm">+250 Points</span>
-          </a>
         )}
       </div>
-
-      {/* ⭐ Buy To Win Modal */}
-      <BuyToWinModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        token={selectedSide === 'A' ? tokenA : tokenB}
-        opponent={selectedSide === 'A'
-          ? { solCollected: tokenB.solCollected, tokensSold: tokenB.tokensSold }
-          : { solCollected: tokenA.solCollected, tokensSold: tokenA.tokensSold }
-        }
-        solPriceUSD={solPrice}
-        side={selectedSide}
-        onBuy={handleBuy}
-      />
     </>
   );
 }
