@@ -644,14 +644,14 @@ export function BattleCard({
 
         {/* ⭐ NEW: Buy Winner Buttons Row */}
         {showBuyButtons && (
-          <div className="bg-[#1a1f2e] px-2 py-2 flex items-center justify-between gap-2 border-t border-[#2a3544]">
+          <div className="bg-[#1d2531] px-3 py-2 my-3 flex items-center justify-between">
             {/* Token A - Blue Button */}
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-white font-bold text-lg">{Math.round(chanceA)}%</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-white font-bold text-base">{Math.round(chanceA)}%</span>
               <button
                 data-buy-button
                 onClick={(e) => handleBuyClick('A', e)}
-                className="flex-1 py-2.5 px-4 rounded-lg font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
                 style={{ backgroundColor: '#386BFD' }}
               >
                 Buy winner
@@ -659,16 +659,16 @@ export function BattleCard({
             </div>
 
             {/* Token B - Pink Button */}
-            <div className="flex items-center gap-2 flex-1 justify-end">
+            <div className="flex items-center gap-1.5">
               <button
                 data-buy-button
                 onClick={(e) => handleBuyClick('B', e)}
-                className="flex-1 py-2.5 px-4 rounded-lg font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
                 style={{ backgroundColor: '#FD1F6F' }}
               >
                 Buy winner
               </button>
-              <span className="text-white font-bold text-lg">{Math.round(chanceB)}%</span>
+              <span className="text-white font-bold text-base">{Math.round(chanceB)}%</span>
             </div>
           </div>
         )}
