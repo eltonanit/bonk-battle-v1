@@ -182,7 +182,7 @@ export function Tagline() {
 
   return (
     <div
-      className="py-5 px-5 lg:px-6 lg:py-6"
+      className="py-5 px-2 lg:px-6 lg:py-6"
       style={{
         background: '#1C032B',
         borderBottom: '0.5px solid rgba(255, 255, 255, 0.05)'
@@ -341,7 +341,7 @@ export function Tagline() {
             {/* ⭐ BattleCard - Uses token's tier for correct targets */}
             {latestBattle ? (
               <>
-                <div className="clash-royale-border transform scale-90 origin-top">
+                <div className="clash-royale-border transform scale-100 lg:scale-90 origin-top">
                   {/* Electric Sparks */}
                   <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
                   <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.2s' }} />
@@ -371,7 +371,7 @@ export function Tagline() {
               </>
             ) : (
               <>
-                <div className="clash-royale-border transform scale-90 origin-top">
+                <div className="clash-royale-border transform scale-100 lg:scale-90 origin-top">
                   {/* Electric Sparks */}
                   <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
                   <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.3s' }} />

@@ -468,7 +468,7 @@ export function BattleCard({
           <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
             {/* Token A Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-[88px] h-[88px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -487,12 +487,12 @@ export function BattleCard({
             </div>
 
             {/* ⭐ Score Center - SHOWS USD from Oracle */}
-            <div className="flex flex-col items-center">
-              <span className="text-sm lg:text-base text-gray-400 font-semibold mb-1">MC</span>
+            <div className="flex flex-col items-center flex-1 px-2">
+              <span className="text-xs lg:text-base text-gray-400 font-semibold mb-1">MC</span>
               {priceLoading ? (
-                <span className="text-xl lg:text-2xl font-black text-gray-500">Loading...</span>
+                <span className="text-lg lg:text-2xl font-black text-gray-500">Loading...</span>
               ) : (
-                <span className="text-xl lg:text-2xl font-black text-yellow-400">
+                <span className="text-lg lg:text-2xl font-black text-yellow-400 whitespace-nowrap">
                   {formatUsd(mcUsdA)} - {formatUsd(mcUsdB)}
                 </span>
               )}
@@ -506,7 +506,7 @@ export function BattleCard({
 
             {/* Token B Image */}
             <div
-              className={`w-24 h-24 lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-[88px] h-[88px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -579,19 +579,15 @@ export function BattleCard({
             </div>
 
             {/* Center Target - USD from Oracle */}
-            <div className="flex flex-col items-center justify-center px-3 lg:px-4 border-x border-[#3b415a]">
-              <span className="text-xs lg:text-sm text-gray-500 font-medium mb-2">TARGET TO WIN</span>
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs lg:text-sm text-gray-400">MC</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
+            <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[90px] lg:min-w-[120px]">
+              <span className="text-[10px] lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
+              <div className="flex items-center gap-1 mb-0.5 lg:mb-1">
+                <span className="text-[10px] lg:text-sm text-gray-400">MC</span>
+                <span className="text-[10px] lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-xs lg:text-sm text-gray-400">VOL</span>
-                <span className="text-xs lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVolUsd)}</span>
-              </div>
-              {/* Tier indicator */}
-              <div className="mt-1 text-[10px] text-gray-600">
-                {ACTIVE_TIER.icon} {ACTIVE_TIER.name}
+                <span className="text-[10px] lg:text-sm text-gray-400">VOL</span>
+                <span className="text-[10px] lg:text-sm text-yellow-400 font-semibold">{formatUsd(targetVolUsd)}</span>
               </div>
             </div>
 
