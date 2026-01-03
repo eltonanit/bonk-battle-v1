@@ -29,6 +29,11 @@ const nextConfig = {
         hostname: 'api.dicebear.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'jfpuluquxjnamvyzocad.supabase.co',
+        pathname: '/storage/**',
+      },
     ],
   },
   // ⭐ PROXY: Serve immagini R2 attraverso Vercel
