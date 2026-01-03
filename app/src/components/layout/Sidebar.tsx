@@ -167,25 +167,16 @@ export function Sidebar() {
           <span>How it works?</span>
         </Link>
 
-        {/* Start Battle Button - Arancione chiaro (no glow, swords icon) */}
+        {/* Join ARMY Button */}
         <Link
-          href="/battlestart"
-          className="flex items-center justify-center gap-2 mx-2 px-4 py-3 bg-bonk-orange-dark rounded-xl text-black font-semibold text-[15px] hover:bg-bonk-orange-dark/90 active:scale-95 transition-all"
+          href="/armies"
+          className="flex items-center justify-center gap-2 mx-2 px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-xl text-black font-bold text-[15px] hover:from-yellow-400 hover:to-orange-400 active:scale-95 transition-all"
         >
-          {/* Crossed Swords Icon */}
+          {/* Shield Icon */}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-            <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
-            <path d="M13 19l6-6" />
-            <path d="M16 16l5 5" />
-            <path d="M19 21v-2" />
-            <path d="M21 19h-2" />
-            <path d="M9.5 6.5L21 18V21h-3L6.5 9.5" />
-            <path d="M5 11l6-6" />
-            <path d="M8 8L3 3" />
-            <path d="M3 5v2" />
-            <path d="M5 3h2" />
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          <span>Start Battle</span>
+          <span>Join ARMY</span>
         </Link>
 
         {/* Social Icons Row */}

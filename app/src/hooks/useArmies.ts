@@ -24,6 +24,7 @@ export interface Army {
   is_active: boolean;
   // Nuovi campi sistema livelli
   invite_code?: string;
+  ticker?: string;
   level?: number;
   level_wins?: number;
   total_wins?: number;

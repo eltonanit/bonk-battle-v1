@@ -194,6 +194,9 @@ export async function POST(request: NextRequest) {
     // Genera invite_code unico
     const invite_code = nanoid(8).toLowerCase();
 
+    // Genera ticker automatico (prime 5 lettere, no spazi, uppercase)
+    const ticker = name.replace(/\s/g, '').substring(0, 5).toUpperCase();
+
     // Crea army
     const { data: army, error: armyError } = await supabase
       .from('armies')
@@ -206,6 +209,7 @@ export async function POST(request: NextRequest) {
         telegram_url: telegram_url || null,
         capitano_wallet,
         invite_code,
+        ticker,
         member_count: 1,
         member_count_checkpoint: 0,
         level: 1,

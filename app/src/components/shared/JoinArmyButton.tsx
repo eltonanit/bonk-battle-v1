@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface JoinArmyButtonProps {
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export function JoinArmyButton({ size = 'md' }: JoinArmyButtonProps) {
@@ -21,6 +21,8 @@ export function JoinArmyButton({ size = 'md' }: JoinArmyButtonProps) {
 
   const sizeClasses = size === 'sm'
     ? 'px-3 py-2 text-xs min-w-[90px] h-[34px]'
+    : size === 'lg'
+    ? 'px-7 py-2.5 text-sm min-w-[140px] h-[42px]'
     : 'px-5 py-2 text-sm min-w-[110px] h-[38px]';
 
   return (
@@ -51,7 +53,7 @@ export function JoinArmyButton({ size = 'md' }: JoinArmyButtonProps) {
             absolute inset-0 flex items-center justify-center transition-all duration-500
             ${showSwords ? 'opacity-100 scale-100' : 'opacity-0 scale-75'}
           `}
-          style={{ fontSize: size === 'sm' ? '16px' : '20px' }}
+          style={{ fontSize: size === 'sm' ? '16px' : size === 'lg' ? '24px' : '20px' }}
         >
           ⚔️
         </span>

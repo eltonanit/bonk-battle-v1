@@ -2,8 +2,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useArmies } from '@/hooks/useArmies';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useArmies, Army } from '@/hooks/useArmies';
 import { CreateArmyModal } from '@/components/armies/CreateArmyModal';
+import { ArmyPreviewModal } from '@/components/armies/ArmyPreviewModal';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
@@ -11,26 +13,54 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import Image from 'next/image';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type TabType = 'top' | 'onfire' | 'leaderboard' | 'ultra';
 
+// Genera ticker automatico (prime 5 lettere, no spazi, uppercase)
+const getTicker = (name: string) => {
+  return name.replace(/\s/g, '').substring(0, 5).toUpperCase();
+};
+
 export default function ArmiesPage() {
+  const { publicKey } = useWallet();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('onfire');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [previewArmy, setPreviewArmy] = useState<Army | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: armies, isLoading, error } = useArmies(activeTab);
+  const { data: armies, isLoading, error, refetch } = useArmies(activeTab);
 
   // Filter armies by search query
   const filteredArmies = armies?.filter(army =>
-    army.name.toLowerCase().includes(searchQuery.toLowerCase())
+    army.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    getTicker(army.name).toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatMemberCount = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(2)}M`;
     if (count >= 1000) return `${(count / 1000).toFixed(2)}K`;
     return count.toString();
+  };
+
+  // Controlla se l'utente è membro o commander dell'armata
+  const handleArmyClick = (army: Army) => {
+    const walletAddress = publicKey?.toString();
+
+    // Se è il commander, vai direttamente alla pagina
+    if (walletAddress && army.capitano_wallet === walletAddress) {
+      router.push(`/armies/${army.id}`);
+      return;
+    }
+
+    // TODO: Controllare se è membro (richiede query al DB)
+    // Per ora mostriamo sempre il preview modal se non è commander
+    setPreviewArmy(army);
+  };
+
+  const handleJoinSuccess = () => {
+    refetch(); // Aggiorna la lista
   };
 
   return (
@@ -65,10 +95,10 @@ export default function ArmiesPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search armies..."
+                placeholder="Search armies by name or ticker..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-orange-500/50 transition-colors"
+                className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 transition-colors"
                 style={{ backgroundColor: '#151516' }}
               />
               {searchQuery && (
@@ -85,25 +115,25 @@ export default function ArmiesPage() {
           </div>
 
           {/* ⚔️ HERO SECTION */}
-          <div className="relative mb-8 overflow-hidden rounded-2xl border border-orange-500/30" style={{ backgroundColor: '#151516' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 via-red-600/5 to-orange-600/10" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-orange-500/20 via-transparent to-transparent" />
+          <div className="relative mb-8 overflow-hidden rounded-2xl border border-green-500/30" style={{ backgroundColor: '#151516' }}>
+            <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 via-emerald-600/5 to-green-600/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-500/20 via-transparent to-transparent" />
 
             <div className="relative px-6 py-10 text-center">
               <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider mb-2" style={{
-                background: 'linear-gradient(135deg, #FF6B35 0%, #F7C02B 50%, #FF6B35 100%)',
+                background: 'linear-gradient(135deg, #22C55E 0%, #4ADE80 50%, #22C55E 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
               }}>
-                ⚔️ JOIN THE WAR
+                ⚔️ JOIN AN ARMY
               </h1>
               <p className="text-gray-400 text-sm mb-5">
-                Choose your side. Build your army. <span className="text-orange-400 font-bold">Crush your enemies.</span>
+                Follow the winners. <span className="text-green-400 font-bold">Take the profits.</span>
               </p>
 
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold uppercase tracking-wide rounded-xl transition-all hover:scale-105 shadow-lg shadow-orange-500/30"
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold uppercase tracking-wide rounded-xl transition-all hover:scale-105 shadow-lg shadow-green-500/30"
               >
                 🏴 Create Your Army
               </button>
@@ -111,53 +141,49 @@ export default function ArmiesPage() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             <button
               onClick={() => setActiveTab('ultra')}
-              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
-                activeTab === 'ultra'
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'ultra'
                   ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-black'
                   : 'border border-white/10'
-              }`}
+                }`}
               style={{
                 backgroundColor: activeTab !== 'ultra' ? '#151516' : undefined,
                 color: activeTab !== 'ultra' ? '#FFD700' : undefined,
               }}
             >
-              Ultra
+              ⭐ Ultra
             </button>
             <button
               onClick={() => setActiveTab('onfire')}
-              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
-                activeTab === 'onfire'
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'onfire'
                   ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-black'
                   : 'text-gray-400 hover:text-white border border-white/10'
-              }`}
+                }`}
               style={{ backgroundColor: activeTab !== 'onfire' ? '#151516' : undefined }}
             >
               🔥 On Fire
             </button>
             <button
               onClick={() => setActiveTab('top')}
-              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
-                activeTab === 'top'
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'top'
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
                   : 'text-gray-400 hover:text-white border border-white/10'
-              }`}
+                }`}
               style={{ backgroundColor: activeTab !== 'top' ? '#151516' : undefined }}
             >
               👑 Top
             </button>
             <button
               onClick={() => setActiveTab('leaderboard')}
-              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
-                activeTab === 'leaderboard'
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'leaderboard'
                   ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black'
                   : 'text-gray-400 hover:text-white border border-white/10'
-              }`}
+                }`}
               style={{ backgroundColor: activeTab !== 'leaderboard' ? '#151516' : undefined }}
             >
-              🏆 Leaderboard
+              🏆 Winners
             </button>
           </div>
 
@@ -165,24 +191,24 @@ export default function ArmiesPage() {
           <div className="mb-4 text-gray-500 text-sm">
             {activeTab === 'onfire' && '🔥 Fastest growing armies (most new recruits)'}
             {activeTab === 'top' && '👑 Largest armies by total members'}
-            {activeTab === 'leaderboard' && '🏆 Best win/loss record in battles'}
-            {activeTab === 'ultra' && <span style={{ color: '#FFD700' }}>Highest level elite armies</span>}
+            {activeTab === 'leaderboard' && '🏆 Armies with most battle wins'}
+            {activeTab === 'ultra' && <span style={{ color: '#FFD700' }}>⭐ Highest level elite armies</span>}
           </div>
 
           {/* LIST CONTAINER */}
-          <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ backgroundColor: '#151516' }}>
+          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#0a0a0b' }}>
 
             {/* Loading State */}
             {isLoading && (
               <div className="divide-y divide-white/5">
                 {[1, 2, 3, 4, 5].map(i => (
                   <div key={i} className="flex items-center gap-4 p-4 animate-pulse">
-                    <div className="w-12 h-12 rounded-xl bg-white/10" />
+                    <div className="w-12 h-12 rounded-full bg-white/10" />
                     <div className="flex-1">
                       <div className="h-4 w-32 bg-white/10 rounded mb-2" />
                       <div className="h-3 w-20 bg-white/5 rounded" />
                     </div>
-                    <div className="h-4 w-16 bg-white/10 rounded" />
+                    <div className="h-8 w-16 bg-white/10 rounded-full" />
                   </div>
                 ))}
               </div>
@@ -210,7 +236,7 @@ export default function ArmiesPage() {
                 {!searchQuery && (
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl"
+                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl"
                   >
                     🏴 Create First Army
                   </button>
@@ -221,103 +247,62 @@ export default function ArmiesPage() {
             {/* ⚔️ ARMY LIST */}
             {!isLoading && !error && filteredArmies && filteredArmies.length > 0 && (
               <div className="divide-y divide-white/5">
-                {filteredArmies.map((army, index) => {
-                  const isOnFire = activeTab === 'onfire';
-                  const isLeaderboard = activeTab === 'leaderboard';
-                  const isTop = activeTab === 'top';
-                  const isUltra = activeTab === 'ultra';
-                  const newMembers = army.member_count - army.member_count_checkpoint;
-                  const wins = army.battles_won ?? 0;
-                  const losses = army.battles_lost ?? 0;
-                  const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
+                {filteredArmies.map((army) => {
+                  const ticker = army.ticker || getTicker(army.name);
+                  const isCommander = publicKey?.toString() === army.capitano_wallet;
 
                   return (
-                    <Link key={army.id} href={`/armies/${army.id}`}>
-                      <div className="flex items-center gap-4 p-4 hover:bg-white/5 transition-colors cursor-pointer">
-                        {/* Army Avatar */}
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-2xl">
-                            {army.image_url ? (
-                              <Image
-                                src={army.image_url}
-                                alt={army.name}
-                                width={48}
-                                height={48}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <span>{army.icon || '⚔️'}</span>
-                            )}
+                    <div
+                      key={army.id}
+                      onClick={() => handleArmyClick(army)}
+                      className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+
+                      {/* Army Avatar - Rotondo */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-11 h-11 rounded-full overflow-hidden bg-gradient-to-br from-gray-700 to-gray-800 flex items-center justify-center text-xl">
+                          {army.image_url ? (
+                            <Image
+                              src={army.image_url}
+                              alt={army.name}
+                              width={44}
+                              height={44}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>{army.icon || '⚔️'}</span>
+                          )}
+                        </div>
+                        {/* Commander badge */}
+                        {isCommander && (
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center text-[10px]">
+                            👑
                           </div>
-                          {/* Rank badge for top 3 */}
-                          {(isLeaderboard || isTop || isUltra) && index < 3 && (
-                            <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
-                              index === 0 ? 'bg-yellow-500 text-black' :
-                              index === 1 ? 'bg-gray-300 text-black' :
-                              'bg-orange-600 text-white'
-                            }`}>
-                              {index + 1}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Army Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-white truncate">{army.name}</h3>
-                            {isOnFire && <span className="text-orange-400 text-xs">🔥</span>}
-                          </div>
-                          <p className="text-gray-500 text-sm">
-                            👥 {formatMemberCount(army.member_count)} soldiers
-                          </p>
-                        </div>
-
-                        {/* Stats Column */}
-                        <div className="text-right flex-shrink-0">
-                          {isOnFire && (
-                            <>
-                              <div className={`font-bold text-sm ${newMembers > 0 ? 'text-green-400' : 'text-gray-400'}`}>
-                                {newMembers > 0 ? `+${newMembers}` : '0'}
-                              </div>
-                              <div className="text-gray-500 text-xs">new today</div>
-                            </>
-                          )}
-                          {isTop && (
-                            <>
-                              <div className="font-bold text-white text-sm">
-                                {formatMemberCount(army.member_count)}
-                              </div>
-                              <div className="text-gray-500 text-xs">members</div>
-                            </>
-                          )}
-                          {isLeaderboard && (
-                            <>
-                              <div className="flex items-center gap-2 justify-end">
-                                <span className="text-green-400 font-bold text-sm">{wins}W</span>
-                                <span className="text-gray-600">-</span>
-                                <span className="text-red-400 font-bold text-sm">{losses}L</span>
-                              </div>
-                              <div className={`text-xs font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
-                                {winRate}% win
-                              </div>
-                            </>
-                          )}
-                          {isUltra && (
-                            <>
-                              <div className="font-bold text-sm" style={{ color: '#FFD700' }}>
-                                LVL {army.level || 1}
-                              </div>
-                              <div className="text-gray-500 text-xs">{army.season_points || 0} pts</div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Arrow */}
-                        <svg className="w-5 h-5 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        )}
                       </div>
-                    </Link>
+
+                      {/* Army Info - Nome + Ticker + Members */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-white truncate">{army.name}</h3>
+                          <span className="text-gray-500 text-sm">{ticker}</span>
+                        </div>
+                        <p className="text-gray-500 text-sm">
+                          👥 {formatMemberCount(army.member_count)} members
+                        </p>
+                      </div>
+
+                      {/* JOIN Button o ENTER */}
+                      {isCommander ? (
+                        <div className="flex-shrink-0 px-4 py-2 bg-yellow-500/20 text-yellow-500 font-bold text-sm rounded-full">
+                          ENTER
+                        </div>
+                      ) : (
+                        <div className="flex-shrink-0 px-5 py-2 bg-green-500 text-black font-bold text-sm rounded-full">
+                          JOIN
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -329,7 +314,7 @@ export default function ArmiesPage() {
             <p className="text-gray-500 text-sm mb-3">Don't see an army you like?</p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="text-orange-400 hover:text-orange-300 font-bold transition-colors"
+              className="text-green-400 hover:text-green-300 font-bold transition-colors"
             >
               Create Your Own →
             </button>
@@ -340,9 +325,17 @@ export default function ArmiesPage() {
 
       <MobileBottomNav />
 
+      {/* Modals */}
       <CreateArmyModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
+      />
+
+      <ArmyPreviewModal
+        army={previewArmy}
+        isOpen={!!previewArmy}
+        onClose={() => setPreviewArmy(null)}
+        onJoinSuccess={handleJoinSuccess}
       />
     </div>
   );
