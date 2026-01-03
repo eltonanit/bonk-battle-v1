@@ -311,3 +311,27 @@ export function usePromoteToken() {
     },
   });
 }
+
+// =============================================
+// HOOK: useMyArmies (armate dove sono membro)
+// =============================================
+
+export function useMyArmies(wallet: string | null) {
+  return useQuery({
+    queryKey: ['my-armies', wallet],
+    queryFn: async () => {
+      if (!wallet) return [];
+
+      const response = await fetch(`/api/armies/my?wallet=${wallet}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch my armies');
+      }
+
+      const data = await response.json();
+      return data.armies as Army[];
+    },
+    enabled: !!wallet,
+    staleTime: 30000,
+  });
+}

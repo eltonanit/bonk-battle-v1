@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useArmies, Army } from '@/hooks/useArmies';
+import { useArmies, useMyArmies, Army } from '@/hooks/useArmies';
 import { CreateArmyModal } from '@/components/armies/CreateArmyModal';
 import { ArmyPreviewModal } from '@/components/armies/ArmyPreviewModal';
 import { Header } from '@/components/layout/Header';
@@ -31,6 +31,10 @@ export default function ArmiesPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { data: armies, isLoading, error, refetch } = useArmies(activeTab);
+  const { data: myArmies, refetch: refetchMyArmies } = useMyArmies(publicKey?.toString() || null);
+
+  // Set di army IDs dove sono membro (per lookup veloce)
+  const myArmyIds = new Set(myArmies?.map(a => a.id) || []);
 
   // Filter armies by search query
   const filteredArmies = armies?.filter(army =>
@@ -45,22 +49,24 @@ export default function ArmiesPage() {
   };
 
   // Controlla se l'utente è membro o commander dell'armata
-  const handleArmyClick = (army: Army) => {
-    const walletAddress = publicKey?.toString();
-
-    // Se è il commander, vai direttamente alla pagina
-    if (walletAddress && army.capitano_wallet === walletAddress) {
+  const handleArmyClick = (army: Army, isMember: boolean) => {
+    // Se è membro o commander, vai direttamente alla pagina
+    if (isMember) {
       router.push(`/armies/${army.id}`);
       return;
     }
 
-    // TODO: Controllare se è membro (richiede query al DB)
-    // Per ora mostriamo sempre il preview modal se non è commander
+    // Altrimenti mostra preview modal per JOIN
     setPreviewArmy(army);
   };
 
   const handleJoinSuccess = () => {
-    refetch(); // Aggiorna la lista
+    refetch();
+    refetchMyArmies();
+    // Chiudi modal e vai alla pagina dell'armata
+    if (previewArmy) {
+      router.push(`/armies/${previewArmy.id}`);
+    }
   };
 
   return (
@@ -145,8 +151,8 @@ export default function ArmiesPage() {
             <button
               onClick={() => setActiveTab('ultra')}
               className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'ultra'
-                  ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-black'
-                  : 'border border-white/10'
+                ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-black'
+                : 'border border-white/10'
                 }`}
               style={{
                 backgroundColor: activeTab !== 'ultra' ? '#151516' : undefined,
@@ -158,8 +164,8 @@ export default function ArmiesPage() {
             <button
               onClick={() => setActiveTab('onfire')}
               className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'onfire'
-                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-black'
-                  : 'text-gray-400 hover:text-white border border-white/10'
+                ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-black'
+                : 'text-gray-400 hover:text-white border border-white/10'
                 }`}
               style={{ backgroundColor: activeTab !== 'onfire' ? '#151516' : undefined }}
             >
@@ -168,8 +174,8 @@ export default function ArmiesPage() {
             <button
               onClick={() => setActiveTab('top')}
               className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'top'
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                  : 'text-gray-400 hover:text-white border border-white/10'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                : 'text-gray-400 hover:text-white border border-white/10'
                 }`}
               style={{ backgroundColor: activeTab !== 'top' ? '#151516' : undefined }}
             >
@@ -178,8 +184,8 @@ export default function ArmiesPage() {
             <button
               onClick={() => setActiveTab('leaderboard')}
               className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'leaderboard'
-                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black'
-                  : 'text-gray-400 hover:text-white border border-white/10'
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-black'
+                : 'text-gray-400 hover:text-white border border-white/10'
                 }`}
               style={{ backgroundColor: activeTab !== 'leaderboard' ? '#151516' : undefined }}
             >
@@ -250,11 +256,12 @@ export default function ArmiesPage() {
                 {filteredArmies.map((army) => {
                   const ticker = army.ticker || getTicker(army.name);
                   const isCommander = publicKey?.toString() === army.capitano_wallet;
+                  const isMember = myArmyIds.has(army.id);
 
                   return (
                     <div
                       key={army.id}
-                      onClick={() => handleArmyClick(army)}
+                      onClick={() => handleArmyClick(army, isMember)}
                       className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors cursor-pointer"
                     >
 
@@ -287,14 +294,20 @@ export default function ArmiesPage() {
                           <h3 className="font-bold text-white truncate">{army.name}</h3>
                           <span className="text-gray-500 text-sm">{ticker}</span>
                         </div>
-                        <p className="text-gray-500 text-sm">
-                          👥 {formatMemberCount(army.member_count)} members
+                        <p className="text-gray-500 text-sm flex items-center gap-1">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                          </svg>
+                          {formatMemberCount(army.member_count)} members
                         </p>
                       </div>
 
-                      {/* JOIN Button o ENTER */}
-                      {isCommander ? (
-                        <div className="flex-shrink-0 px-4 py-2 bg-yellow-500/20 text-yellow-500 font-bold text-sm rounded-full">
+                      {/* BUTTON: ENTER se membro, JOIN se no */}
+                      {isMember ? (
+                        <div className="flex-shrink-0 px-4 py-2 bg-green-500/20 text-green-400 font-bold text-sm rounded-full border border-green-500/30">
                           ENTER
                         </div>
                       ) : (

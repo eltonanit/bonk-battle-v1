@@ -2,17 +2,50 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useWallet, useConnection } from '@solana/wallet-adapter-react';
+import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useVictory } from '@/components/victory/VictoryProvider';
 import Image from 'next/image';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { connected, publicKey } = useWallet();
+  const { connection } = useConnection();
   const { unreadCount } = useNotifications();
   const { unreadCount: victoryUnreadCount } = useVictory();
+  const [balanceUsd, setBalanceUsd] = useState<string | null>(null);
 
   // Combine notification counts
   const totalUnreadCount = unreadCount + victoryUnreadCount;
+
+  // Fetch balance
+  useEffect(() => {
+    if (!connected || !publicKey) {
+      setBalanceUsd(null);
+      return;
+    }
+
+    const fetchBalance = async () => {
+      try {
+        const balance = await connection.getBalance(publicKey);
+        const solBalance = balance / LAMPORTS_PER_SOL;
+        const priceRes = await fetch('/api/price/sol');
+        const priceData = await priceRes.json();
+        const solPrice = priceData.price || 0;
+        const usdValue = solBalance * solPrice;
+        setBalanceUsd(usdValue.toFixed(2));
+      } catch (error) {
+        console.error('Error fetching balance:', error);
+        setBalanceUsd(null);
+      }
+    };
+
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [connected, publicKey, connection]);
 
   const isActive = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -31,6 +64,16 @@ export function Sidebar() {
       )
     },
     {
+      href: '/armies',
+      label: 'Armies',
+      isGreen: true,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+      )
+    },
+    {
       href: '/create',
       label: 'Create Coin',
       icon: (
@@ -42,27 +85,25 @@ export function Sidebar() {
       )
     },
     {
-      href: '/winners',
-      label: 'Winners',
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-          <path d="M4 22h16" />
-          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-        </svg>
-      )
-    },
-    {
       href: '/profile',
       label: 'Profile',
+      showBalance: true,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
         </svg>
+      )
+    },
+    {
+      href: '/battlestart',
+      label: 'Battles',
+      icon: (
+        <img
+          src="/icons8-battaglia-100.png"
+          alt="Battles"
+          className="w-6 h-6 brightness-0 invert"
+        />
       )
     },
     {
@@ -77,14 +118,17 @@ export function Sidebar() {
       badge: totalUnreadCount
     },
     {
-      href: '/battlestart',
-      label: 'Battles',
+      href: '/leaderboard',
+      label: 'Leaderboard',
       icon: (
-        <img
-          src="/icons8-battaglia-100.png"
-          alt="Battles"
-          className="w-6 h-6 brightness-0 invert"
-        />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
       )
     },
     {
@@ -129,18 +173,29 @@ export function Sidebar() {
             href={item.href}
             className={
               isActive(item.href)
-                ? item.href === '/winners'
-                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
-                  : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
-                : item.href === '/winners'
-                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 relative'
-                  : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white hover:text-white hover:bg-bonk-card/50 relative'
+                ? item.isGreen
+                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-green-500/20 text-green-400 relative'
+                  : item.href === '/leaderboard'
+                    ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
+                    : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
+                : item.isGreen
+                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-green-400 hover:text-green-300 hover:bg-green-500/10 relative'
+                  : item.href === '/leaderboard'
+                    ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 relative'
+                    : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white hover:text-white hover:bg-bonk-card/50 relative'
             }
           >
             <span className="flex-shrink-0">
               {item.icon}
             </span>
-            <span>{item.label}</span>
+            <span className="flex-1">{item.label}</span>
+
+            {/* Balance per Profile */}
+            {item.showBalance && connected && balanceUsd && (
+              <span className="text-green-400 font-bold text-sm">
+                ${balanceUsd}
+              </span>
+            )}
 
             {/* Badge per notifiche */}
             {item.badge && item.badge > 0 && (

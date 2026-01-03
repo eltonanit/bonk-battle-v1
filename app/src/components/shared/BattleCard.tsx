@@ -1,6 +1,6 @@
 // =================================================================
 // FILE: app/src/components/shared/BattleCard.tsx
-// ⭐ V2: Inline transformation (no popup) - ALL ANIMATIONS PRESERVED
+// ⭐ V3: Replaced VOL with Created by / Army
 // =================================================================
 'use client';
 
@@ -230,6 +230,7 @@ const allStyles = `
   }
 `;
 
+// ⭐ NEW: BattleToken interface with Army fields
 interface BattleToken {
   mint: string;
   name: string;
@@ -240,6 +241,11 @@ interface BattleToken {
   totalVolumeSol: number;
   holders?: number;
   tokensSold?: number;
+  // ⭐ NEW: Army/Creator fields
+  armyId?: string | null;
+  armyName?: string | null;
+  armyTicker?: string | null;
+  creatorWallet?: string | null;
 }
 
 interface BattleCardProps {
@@ -251,6 +257,40 @@ interface BattleCardProps {
   isEpicBattle?: boolean;
   showShareButton?: boolean;
   showBuyButtons?: boolean;
+}
+
+// ⭐ NEW: Helper function to format creator display
+function formatCreatorDisplay(token: BattleToken): { label: string; value: string; isArmy: boolean } {
+  // If token has army, show army ticker
+  if (token.armyTicker) {
+    return {
+      label: 'ARMY',
+      value: token.armyTicker,
+      isArmy: true
+    };
+  }
+  // If token has army name but no ticker, use name
+  if (token.armyName) {
+    return {
+      label: 'ARMY',
+      value: token.armyName.length > 10 ? token.armyName.slice(0, 10) + '...' : token.armyName,
+      isArmy: true
+    };
+  }
+  // Fallback: show first 5 chars of creator wallet
+  if (token.creatorWallet) {
+    return {
+      label: 'CREATED BY',
+      value: token.creatorWallet.slice(0, 5) + '...',
+      isArmy: false
+    };
+  }
+  // Ultimate fallback
+  return {
+    label: 'CREATED BY',
+    value: 'Anon',
+    isArmy: false
+  };
 }
 
 export function BattleCard({
@@ -285,19 +325,12 @@ export function BattleCard({
   // ⭐ Target MC = Final MC when bonding curve is full
   const targetMcUsd = getFinalMarketCapUsd(solPrice);
 
-  // ⭐ Calculate volumes in USD
-  const volUsdA = solToUsd(tokenA.totalVolumeSol, solPrice);
-  const volUsdB = solToUsd(tokenB.totalVolumeSol, solPrice);
-  const targetVolUsd = solToUsd(targetVolumeSol, solPrice);
-
   // ⭐ Calculate chances
   const { chanceA, chanceB } = calculateChances(tokenA.solCollected, tokenB.solCollected);
 
   // ⭐ Progress calculations (based on SOL for accuracy)
   const solProgressA = Math.min((tokenA.solCollected / targetSol) * 100, 100);
   const solProgressB = Math.min((tokenB.solCollected / targetSol) * 100, 100);
-  const volProgressA = Math.min((tokenA.totalVolumeSol / targetVolumeSol) * 100, 100);
-  const volProgressB = Math.min((tokenB.totalVolumeSol / targetVolumeSol) * 100, 100);
 
   // ⭐ Calculate Best To Win when in buy mode
   const amountSOL = solPrice > 0 ? amountUSD / solPrice : 0;
@@ -311,6 +344,10 @@ export function BattleCard({
     { solCollected: opponentToken.solCollected, tokensSold: opponentToken.tokensSold || 0 },
     solPrice
   ) : null;
+
+  // ⭐ Get creator display for both tokens
+  const creatorA = formatCreatorDisplay(tokenA);
+  const creatorB = formatCreatorDisplay(tokenB);
 
   // ⚔️ Random battle animations - PRESERVED FROM ORIGINAL
   useEffect(() => {
@@ -416,7 +453,7 @@ export function BattleCard({
   // ========================================================================
   if (winner && winnerToken && loserToken) {
     const winnerMcUsd = calculateMarketCapUsd(winnerToken.solCollected, solPrice);
-    const winnerVolUsd = solToUsd(winnerToken.totalVolumeSol, solPrice);
+    const winnerCreator = formatCreatorDisplay(winnerToken);
 
     return (
       <Link href={`/token/${winnerToken.mint}`} className="block">
@@ -459,9 +496,12 @@ export function BattleCard({
                     <span className="text-gray-500 text-xs">MC </span>
                     <span className="text-yellow-400 font-bold text-sm">{formatUsd(winnerMcUsd)}</span>
                   </div>
+                  {/* ⭐ NEW: Show Army/User instead of VOL */}
                   <div className="bg-black/30 rounded px-2 py-1">
-                    <span className="text-gray-500 text-xs">VOL </span>
-                    <span className="text-green-400 font-bold text-sm">{formatUsd(winnerVolUsd)}</span>
+                    <span className="text-gray-500 text-xs">{winnerCreator.label} </span>
+                    <span className={`font-bold text-sm ${winnerCreator.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
+                      {winnerCreator.value}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -601,7 +641,7 @@ export function BattleCard({
 
         {!buyMode ? (
           /* ══════════════════════════════════════════════════════════════
-             NORMAL MODE - Stats + Buy Buttons (PRESERVED FROM ORIGINAL)
+             NORMAL MODE - Stats + Buy Buttons
           ══════════════════════════════════════════════════════════════ */
           <>
             {/* Battle Content */}
@@ -638,21 +678,17 @@ export function BattleCard({
                     </span>
                   </div>
 
-                  {/* VOL Row in USD */}
-                  <div className="flex items-center gap-1 lg:gap-2">
-                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">VOL</span>
-                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${volProgressA >= 100
-                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
-                          : 'bg-gradient-to-r from-green-400 to-green-600'
-                          }`}
-                        style={{ width: `${volProgressA}%` }}
-                      />
+                  {/* ⭐ NEW: Created by + Army/User Row - Token A */}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] lg:text-xs text-gray-500 uppercase">Created by</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs lg:text-sm font-bold text-gray-400">
+                        {creatorA.label}
+                      </span>
+                      <span className={`text-xs lg:text-sm font-semibold truncate ${creatorA.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
+                        {creatorA.value}
+                      </span>
                     </div>
-                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
-                      {formatUsd(volUsdA)}
-                    </span>
                   </div>
                 </div>
 
@@ -663,10 +699,7 @@ export function BattleCard({
                     <span className="text-xs lg:text-sm text-gray-400">MC</span>
                     <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetMcUsd)}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs lg:text-sm text-gray-400">VOL</span>
-                    <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetVolUsd)}</span>
-                  </div>
+                  {/* ⭐ REMOVED: VOL target - only MC matters now */}
                 </div>
 
                 {/* Right Token Stats */}
@@ -700,21 +733,17 @@ export function BattleCard({
                     <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
                   </div>
 
-                  {/* VOL Row in USD */}
-                  <div className="flex items-center gap-1 lg:gap-2">
-                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
-                      {formatUsd(volUsdB)}
-                    </span>
-                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${volProgressB >= 100
-                          ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
-                          : 'bg-gradient-to-r from-green-600 to-green-400'
-                          }`}
-                        style={{ width: `${volProgressB}%` }}
-                      />
+                  {/* ⭐ NEW: Created by + Army/User Row - Token B */}
+                  <div className="flex flex-col gap-0.5 items-end">
+                    <span className="text-[10px] lg:text-xs text-gray-500 uppercase">Created by</span>
+                    <div className="flex items-center gap-1">
+                      <span className={`text-xs lg:text-sm font-semibold truncate ${creatorB.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
+                        {creatorB.value}
+                      </span>
+                      <span className="text-xs lg:text-sm font-bold text-gray-400">
+                        {creatorB.label}
+                      </span>
                     </div>
-                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">VOL</span>
                   </div>
                 </div>
               </div>
@@ -890,7 +919,7 @@ export function BattleCard({
               <div className="flex flex-col items-center">
                 <span className="text-lg font-medium">Buy ${selectedToken.symbol}</span>
                 <span className="text-sm opacity-90">
-                  Best to win {formatUsd(bestToWinResult?.toWinUSD || 0)}
+                  Value up to {formatUsd(bestToWinResult?.toWinUSD || 0)}
                 </span>
               </div>
             </button>

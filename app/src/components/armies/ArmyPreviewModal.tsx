@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useRouter } from 'next/navigation';
 import { useJoinArmy, Army } from '@/hooks/useArmies';
 import Image from 'next/image';
 
@@ -20,6 +21,7 @@ const getTicker = (name: string) => {
 
 export function ArmyPreviewModal({ army, isOpen, onClose, onJoinSuccess }: ArmyPreviewModalProps) {
   const { publicKey } = useWallet();
+  const router = useRouter();
   const joinArmy = useJoinArmy();
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,8 @@ export function ArmyPreviewModal({ army, isOpen, onClose, onJoinSuccess }: ArmyP
 
       onJoinSuccess?.();
       onClose();
+      // Navigate to army page after successful join
+      router.push(`/armies/${army.id}`);
     } catch (err: any) {
       setError(err.message || 'Failed to join army');
     } finally {

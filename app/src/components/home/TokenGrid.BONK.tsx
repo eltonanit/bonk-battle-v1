@@ -298,6 +298,8 @@ export function TokenGridBonk() {
     marketCapUsd: calculateMarketCapUsd(token),
     solCollected: lamportsToSol(token.realSolReserves ?? 0),
     totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
+    // ⭐ NEW: Pass creator wallet for BattleCard
+    creatorWallet: token.creator?.toString() || null,
   });
 
   const getCount = () => {
