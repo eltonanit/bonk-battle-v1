@@ -1,4 +1,4 @@
-// app/api/armies/[id]/orders/route.ts
+// app/src/app/api/armies/[id]/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -8,24 +8,38 @@ const supabase = createClient(
 );
 
 // GET /api/armies/[id]/orders
-// Get all orders for an army (newest first)
+// Query params: ?type=order | ?type=comment | (nessuno = tutti)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const type = searchParams.get('type'); // 'order' | 'comment' | null
 
-    const { data: orders, error } = await supabase
+    let query = supabase
       .from('army_orders')
       .select('*')
       .eq('army_id', id)
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .order('created_at', { ascending: true }) // Cronologico (vecchi prima)
+      .limit(100);
+
+    // Filtra per tipo se specificato
+    if (type === 'order') {
+      // Orders tab: mostra orders + joined events
+      query = query.in('type', ['order', 'joined']);
+    } else if (type === 'comment') {
+      // Comments tab: mostra solo comments
+      query = query.eq('type', 'comment');
+    }
+    // Se type non specificato, ritorna tutto
+
+    const { data: orders, error } = await query;
 
     if (error) throw error;
 
-    return NextResponse.json({ orders }, { status: 200 });
+    return NextResponse.json({ orders: orders || [] }, { status: 200 });
   } catch (error: any) {
     console.error('GET /api/armies/[id]/orders error:', error);
     return NextResponse.json(
@@ -36,20 +50,20 @@ export async function GET(
 }
 
 // POST /api/armies/[id]/orders
-// Post new order (ONLY CAPITANO)
-// Body: { capitano_wallet, message, token_mint? }
+// Body: { wallet_address, message, type?, token_mint? }
+// type: 'order' (solo commander) | 'comment' (tutti i membri)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const { capitano_wallet, message, token_mint } = await request.json();
+    const { wallet_address, message, type = 'comment', token_mint } = await request.json();
 
     // Validazioni
-    if (!capitano_wallet) {
+    if (!wallet_address) {
       return NextResponse.json(
-        { error: 'Capitano wallet is required' },
+        { error: 'Wallet address is required' },
         { status: 400 }
       );
     }
@@ -57,6 +71,13 @@ export async function POST(
     if (!message || message.length < 1 || message.length > 500) {
       return NextResponse.json(
         { error: 'Message must be 1-500 characters' },
+        { status: 400 }
+      );
+    }
+
+    if (!['order', 'comment'].includes(type)) {
+      return NextResponse.json(
+        { error: 'Type must be "order" or "comment"' },
         { status: 400 }
       );
     }
@@ -76,21 +97,39 @@ export async function POST(
       );
     }
 
-    // Check: è il capitano?
-    if (army.capitano_wallet !== capitano_wallet) {
+    // Se tipo = 'order', deve essere il commander
+    if (type === 'order' && army.capitano_wallet !== wallet_address) {
       return NextResponse.json(
-        { error: 'Only the Re-Capitano can post orders' },
+        { error: 'Only the Commander can post orders' },
         { status: 403 }
       );
     }
 
-    // Crea ordine
+    // Se tipo = 'comment', deve essere un membro
+    if (type === 'comment') {
+      const { data: member } = await supabase
+        .from('army_members')
+        .select('id')
+        .eq('army_id', id)
+        .eq('wallet_address', wallet_address)
+        .single();
+
+      if (!member) {
+        return NextResponse.json(
+          { error: 'You must be a member to comment' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Crea messaggio
     const { data: order, error: orderError } = await supabase
       .from('army_orders')
       .insert({
         army_id: id,
-        capitano_wallet,
+        capitano_wallet: wallet_address,
         message,
+        type,
         token_mint: token_mint || null,
       })
       .select()
@@ -101,7 +140,7 @@ export async function POST(
     return NextResponse.json(
       {
         order,
-        message: 'Order posted successfully!',
+        message: type === 'order' ? 'Order posted!' : 'Comment posted!',
       },
       { status: 201 }
     );

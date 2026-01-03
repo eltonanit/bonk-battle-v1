@@ -48,7 +48,11 @@ export default function ArmyDetailPage() {
 
   const armyId = params.id as string;
   const { data: army, isLoading: armyLoading, error: armyError } = useArmy(armyId);
-  const { data: orders, isLoading: ordersLoading } = useArmyOrders(armyId);
+
+  // Query separate per Orders e Comments
+  const { data: ordersData, isLoading: ordersLoading } = useArmyOrders(armyId, 'order');
+  const { data: commentsData, isLoading: commentsLoading } = useArmyOrders(armyId, 'comment');
+
   const postOrder = usePostOrder();
 
   const [activeTab, setActiveTab] = useState<TabType>('orders');
@@ -74,8 +78,9 @@ export default function ArmyDetailPage() {
     try {
       await postOrder.mutateAsync({
         armyId: army.id,
-        capitano_wallet: publicKey.toString(),
+        wallet_address: publicKey.toString(),
         message: message.trim(),
+        type: activeTab === 'orders' ? 'order' : 'comment',
       });
       setMessage('');
     } catch (err) {
@@ -153,6 +158,10 @@ export default function ArmyDetailPage() {
     ? (isCommander ? "Post an order..." : "Only commander can post")
     : "Post your reply...";
 
+  // Dati per il tab attivo
+  const currentData = activeTab === 'orders' ? ordersData : commentsData;
+  const currentLoading = activeTab === 'orders' ? ordersLoading : commentsLoading;
+
   return (
     <div className="min-h-screen bg-bonk-dark text-white">
       {/* Tickers - Mobile only */}
@@ -223,8 +232,8 @@ export default function ArmyDetailPage() {
               <button
                 onClick={() => setActiveTab('orders')}
                 className={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'orders'
-                    ? 'text-yellow-400'
-                    : 'text-gray-500 hover:text-gray-300'
+                  ? 'text-yellow-400'
+                  : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 Orders
@@ -235,8 +244,8 @@ export default function ArmyDetailPage() {
               <button
                 onClick={() => setActiveTab('comments')}
                 className={`flex-1 py-3 text-sm font-bold transition-colors relative ${activeTab === 'comments'
-                    ? 'text-blue-400'
-                    : 'text-gray-500 hover:text-gray-300'
+                  ? 'text-blue-400'
+                  : 'text-gray-500 hover:text-gray-300'
                   }`}
               >
                 Comments
@@ -269,18 +278,15 @@ export default function ArmyDetailPage() {
             {activeTab === 'orders' ? (
               /* ORDERS TAB */
               <div>
-                {ordersLoading ? (
+                {currentLoading ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full" />
+                    <div className="animate-spin w-6 h-6 border-2 border-yellow-500 border-t-transparent rounded-full" />
                   </div>
-                ) : orders && orders.length > 0 ? (
+                ) : currentData && currentData.length > 0 ? (
                   <div>
-                    {orders.map((order) => {
-                      const isOrderFromCommander = order.capitano_wallet === army.capitano_wallet;
-
-                      // Solo ordini del commander in questo tab
-                      if (!isOrderFromCommander) {
-                        // Mostra come "joined" event
+                    {currentData.map((order) => {
+                      // Se è un evento "joined", mostra come tale
+                      if (order.type === 'joined') {
                         return (
                           <div key={order.id} className="flex justify-center py-3 border-b border-white/5">
                             <span className="text-gray-500 text-sm">
@@ -290,6 +296,7 @@ export default function ArmyDetailPage() {
                         );
                       }
 
+                      // Ordine del commander
                       return (
                         <div key={order.id} className="px-4 py-3 border-b border-white/10 hover:bg-white/[0.02] transition-colors">
                           <div className="flex gap-3">
@@ -314,7 +321,7 @@ export default function ArmyDetailPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 flex-wrap">
                                 <span className="font-bold text-white">Commander</span>
-                                <span className="text-green-500">✓</span>
+                                <span className="text-yellow-500">👑</span>
                                 <span className="text-gray-500">·</span>
                                 <span className="text-gray-500 text-sm">
                                   {formatTimeAgo(order.created_at)}
@@ -325,11 +332,11 @@ export default function ArmyDetailPage() {
                               {/* Token Link if exists */}
                               {order.token_mint && (
                                 <Link href={`/token/${order.token_mint}`}>
-                                  <div className="mt-3 p-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors">
+                                  <div className="mt-3 p-3 rounded-xl border border-yellow-500/30 hover:bg-yellow-500/10 transition-colors">
                                     <div className="flex items-center gap-2">
-                                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500" />
+                                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-yellow-500 to-orange-500" />
                                       <div>
-                                        <div className="text-white text-sm font-bold">View Token</div>
+                                        <div className="text-white text-sm font-bold">🎯 Token Call</div>
                                         <div className="text-gray-500 text-xs">Tap to trade</div>
                                       </div>
                                     </div>
@@ -355,24 +362,24 @@ export default function ArmyDetailPage() {
             ) : (
               /* COMMENTS TAB */
               <div>
-                {ordersLoading ? (
+                {currentLoading ? (
                   <div className="flex justify-center py-8">
-                    <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full" />
+                    <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
                   </div>
-                ) : orders && orders.length > 0 ? (
+                ) : currentData && currentData.length > 0 ? (
                   <div>
-                    {orders.map((order) => {
-                      const isOrderFromCommander = order.capitano_wallet === army.capitano_wallet;
+                    {currentData.map((comment) => {
+                      const isCommentFromCommander = comment.capitano_wallet === army.capitano_wallet;
 
                       return (
-                        <div key={order.id} className="px-4 py-3 border-b border-white/10 hover:bg-white/[0.02] transition-colors">
+                        <div key={comment.id} className="px-4 py-3 border-b border-white/10 hover:bg-white/[0.02] transition-colors">
                           <div className="flex gap-3">
                             {/* Avatar */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden ${isOrderFromCommander
-                                ? ''
-                                : 'bg-gradient-to-br from-gray-600 to-gray-700'
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden ${isCommentFromCommander
+                              ? ''
+                              : 'bg-gradient-to-br from-blue-600 to-blue-700'
                               }`}>
-                              {isOrderFromCommander && army.image_url ? (
+                              {isCommentFromCommander && army.image_url ? (
                                 <Image
                                   src={army.image_url}
                                   alt={army.name}
@@ -381,7 +388,7 @@ export default function ArmyDetailPage() {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                order.capitano_wallet.slice(0, 2).toUpperCase()
+                                comment.capitano_wallet.slice(0, 2).toUpperCase()
                               )}
                             </div>
 
@@ -389,17 +396,17 @@ export default function ArmyDetailPage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1 flex-wrap">
                                 <span className="font-bold text-white">
-                                  {isOrderFromCommander ? 'Commander' : formatWallet(order.capitano_wallet)}
+                                  {isCommentFromCommander ? 'Commander' : formatWallet(comment.capitano_wallet)}
                                 </span>
-                                {isOrderFromCommander && (
-                                  <span className="text-green-500">✓</span>
+                                {isCommentFromCommander && (
+                                  <span className="text-yellow-500">👑</span>
                                 )}
                                 <span className="text-gray-500">·</span>
                                 <span className="text-gray-500 text-sm">
-                                  {formatTimeAgo(order.created_at)}
+                                  {formatTimeAgo(comment.created_at)}
                                 </span>
                               </div>
-                              <p className="text-white mt-1 break-words">{order.message}</p>
+                              <p className="text-white mt-1 break-words">{comment.message}</p>
                             </div>
                           </div>
                         </div>
@@ -424,10 +431,10 @@ export default function ArmyDetailPage() {
             <div className="flex items-center gap-3">
               {/* User Avatar */}
               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0 overflow-hidden ${isCommander && army.image_url
-                  ? ''
-                  : isCommander
-                    ? 'bg-gradient-to-br from-yellow-500 to-orange-500'
-                    : 'bg-gradient-to-br from-green-500 to-emerald-500'
+                ? ''
+                : isCommander
+                  ? 'bg-gradient-to-br from-yellow-500 to-orange-500'
+                  : 'bg-gradient-to-br from-blue-500 to-blue-600'
                 }`}>
                 {isCommander && army.image_url ? (
                   <Image
@@ -453,7 +460,10 @@ export default function ArmyDetailPage() {
                   onKeyPress={handleKeyPress}
                   placeholder={inputPlaceholder}
                   disabled={!canWrite || isSending}
-                  className="w-full bg-transparent border border-white/20 rounded-full px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-green-500/50 disabled:opacity-50 transition-colors text-sm"
+                  className={`w-full bg-transparent border rounded-full px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none disabled:opacity-50 transition-colors text-sm ${activeTab === 'orders'
+                      ? 'border-yellow-500/30 focus:border-yellow-500/50'
+                      : 'border-blue-500/30 focus:border-blue-500/50'
+                    }`}
                 />
               </div>
 
@@ -462,7 +472,10 @@ export default function ArmyDetailPage() {
                 <button
                   onClick={handleSendMessage}
                   disabled={!canWrite || isSending}
-                  className="w-9 h-9 rounded-full bg-green-500 hover:bg-green-400 disabled:bg-green-500/50 flex items-center justify-center text-black transition-colors"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-black transition-colors ${activeTab === 'orders'
+                      ? 'bg-yellow-500 hover:bg-yellow-400 disabled:bg-yellow-500/50'
+                      : 'bg-blue-500 hover:bg-blue-400 disabled:bg-blue-500/50'
+                    }`}
                 >
                   {isSending ? (
                     <div className="animate-spin w-4 h-4 border-2 border-black border-t-transparent rounded-full" />

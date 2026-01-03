@@ -42,8 +42,9 @@ export interface ArmyOrder {
   id: string;
   army_id: string;
   capitano_wallet: string;
-  message: string;
+  message: string | null;
   token_mint?: string | null;
+  type?: 'order' | 'joined' | 'comment';
   created_at: string;
 }
 
@@ -105,13 +106,16 @@ export function useArmy(armyId: string | null) {
 // HOOK: useArmyOrders
 // =============================================
 
-export function useArmyOrders(armyId: string | null) {
+export function useArmyOrders(armyId: string | null, type?: 'order' | 'comment') {
   return useQuery({
-    queryKey: ['army-orders', armyId],
+    queryKey: ['army-orders', armyId, type],
     queryFn: async () => {
       if (!armyId) return [];
 
-      const response = await fetch(`/api/armies/${armyId}/orders`);
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+
+      const response = await fetch(`/api/armies/${armyId}/orders?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch orders');
@@ -122,7 +126,7 @@ export function useArmyOrders(armyId: string | null) {
     },
     enabled: !!armyId,
     staleTime: 10000,
-    refetchInterval: 30000,
+    refetchInterval: 15000, // Refresh ogni 15 secondi
   });
 }
 
@@ -240,13 +244,14 @@ export function useLeaveArmy() {
 }
 
 // =============================================
-// MUTATION: postOrder
+// MUTATION: postOrder (ora supporta type)
 // =============================================
 
 interface PostOrderParams {
   armyId: string;
-  capitano_wallet: string;
+  wallet_address: string;
   message: string;
+  type: 'order' | 'comment';
   token_mint?: string;
 }
 
@@ -254,23 +259,24 @@ export function usePostOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ armyId, capitano_wallet, message, token_mint }: PostOrderParams) => {
+    mutationFn: async ({ armyId, wallet_address, message, type, token_mint }: PostOrderParams) => {
       const response = await fetch(`/api/armies/${armyId}/orders`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ capitano_wallet, message, token_mint }),
+        body: JSON.stringify({ wallet_address, message, type, token_mint }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to post order');
+        throw new Error(error.error || 'Failed to post');
       }
 
       return await response.json();
     },
     onSuccess: (_, variables) => {
+      // Invalida entrambe le query (orders e comments)
       queryClient.invalidateQueries({ queryKey: ['army-orders', variables.armyId] });
     },
   });

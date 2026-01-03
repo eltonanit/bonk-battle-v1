@@ -11,10 +11,10 @@ const supabase = createClient(
 // Body: { wallet_address }
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { wallet_address } = await request.json();
 
     if (!wallet_address) {
@@ -64,6 +64,16 @@ export async function POST(
 
     if (memberError) throw memberError;
 
+    // 🆕 Salva evento "joined" nella tabella army_orders
+    await supabase
+      .from('army_orders')
+      .insert({
+        army_id: id,
+        capitano_wallet: wallet_address,
+        message: null,
+        type: 'joined',
+      });
+
     // Incrementa member_count
     const newMemberCount = army.member_count + 1;
     const membersSinceCheckpoint = newMemberCount - army.member_count_checkpoint;
@@ -72,6 +82,11 @@ export async function POST(
       member_count: newMemberCount,
       last_join_at: new Date().toISOString(),
     };
+
+    // Aggiorna is_eligible_to_create se raggiungiamo 4 membri
+    if (newMemberCount >= 4 && !army.is_eligible_to_create) {
+      updateData.is_eligible_to_create = true;
+    }
 
     // Se abbiamo raggiunto multiplo di 10, aggiorna checkpoint (ON FIRE trigger)
     if (membersSinceCheckpoint >= 10) {
