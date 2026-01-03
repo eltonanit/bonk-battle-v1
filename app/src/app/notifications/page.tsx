@@ -154,6 +154,12 @@ export default function NotificationsPage() {
             return;
         }
 
+        // Navigate to army page for army_join notifications
+        if (notification.type === 'army_join' && notification.data?.army_id) {
+            router.push(`/armies/${notification.data.army_id}`);
+            return;
+        }
+
         if (notification.type === 'points' && notification.data?.token_mint) {
             router.push(`/token/${notification.data.token_mint}`);
             return;
@@ -312,6 +318,52 @@ export default function NotificationsPage() {
                         )}
                         {!notif.read && (
                             <div className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        // For army join notifications
+        if (notif.type === 'army_join') {
+            const armyName = (notif.data?.army_name as string) || 'your army';
+            const armyImage = notif.data?.army_image as string | null;
+            const joinerWallet = (notif.data?.joiner_wallet as string) || '';
+            const walletShort = joinerWallet.slice(0, 6);
+
+            return (
+                <div
+                    key={notif.id}
+                    onClick={() => handleNotificationClick(notif)}
+                    className={`py-4 px-4 cursor-pointer hover:bg-white/5 transition-colors ${!isLast ? 'border-b border-gray-700/50' : ''}`}
+                >
+                    <div className="flex items-center gap-3">
+                        {armyImage ? (
+                            <Image
+                                src={armyImage}
+                                alt={armyName}
+                                width={40}
+                                height={40}
+                                className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                                unoptimized
+                            />
+                        ) : (
+                            <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xl">⚔️</span>
+                            </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm">
+                                <span className="font-semibold text-orange-400">{walletShort}...</span>
+                                <span className="text-gray-400"> joined </span>
+                                <span className="font-semibold text-white">{armyName}</span>
+                            </p>
+                            <p className="text-gray-500 text-xs mt-1">
+                                {formatTimeAgo(notif.created_at)}
+                            </p>
+                        </div>
+                        {!notif.read && (
+                            <div className="w-2 h-2 bg-orange-500 rounded-full flex-shrink-0" />
                         )}
                     </div>
                 </div>

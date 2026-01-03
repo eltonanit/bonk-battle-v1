@@ -64,7 +64,7 @@ export async function POST(
 
     if (memberError) throw memberError;
 
-    // 🆕 Salva evento "joined" nella tabella army_orders
+    // Salva evento "joined" nella tabella army_orders
     await supabase
       .from('army_orders')
       .insert({
@@ -73,6 +73,28 @@ export async function POST(
         message: null,
         type: 'joined',
       });
+
+    // 🔔 NOTIFICA AL COMMANDER
+    // Non notificare se il commander sta joinando la sua stessa armata
+    if (army.capitano_wallet !== wallet_address) {
+      const walletShort = wallet_address.slice(0, 6);
+
+      await supabase
+        .from('notifications')
+        .insert({
+          user_wallet: army.capitano_wallet,
+          type: 'army_join',
+          title: 'New soldier joined!',
+          message: `${walletShort}... joined ${army.name}`,
+          read: false,
+          data: {
+            army_id: army.id,
+            army_name: army.name,
+            army_image: army.image_url,
+            joiner_wallet: wallet_address,
+          },
+        });
+    }
 
     // Incrementa member_count
     const newMemberCount = army.member_count + 1;

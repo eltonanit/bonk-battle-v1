@@ -13,10 +13,13 @@ import { createBattleToken, TIER_CONFIG } from '@/lib/solana/create-battle-token
 import { TransactionSuccessPopup } from '@/components/shared/TransactionSuccessPopup';
 import { PointsNotification } from '@/components/shared/PointsNotification';
 import { addPointsForCreateToken, POINTS_VALUES } from '@/lib/points';
+import { CreateTokenGate } from '@/components/create/CreateTokenGate';
+import { useCanCreateToken } from '@/hooks/useCanCreateToken';
 
 export default function CreatePage() {
     const { publicKey, signTransaction } = useWallet();
     const router = useRouter();
+    const { army } = useCanCreateToken();
     const [name, setName] = useState('');
     const [symbol, setSymbol] = useState('');
     const [description, setDescription] = useState('');
@@ -153,6 +156,28 @@ export default function CreatePage() {
                 console.warn('⚠️ Error saving creator:', err);
             }
 
+            // ⭐ Save army_id to database
+            if (army?.id) {
+                try {
+                    const armyRes = await fetch('/api/tokens/set-army', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            mint: result.mint.toString(),
+                            armyId: army.id
+                        })
+                    });
+
+                    if (armyRes.ok) {
+                        console.log(`🛡️ Army saved to database: ${army.name}`);
+                    } else {
+                        console.warn('⚠️ Could not save army to database');
+                    }
+                } catch (err) {
+                    console.warn('⚠️ Error saving army:', err);
+                }
+            }
+
             // Add points for creating token
             try {
                 const pointsResult = await addPointsForCreateToken(
@@ -229,17 +254,18 @@ export default function CreatePage() {
             <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16">
 
                 <div className="max-w-[1200px] pl-8 pr-5 py-10">
-                    {/* Header Section */}
-                    <div className="mb-10">
-                        <h1 className="text-4xl lg:text-5xl font-extrabold mb-3 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
-                            Start Battle Here
-                        </h1>
-                        <p className="text-xl text-white/80 font-semibold">
-                            First: Create a Coin
-                        </p>
-                    </div>
+                    <CreateTokenGate>
+                        {/* Header Section */}
+                        <div className="mb-10">
+                            <h1 className="text-4xl lg:text-5xl font-extrabold mb-3 bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                                Start Battle Here
+                            </h1>
+                            <p className="text-xl text-white/80 font-semibold">
+                                First: Create a Coin
+                            </p>
+                        </div>
 
-                    <form onSubmit={handleCreateToken}>
+                        <form onSubmit={handleCreateToken}>
                         {/* Token Details Section */}
                         <section>
                             <h2 className="text-xl font-bold mb-2">Token details</h2>
@@ -404,6 +430,7 @@ export default function CreatePage() {
                             {isCreating ? 'Creating Coin...' : 'Create 🚀 Coin'}
                         </button>
                     </form>
+                    </CreateTokenGate>
                 </div>
             </div>
             <MobileBottomNav />
