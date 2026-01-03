@@ -9,6 +9,7 @@ import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
 import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
+import { supabase } from '@/lib/supabase';
 
 // ⭐ TIER TARGETS - Must match smart contract!
 const TIER_TARGETS = {
@@ -60,6 +61,8 @@ export function Tagline() {
   const [isHoveringTokens, setIsHoveringTokens] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { solPriceUsd } = usePriceOracle();
+  // ⭐ Creator profiles cache (wallet -> avatar_url)
+  const [creatorAvatars, setCreatorAvatars] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     async function loadTokens() {
@@ -139,6 +142,41 @@ export function Tagline() {
     return () => clearInterval(interval);
   }, []);
 
+  // ⭐ Fetch creator profiles for avatar photos
+  useEffect(() => {
+    async function fetchCreatorProfiles() {
+      if (!latestBattle) return;
+
+      const creatorWallets = [
+        latestBattle.tokenA.creator?.toString(),
+        latestBattle.tokenB.creator?.toString(),
+      ].filter((w): w is string => !!w);
+
+      if (creatorWallets.length === 0) return;
+
+      const { data: profiles, error } = await supabase
+        .from('users')
+        .select('wallet_address, avatar_url')
+        .in('wallet_address', creatorWallets);
+
+      if (error) {
+        console.error('❌ Error fetching creator profiles:', error);
+        return;
+      }
+
+      const avatarMap: Record<string, string | null> = {};
+      profiles?.forEach(p => {
+        if (p.avatar_url) {
+          avatarMap[p.wallet_address] = p.avatar_url;
+        }
+      });
+
+      setCreatorAvatars(avatarMap);
+    }
+
+    fetchCreatorProfiles();
+  }, [latestBattle]);
+
   const formatMarketCap = (mc: number): string => {
     if (mc >= 1000000) return `$${(mc / 1000000).toFixed(2)}M`;
     if (mc >= 1000) return `$${(mc / 1000).toFixed(2)}K`;
@@ -156,16 +194,21 @@ export function Tagline() {
   };
 
   // Convert token to BattleCard format (SOL-based!)
-  const toBattleToken = (token: ParsedTokenBattleState) => ({
-    mint: token.mint.toString(),
-    name: token.name || 'Unknown',
-    symbol: token.symbol || '???',
-    image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token),
-    solCollected: lamportsToSol(token.realSolReserves ?? 0),
-    totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
-    creatorWallet: token.creator?.toString() || null,
-  });
+  const toBattleToken = (token: ParsedTokenBattleState) => {
+    const creatorWallet = token.creator?.toString() || null;
+    return {
+      mint: token.mint.toString(),
+      name: token.name || 'Unknown',
+      symbol: token.symbol || '???',
+      image: token.image || null,
+      marketCapUsd: calculateMarketCapUsd(token),
+      solCollected: lamportsToSol(token.realSolReserves ?? 0),
+      totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
+      // ⭐ Pass creator wallet and avatar for BattleCard
+      creatorWallet,
+      creatorAvatarUrl: creatorWallet ? creatorAvatars[creatorWallet] || null : null,
+    };
+  };
 
   // ⭐ Get tier targets for the battle (use tokenA's tier, both should match)
   const battleTargets = useMemo(() => {

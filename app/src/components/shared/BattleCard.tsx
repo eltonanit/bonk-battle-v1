@@ -246,6 +246,7 @@ interface BattleToken {
   armyName?: string | null;
   armyTicker?: string | null;
   creatorWallet?: string | null;
+  creatorAvatarUrl?: string | null;  // ⭐ Real profile photo
 }
 
 interface BattleCardProps {
@@ -260,13 +261,21 @@ interface BattleCardProps {
 }
 
 // ⭐ NEW: Helper function to format creator display
-function formatCreatorDisplay(token: BattleToken): { label: string; value: string; isArmy: boolean } {
+function formatCreatorDisplay(token: BattleToken): {
+  label: string;
+  value: string;
+  isArmy: boolean;
+  avatarUrl: string;
+} {
   // If token has army, show army ticker
   if (token.armyTicker) {
     return {
       label: 'ARMY',
       value: token.armyTicker,
-      isArmy: true
+      isArmy: true,
+      avatarUrl: token.armyId
+        ? `https://api.dicebear.com/7.x/shapes/svg?seed=${token.armyId}`
+        : `https://api.dicebear.com/7.x/shapes/svg?seed=${token.armyTicker}`
     };
   }
   // If token has army name but no ticker, use name
@@ -274,22 +283,28 @@ function formatCreatorDisplay(token: BattleToken): { label: string; value: strin
     return {
       label: 'ARMY',
       value: token.armyName.length > 10 ? token.armyName.slice(0, 10) + '...' : token.armyName,
-      isArmy: true
+      isArmy: true,
+      avatarUrl: token.armyId
+        ? `https://api.dicebear.com/7.x/shapes/svg?seed=${token.armyId}`
+        : `https://api.dicebear.com/7.x/shapes/svg?seed=${token.armyName}`
     };
   }
-  // Fallback: show first 5 chars of creator wallet
+  // Fallback: show first 4 chars of creator wallet only
   if (token.creatorWallet) {
     return {
-      label: 'CREATED BY',
-      value: token.creatorWallet.slice(0, 5) + '...',
-      isArmy: false
+      label: 'USER',
+      value: token.creatorWallet.slice(0, 4),
+      isArmy: false,
+      // ⭐ Use real profile photo if available, otherwise fallback to Dicebear
+      avatarUrl: token.creatorAvatarUrl || `https://api.dicebear.com/7.x/identicon/svg?seed=${token.creatorWallet}`
     };
   }
   // Ultimate fallback
   return {
-    label: 'CREATED BY',
+    label: 'USER',
     value: 'Anon',
-    isArmy: false
+    isArmy: false,
+    avatarUrl: `https://api.dicebear.com/7.x/identicon/svg?seed=anon`
   };
 }
 
@@ -491,14 +506,23 @@ export function BattleCard({
                 <p className="text-gray-300 text-sm mb-2">{winnerToken.name}</p>
 
                 {/* Final Stats in USD */}
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <div className="bg-black/30 rounded px-2 py-1">
                     <span className="text-gray-500 text-xs">MC </span>
                     <span className="text-yellow-400 font-bold text-sm">{formatUsd(winnerMcUsd)}</span>
                   </div>
-                  {/* ⭐ NEW: Show Army/User instead of VOL */}
-                  <div className="bg-black/30 rounded px-2 py-1">
-                    <span className="text-gray-500 text-xs">{winnerCreator.label} </span>
+                  {/* ⭐ Created by with Avatar */}
+                  <div className="bg-black/30 rounded px-2 py-1 flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-full overflow-hidden flex-shrink-0 border border-gray-600">
+                      <Image
+                        src={winnerCreator.avatarUrl}
+                        alt={winnerCreator.value}
+                        width={16}
+                        height={16}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    </div>
                     <span className={`font-bold text-sm ${winnerCreator.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
                       {winnerCreator.value}
                     </span>
@@ -555,6 +579,7 @@ export function BattleCard({
             backgroundSize: '40px 40px'
           } : {}}
         >
+          {/* Responsive container that scales with zoom */}
           {/* Background Attack Strip - Token A */}
           <div
             className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'}`}
@@ -574,10 +599,10 @@ export function BattleCard({
             }}
           />
 
-          <div className="flex items-center justify-between relative" style={{ zIndex: 1 }}>
-            {/* Token A Image */}
+          <div className="flex items-center justify-between relative gap-3 lg:gap-2" style={{ zIndex: 1 }}>
+            {/* Token A Image - BIG on mobile, normal on desktop */}
             <div
-              className={`w-[96px] h-[96px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-24 h-24 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -587,35 +612,35 @@ export function BattleCard({
                 <Image
                   src={getTokenImage(tokenA)}
                   alt={tokenA.symbol}
-                  width={128}
-                  height={128}
+                  width={96}
+                  height={96}
                   className="w-full h-full object-cover"
                   unoptimized
                 />
               </div>
             </div>
 
-            {/* ⭐ Score Center - SHOWS USD from Oracle */}
-            <div className="flex flex-col items-center flex-1 px-2">
-              <span className="text-base lg:text-xl text-yellow-400 mb-1">VS</span>
+            {/* ⭐ Score Center - BIG on mobile, normal on desktop */}
+            <div className="flex flex-col items-center flex-1 min-w-0 px-1">
+              <span className="text-lg lg:text-sm xl:text-base text-yellow-400 font-black mb-1 lg:mb-0.5">VS</span>
               {priceLoading ? (
-                <span className="text-lg lg:text-2xl font-black text-gray-500">Loading...</span>
+                <span className="text-xl lg:text-base xl:text-lg font-black text-gray-500">Loading...</span>
               ) : (
-                <span className="text-lg lg:text-2xl font-black text-yellow-400 whitespace-nowrap">
+                <span className="text-lg lg:text-sm xl:text-lg font-black text-yellow-400 whitespace-nowrap">
                   {formatUsd(mcUsdA)} - {formatUsd(mcUsdB)}
                 </span>
               )}
               {/* Show oracle SOL price */}
               {solPrice > 0 && (
-                <span className="text-[10px] text-gray-500 mt-1">
+                <span className="text-xs lg:text-[9px] xl:text-[10px] text-gray-500 mt-1 lg:mt-0.5">
                   SOL ${solPrice.toFixed(0)}
                 </span>
               )}
             </div>
 
-            {/* Token B Image */}
+            {/* Token B Image - BIG on mobile, normal on desktop */}
             <div
-              className={`w-[96px] h-[96px] lg:w-32 lg:h-32 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-24 h-24 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -625,8 +650,8 @@ export function BattleCard({
                 <Image
                   src={getTokenImage(tokenB)}
                   alt={tokenB.symbol}
-                  width={128}
-                  height={128}
+                  width={96}
+                  height={96}
                   className="w-full h-full object-cover"
                   unoptimized
                 />
@@ -644,17 +669,17 @@ export function BattleCard({
              NORMAL MODE - Stats + Buy Buttons
           ══════════════════════════════════════════════════════════════ */
           <>
-            {/* Battle Content */}
-            <div className="bg-[#232a36] p-2 lg:p-4">
-              <div className="flex items-start justify-between">
+            {/* Battle Content - Responsive */}
+            <div className="bg-[#232a36] p-2 sm:p-3 lg:p-4">
+              <div className="flex items-start justify-between gap-2">
                 {/* Left Token Stats */}
-                <div className="flex-1 pr-2 lg:pr-4">
-                  <div className="flex items-center gap-2 mb-2 lg:mb-3">
-                    <p className="text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
+                <div className="flex-1 min-w-0 pr-1 sm:pr-2 lg:pr-4">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                    <p className="text-xs sm:text-sm lg:text-base text-orange-400 font-bold truncate uppercase">
                       ${tokenA.symbol}
                     </p>
                     {tokenA.holders !== undefined && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                         <span>👥</span>
                         <span>{tokenA.holders}</span>
                       </span>
@@ -662,9 +687,9 @@ export function BattleCard({
                   </div>
 
                   {/* MC Row in USD */}
-                  <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8">MC</span>
-                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                  <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 mb-1 sm:mb-1.5 lg:mb-2">
+                    <span className="text-[10px] sm:text-xs lg:text-sm font-bold text-gray-400 w-6 sm:w-7 lg:w-8 flex-shrink-0">MC</span>
+                    <div className="flex-1 h-1.5 sm:h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden min-w-0">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${solProgressA >= 100
                           ? 'bg-gradient-to-r from-yellow-400 to-orange-500'
@@ -673,55 +698,62 @@ export function BattleCard({
                         style={{ width: `${solProgressA}%` }}
                       />
                     </div>
-                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px] text-right">
+                    <span className="text-[10px] sm:text-xs lg:text-sm font-semibold text-white min-w-[40px] sm:min-w-[50px] lg:min-w-[60px] text-right flex-shrink-0">
                       {formatUsd(mcUsdA)}
                     </span>
                   </div>
 
-                  {/* ⭐ NEW: Created by + Army/User Row - Token A */}
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] lg:text-xs text-gray-500 uppercase">Created by</span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs lg:text-sm font-bold text-gray-400">
-                        {creatorA.label}
-                      </span>
-                      <span className={`text-xs lg:text-sm font-semibold truncate ${creatorA.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
-                        {creatorA.value}
-                      </span>
+                  {/* ⭐ Created by Row - Token A - Very Compact */}
+                  <div className="flex items-center gap-1">
+                    <span className="text-[8px] sm:text-[9px] text-gray-500">by</span>
+                    <span className={`text-[7px] sm:text-[8px] font-bold px-0.5 rounded ${creatorA.isArmy ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                      {creatorA.label}
+                    </span>
+                    <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full overflow-hidden flex-shrink-0 border border-gray-600">
+                      <Image
+                        src={creatorA.avatarUrl}
+                        alt={creatorA.value}
+                        width={14}
+                        height={14}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
                     </div>
+                    <span className={`text-[8px] sm:text-[9px] font-medium truncate ${creatorA.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
+                      {creatorA.value}
+                    </span>
                   </div>
                 </div>
 
-                {/* Center Target - USD from Oracle */}
-                <div className="flex flex-col items-center justify-center px-2 lg:px-4 border-x border-[#3b415a] min-w-[100px] lg:min-w-[130px]">
-                  <span className="text-xs lg:text-sm text-gray-500 font-medium mb-1 lg:mb-2 whitespace-nowrap">TARGET TO WIN</span>
-                  <div className="flex items-center gap-1 mb-0.5 lg:mb-1">
-                    <span className="text-xs lg:text-sm text-gray-400">MC</span>
-                    <span className="text-sm lg:text-base text-yellow-400">{formatUsd(targetMcUsd)}</span>
+                {/* Center Target - USD from Oracle - Responsive */}
+                <div className="flex flex-col items-center justify-center px-1 sm:px-2 lg:px-4 border-x border-[#3b415a] min-w-[70px] sm:min-w-[90px] lg:min-w-[120px] flex-shrink-0">
+                  <span className="text-[9px] sm:text-xs lg:text-sm text-gray-500 font-medium mb-0.5 sm:mb-1 lg:mb-2 whitespace-nowrap">TARGET</span>
+                  <div className="flex items-center gap-0.5 sm:gap-1 mb-0.5">
+                    <span className="text-[10px] sm:text-xs lg:text-sm text-gray-400">MC</span>
+                    <span className="text-xs sm:text-sm lg:text-base text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
                   </div>
-                  {/* ⭐ REMOVED: VOL target - only MC matters now */}
                 </div>
 
-                {/* Right Token Stats */}
-                <div className="flex-1 pl-2 lg:pl-4">
-                  <div className="flex items-center justify-end gap-2 mb-2 lg:mb-3">
+                {/* Right Token Stats - Responsive */}
+                <div className="flex-1 min-w-0 pl-1 sm:pl-2 lg:pl-4">
+                  <div className="flex items-center justify-end gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
                     {tokenB.holders !== undefined && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className="text-[10px] sm:text-xs text-gray-500 flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
                         <span>{tokenB.holders}</span>
                         <span>👥</span>
                       </span>
                     )}
-                    <p className="text-sm lg:text-base text-orange-400 font-bold truncate text-right uppercase">
+                    <p className="text-xs sm:text-sm lg:text-base text-orange-400 font-bold truncate text-right uppercase">
                       ${tokenB.symbol}
                     </p>
                   </div>
 
                   {/* MC Row in USD */}
-                  <div className="flex items-center gap-1 lg:gap-2 mb-1.5 lg:mb-2">
-                    <span className="text-xs lg:text-sm font-semibold text-white min-w-[50px] lg:min-w-[60px]">
+                  <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 mb-1 sm:mb-1.5 lg:mb-2">
+                    <span className="text-[10px] sm:text-xs lg:text-sm font-semibold text-white min-w-[40px] sm:min-w-[50px] lg:min-w-[60px] flex-shrink-0">
                       {formatUsd(mcUsdB)}
                     </span>
-                    <div className="flex-1 h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 sm:h-2 lg:h-2.5 bg-[#3b415a] rounded-full overflow-hidden min-w-0">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${solProgressB >= 100
                           ? 'bg-gradient-to-r from-orange-500 to-yellow-400'
@@ -730,35 +762,43 @@ export function BattleCard({
                         style={{ width: `${solProgressB}%` }}
                       />
                     </div>
-                    <span className="text-xs lg:text-sm font-bold text-gray-400 w-7 lg:w-8 text-right">MC</span>
+                    <span className="text-[10px] sm:text-xs lg:text-sm font-bold text-gray-400 w-6 sm:w-7 lg:w-8 text-right flex-shrink-0">MC</span>
                   </div>
 
-                  {/* ⭐ NEW: Created by + Army/User Row - Token B */}
-                  <div className="flex flex-col gap-0.5 items-end">
-                    <span className="text-[10px] lg:text-xs text-gray-500 uppercase">Created by</span>
-                    <div className="flex items-center gap-1">
-                      <span className={`text-xs lg:text-sm font-semibold truncate ${creatorB.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
-                        {creatorB.value}
-                      </span>
-                      <span className="text-xs lg:text-sm font-bold text-gray-400">
-                        {creatorB.label}
-                      </span>
+                  {/* ⭐ Created by Row - Token B - Very Compact */}
+                  <div className="flex items-center gap-1 justify-end">
+                    <span className={`text-[8px] sm:text-[9px] font-medium truncate ${creatorB.isArmy ? 'text-cyan-400' : 'text-gray-400'}`}>
+                      {creatorB.value}
+                    </span>
+                    <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full overflow-hidden flex-shrink-0 border border-gray-600">
+                      <Image
+                        src={creatorB.avatarUrl}
+                        alt={creatorB.value}
+                        width={14}
+                        height={14}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
                     </div>
+                    <span className={`text-[7px] sm:text-[8px] font-bold px-0.5 rounded ${creatorB.isArmy ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                      {creatorB.label}
+                    </span>
+                    <span className="text-[8px] sm:text-[9px] text-gray-500">by</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Buy Winner Buttons */}
+            {/* Buy Winner Buttons - Responsive */}
             {showBuyButtons && (
-              <div className="bg-[#1d2531] px-3 py-2 my-3 flex items-center justify-between">
+              <div className="bg-[#1d2531] px-2 sm:px-3 py-1.5 sm:py-2 my-2 sm:my-3 flex items-center justify-between gap-2">
                 {/* Token A - Blue Button */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-white font-bold text-base">{Math.round(chanceA)}%</span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="text-white font-bold text-sm sm:text-base">{Math.round(chanceA)}%</span>
                   <button
                     data-buy-button
                     onClick={(e) => handleBuyClick('A', e)}
-                    className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                    className="py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
                     style={{ backgroundColor: '#386BFD' }}
                   >
                     Buy winner
@@ -766,16 +806,16 @@ export function BattleCard({
                 </div>
 
                 {/* Token B - Pink Button */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 sm:gap-1.5">
                   <button
                     data-buy-button
                     onClick={(e) => handleBuyClick('B', e)}
-                    className="py-1.5 px-3 rounded-md font-bold text-white text-sm transition-all hover:opacity-90 active:scale-95"
+                    className="py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
                     style={{ backgroundColor: '#FD1F6F' }}
                   >
                     Buy winner
                   </button>
-                  <span className="text-white font-bold text-base">{Math.round(chanceB)}%</span>
+                  <span className="text-white font-bold text-sm sm:text-base">{Math.round(chanceB)}%</span>
                 </div>
               </div>
             )}

@@ -97,6 +97,8 @@ export function TokenGridBonk() {
   const [loading, setLoading] = useState(true);
   const [winners, setWinners] = useState<Winner[]>([]);
   const [poolData, setPoolData] = useState<Record<string, any>>({});
+  // ⭐ Creator profiles cache (wallet -> avatar_url)
+  const [creatorAvatars, setCreatorAvatars] = useState<Record<string, string | null>>({});
 
   // ⭐ REAL SOL PRICE from on-chain oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -137,6 +139,48 @@ export function TokenGridBonk() {
 
     loadTokens();
   }, []);
+
+  // ⭐ Fetch creator profiles for avatar photos
+  useEffect(() => {
+    async function fetchCreatorProfiles() {
+      if (allTokens.length === 0) return;
+
+      // Get unique creator wallets
+      const uniqueCreators = [...new Set(
+        allTokens
+          .map(t => t.creator?.toString())
+          .filter((w): w is string => !!w)
+      )];
+
+      if (uniqueCreators.length === 0) return;
+
+      console.log(`👤 Fetching profiles for ${uniqueCreators.length} unique creators...`);
+
+      // Fetch profiles from users table
+      const { data: profiles, error } = await supabase
+        .from('users')
+        .select('wallet_address, avatar_url')
+        .in('wallet_address', uniqueCreators);
+
+      if (error) {
+        console.error('❌ Error fetching creator profiles:', error);
+        return;
+      }
+
+      // Build avatar map
+      const avatarMap: Record<string, string | null> = {};
+      profiles?.forEach(p => {
+        if (p.avatar_url) {
+          avatarMap[p.wallet_address] = p.avatar_url;
+        }
+      });
+
+      console.log(`✅ Found ${Object.keys(avatarMap).length} profiles with avatars`);
+      setCreatorAvatars(avatarMap);
+    }
+
+    fetchCreatorProfiles();
+  }, [allTokens]);
 
   // ⭐ Fetch real-time pool data for winners
   useEffect(() => {
@@ -290,17 +334,21 @@ export function TokenGridBonk() {
     return mcInUsd;
   };
 
-  const toBattleToken = (token: ParsedTokenBattleState) => ({
-    mint: token.mint.toString(),
-    name: token.name || 'Unknown',
-    symbol: token.symbol || '???',
-    image: token.image || null,
-    marketCapUsd: calculateMarketCapUsd(token),
-    solCollected: lamportsToSol(token.realSolReserves ?? 0),
-    totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
-    // ⭐ NEW: Pass creator wallet for BattleCard
-    creatorWallet: token.creator?.toString() || null,
-  });
+  const toBattleToken = (token: ParsedTokenBattleState) => {
+    const creatorWallet = token.creator?.toString() || null;
+    return {
+      mint: token.mint.toString(),
+      name: token.name || 'Unknown',
+      symbol: token.symbol || '???',
+      image: token.image || null,
+      marketCapUsd: calculateMarketCapUsd(token),
+      solCollected: lamportsToSol(token.realSolReserves ?? 0),
+      totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
+      // ⭐ Pass creator wallet and avatar for BattleCard
+      creatorWallet,
+      creatorAvatarUrl: creatorWallet ? creatorAvatars[creatorWallet] || null : null,
+    };
+  };
 
   const getCount = () => {
     if (activeFilter === 'battle') return battlePairs.length;

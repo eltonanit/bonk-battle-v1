@@ -1,7 +1,7 @@
 // app/src/app/armies/[id]/page.tsx
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useArmy, useArmyOrders, usePostOrder } from '@/hooks/useArmies';
@@ -56,6 +56,11 @@ export default function ArmyDetailPage() {
   const [isSending, setIsSending] = useState(false);
 
   const isCommander = publicKey?.toString() === army?.capitano_wallet;
+
+  // Scroll to top when page loads
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleSendMessage = async () => {
     if (!message.trim() || !publicKey || !army) return;

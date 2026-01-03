@@ -15,7 +15,7 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
-type TabType = 'top' | 'onfire' | 'leaderboard' | 'ultra';
+type TabType = 'myarmies' | 'onfire' | 'top' | 'leaderboard';
 
 // Genera ticker automatico (prime 5 lettere, no spazi, uppercase)
 const getTicker = (name: string) => {
@@ -25,19 +25,22 @@ const getTicker = (name: string) => {
 export default function ArmiesPage() {
   const { publicKey } = useWallet();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabType>('onfire');
+  const [activeTab, setActiveTab] = useState<TabType>('myarmies');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [previewArmy, setPreviewArmy] = useState<Army | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: armies, isLoading, error, refetch } = useArmies(activeTab);
+  // Map tabs to API params - 'myarmies' doesn't need API call
+  const apiTab = activeTab === 'myarmies' ? 'onfire' : activeTab;
+  const { data: armies, isLoading, error, refetch } = useArmies(apiTab);
   const { data: myArmies, refetch: refetchMyArmies } = useMyArmies(publicKey?.toString() || null);
 
   // Set di army IDs dove sono membro (per lookup veloce)
   const myArmyIds = new Set(myArmies?.map(a => a.id) || []);
 
-  // Filter armies by search query
-  const filteredArmies = armies?.filter(army =>
+  // Filter armies by search query and tab
+  const armiesToShow = activeTab === 'myarmies' ? myArmies : armies;
+  const filteredArmies = armiesToShow?.filter(army =>
     army.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     getTicker(army.name).toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -88,6 +91,58 @@ export default function ArmiesPage() {
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-16 max-w-full">
         <div className="max-w-3xl mx-auto px-4 py-8">
 
+          {/* ⚔️ HERO SECTION */}
+          <div className="relative mb-8 overflow-hidden rounded-2xl border border-green-500/30" style={{ backgroundColor: '#151516' }}>
+            <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 via-emerald-600/5 to-green-600/10" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-500/20 via-transparent to-transparent" />
+
+            <div className="relative px-6 py-10 text-center">
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider mb-2" style={{
+                background: 'linear-gradient(135deg, #22C55E 0%, #4ADE80 50%, #22C55E 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}>
+                ⚔️ JOIN AN ARMY
+              </h1>
+              <p className="text-gray-400 text-sm mb-5">
+                Join Army. Get notified. <span className="text-green-400 font-bold">Get paid.</span>
+              </p>
+
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold uppercase tracking-wide rounded-xl transition-all hover:scale-105 shadow-lg shadow-green-500/30"
+              >
+                🏴 Create Your Army
+              </button>
+            </div>
+          </div>
+
+          {/* ⭐ ULTRA ARMIES BUTTON */}
+          <button
+            onClick={() => router.push('/armies/ultra')}
+            className="w-full mb-6 py-4 px-6 rounded-2xl border border-yellow-500/30 hover:border-yellow-500/60 transition-all hover:scale-[1.02] active:scale-[0.98] group"
+            style={{ backgroundColor: '#151516' }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">⭐</span>
+                <div className="text-left">
+                  <h2 className="text-xl font-black uppercase tracking-wider" style={{
+                    background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}>
+                    ULTRA ARMIES
+                  </h2>
+                  <p className="text-gray-500 text-sm">Highest level elite armies</p>
+                </div>
+              </div>
+              <svg className="w-6 h-6 text-yellow-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </button>
+
           {/* Search Bar */}
           <div className="mb-6">
             <div className="relative">
@@ -120,46 +175,17 @@ export default function ArmiesPage() {
             </div>
           </div>
 
-          {/* ⚔️ HERO SECTION */}
-          <div className="relative mb-8 overflow-hidden rounded-2xl border border-green-500/30" style={{ backgroundColor: '#151516' }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 via-emerald-600/5 to-green-600/10" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-500/20 via-transparent to-transparent" />
-
-            <div className="relative px-6 py-10 text-center">
-              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider mb-2" style={{
-                background: 'linear-gradient(135deg, #22C55E 0%, #4ADE80 50%, #22C55E 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-                ⚔️ JOIN AN ARMY
-              </h1>
-              <p className="text-gray-400 text-sm mb-5">
-                Follow the winners. <span className="text-green-400 font-bold">Take the profits.</span>
-              </p>
-
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold uppercase tracking-wide rounded-xl transition-all hover:scale-105 shadow-lg shadow-green-500/30"
-              >
-                🏴 Create Your Army
-              </button>
-            </div>
-          </div>
-
           {/* Tabs */}
           <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             <button
-              onClick={() => setActiveTab('ultra')}
-              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'ultra'
-                ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-black'
-                : 'border border-white/10'
+              onClick={() => setActiveTab('myarmies')}
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all whitespace-nowrap ${activeTab === 'myarmies'
+                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white'
+                : 'text-gray-400 hover:text-white border border-white/10'
                 }`}
-              style={{
-                backgroundColor: activeTab !== 'ultra' ? '#151516' : undefined,
-                color: activeTab !== 'ultra' ? '#FFD700' : undefined,
-              }}
+              style={{ backgroundColor: activeTab !== 'myarmies' ? '#151516' : undefined }}
             >
-              ⭐ Ultra
+              🛡️ Your Armies
             </button>
             <button
               onClick={() => setActiveTab('onfire')}
@@ -189,16 +215,16 @@ export default function ArmiesPage() {
                 }`}
               style={{ backgroundColor: activeTab !== 'leaderboard' ? '#151516' : undefined }}
             >
-              🏆 Winners
+              🏆 Leaderboard
             </button>
           </div>
 
           {/* Tab Description */}
           <div className="mb-4 text-gray-500 text-sm">
+            {activeTab === 'myarmies' && '🛡️ Armies you have joined'}
             {activeTab === 'onfire' && '🔥 Fastest growing armies (most new recruits)'}
             {activeTab === 'top' && '👑 Largest armies by total members'}
             {activeTab === 'leaderboard' && '🏆 Armies with most battle wins'}
-            {activeTab === 'ultra' && <span style={{ color: '#FFD700' }}>⭐ Highest level elite armies</span>}
           </div>
 
           {/* LIST CONTAINER */}
@@ -232,14 +258,26 @@ export default function ArmiesPage() {
             {/* Empty State */}
             {!isLoading && !error && filteredArmies && filteredArmies.length === 0 && (
               <div className="p-12 text-center">
-                <div className="text-5xl mb-4">{searchQuery ? '🔍' : '⚔️'}</div>
+                <div className="text-5xl mb-4">{searchQuery ? '🔍' : activeTab === 'myarmies' ? '🛡️' : '⚔️'}</div>
                 <h3 className="text-xl font-bold text-white mb-2">
-                  {searchQuery ? 'No armies found' : 'No Armies Yet'}
+                  {searchQuery ? 'No armies found' : activeTab === 'myarmies' ? 'No Armies Joined' : 'No Armies Yet'}
                 </h3>
                 <p className="text-gray-500 mb-6">
-                  {searchQuery ? `No armies matching "${searchQuery}"` : 'Be the first commander to create an army!'}
+                  {searchQuery
+                    ? `No armies matching "${searchQuery}"`
+                    : activeTab === 'myarmies'
+                      ? 'Join an army to start trading together!'
+                      : 'Be the first commander to create an army!'}
                 </p>
-                {!searchQuery && (
+                {!searchQuery && activeTab === 'myarmies' && (
+                  <button
+                    onClick={() => setActiveTab('onfire')}
+                    className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl"
+                  >
+                    🔥 Find Army to Join
+                  </button>
+                )}
+                {!searchQuery && activeTab !== 'myarmies' && (
                   <button
                     onClick={() => setShowCreateModal(true)}
                     className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl"
@@ -320,6 +358,7 @@ export default function ArmiesPage() {
                 })}
               </div>
             )}
+
           </div>
 
           {/* Bottom CTA */}
