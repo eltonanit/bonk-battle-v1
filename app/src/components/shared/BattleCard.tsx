@@ -773,21 +773,21 @@ export function BattleCard({
           /* ══════════════════════════════════════════════════════════════
              BUY MODE - Transformed view with GREEN button
           ══════════════════════════════════════════════════════════════ */
-          <div className="bg-[#232a36] p-3 lg:p-4" data-buy-area>
+          <div className="bg-[#232a36] p-2.5 lg:p-3" data-buy-area>
             {/* Header Row - Token + Chance centered, Close button on right */}
-            <div className="flex items-center justify-center mb-4 relative">
+            <div className="flex items-center justify-center mb-2 relative">
               {/* Center: Token + Chance together */}
               <div className="flex items-center gap-2">
                 {buyMode === 'A' && (
                   <div
-                    className="w-9 h-9 rounded-lg overflow-hidden p-0.5"
+                    className="w-8 h-8 rounded-lg overflow-hidden p-0.5"
                     style={{ backgroundColor: '#386BFD' }}
                   >
                     <Image
                       src={getTokenImage(selectedToken)}
                       alt={selectedToken.symbol}
-                      width={36}
-                      height={36}
+                      width={32}
+                      height={32}
                       className="w-full h-full object-cover rounded-md"
                       unoptimized
                     />
@@ -798,14 +798,14 @@ export function BattleCard({
                 </span>
                 {buyMode === 'B' && (
                   <div
-                    className="w-9 h-9 rounded-lg overflow-hidden p-0.5"
+                    className="w-8 h-8 rounded-lg overflow-hidden p-0.5"
                     style={{ backgroundColor: '#FD1F6F' }}
                   >
                     <Image
                       src={getTokenImage(selectedToken)}
                       alt={selectedToken.symbol}
-                      width={36}
-                      height={36}
+                      width={32}
+                      height={32}
                       className="w-full h-full object-cover rounded-md"
                       unoptimized
                     />
@@ -825,7 +825,7 @@ export function BattleCard({
             </div>
 
             {/* Amount Input Row */}
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               {/* USD Input */}
               <div className="flex-1 relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-semibold">
@@ -842,7 +842,7 @@ export function BattleCard({
                       handleAmountChange(Number(value));
                     }
                   }}
-                  className="w-full bg-[#1a1f2e] border border-[#3b415a] rounded-lg py-2.5 pl-8 pr-3 text-white text-lg font-bold focus:outline-none focus:border-[#4a5568]"
+                  className="w-full bg-[#1a1f2e] border border-[#3b415a] rounded-lg py-2 pl-8 pr-3 text-white text-lg font-bold focus:outline-none focus:border-[#4a5568]"
                   placeholder="0"
                 />
               </div>
@@ -850,13 +850,13 @@ export function BattleCard({
               {/* Preset Buttons */}
               <button
                 onClick={() => handleAmountChange(amountUSD + 1)}
-                className="px-3 py-2.5 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
+                className="px-2.5 py-2 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
               >
                 +1
               </button>
               <button
                 onClick={() => handleAmountChange(amountUSD + 10)}
-                className="px-3 py-2.5 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
+                className="px-2.5 py-2 bg-[#1a1f2e] border border-[#3b415a] rounded-lg text-gray-300 hover:bg-[#2a3544] hover:text-white transition-colors font-semibold text-sm"
               >
                 +10
               </button>
@@ -881,7 +881,7 @@ export function BattleCard({
             <button
               onClick={handleBuy}
               disabled={amountSOL <= 0}
-              className="w-full py-3 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98]"
+              className="w-full py-2.5 rounded-lg text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 active:scale-[0.98]"
               style={{
                 backgroundColor: '#22C55E',
                 boxShadow: '0 4px 15px rgba(34, 197, 94, 0.3)',
@@ -896,7 +896,7 @@ export function BattleCard({
             </button>
 
             {/* Multiplier info - ALWAYS 1.75x */}
-            <div className="mt-2 text-center">
+            <div className="mt-1.5 text-center">
               <span className="text-yellow-400 text-sm font-semibold">
                 ⚡ 1.75x potential
               </span>

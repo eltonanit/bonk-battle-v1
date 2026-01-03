@@ -13,7 +13,7 @@ import { CreatedTicker } from '@/components/global/CreatedTicker';
 import Image from 'next/image';
 import Link from 'next/link';
 
-type TabType = 'top' | 'onfire' | 'leaderboard';
+type TabType = 'top' | 'onfire' | 'leaderboard' | 'ultra';
 
 export default function ArmiesPage() {
   const [activeTab, setActiveTab] = useState<TabType>('onfire');
@@ -113,6 +113,20 @@ export default function ArmiesPage() {
           {/* Tabs */}
           <div className="flex gap-2 mb-6">
             <button
+              onClick={() => setActiveTab('ultra')}
+              className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
+                activeTab === 'ultra'
+                  ? 'bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-black'
+                  : 'border border-white/10'
+              }`}
+              style={{
+                backgroundColor: activeTab !== 'ultra' ? '#151516' : undefined,
+                color: activeTab !== 'ultra' ? '#FFD700' : undefined,
+              }}
+            >
+              Ultra
+            </button>
+            <button
               onClick={() => setActiveTab('onfire')}
               className={`flex-1 py-3 px-4 font-bold uppercase text-sm tracking-wide rounded-xl transition-all ${
                 activeTab === 'onfire'
@@ -152,6 +166,7 @@ export default function ArmiesPage() {
             {activeTab === 'onfire' && '🔥 Fastest growing armies (most new recruits)'}
             {activeTab === 'top' && '👑 Largest armies by total members'}
             {activeTab === 'leaderboard' && '🏆 Best win/loss record in battles'}
+            {activeTab === 'ultra' && <span style={{ color: '#FFD700' }}>Highest level elite armies</span>}
           </div>
 
           {/* LIST CONTAINER */}
@@ -210,6 +225,7 @@ export default function ArmiesPage() {
                   const isOnFire = activeTab === 'onfire';
                   const isLeaderboard = activeTab === 'leaderboard';
                   const isTop = activeTab === 'top';
+                  const isUltra = activeTab === 'ultra';
                   const newMembers = army.member_count - army.member_count_checkpoint;
                   const wins = army.battles_won ?? 0;
                   const losses = army.battles_lost ?? 0;
@@ -234,7 +250,7 @@ export default function ArmiesPage() {
                             )}
                           </div>
                           {/* Rank badge for top 3 */}
-                          {(isLeaderboard || isTop) && index < 3 && (
+                          {(isLeaderboard || isTop || isUltra) && index < 3 && (
                             <div className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black ${
                               index === 0 ? 'bg-yellow-500 text-black' :
                               index === 1 ? 'bg-gray-300 text-black' :
@@ -284,6 +300,14 @@ export default function ArmiesPage() {
                               <div className={`text-xs font-bold ${winRate >= 50 ? 'text-green-400' : 'text-red-400'}`}>
                                 {winRate}% win
                               </div>
+                            </>
+                          )}
+                          {isUltra && (
+                            <>
+                              <div className="font-bold text-sm" style={{ color: '#FFD700' }}>
+                                LVL {army.level || 1}
+                              </div>
+                              <div className="text-gray-500 text-xs">{army.season_points || 0} pts</div>
                             </>
                           )}
                         </div>

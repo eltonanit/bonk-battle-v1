@@ -11,6 +11,7 @@ export interface Army {
   id: string;
   name: string;
   icon: string;
+  description?: string;  // NUOVO
   image_url: string;
   twitter_url?: string | null;
   telegram_url?: string | null;
@@ -21,6 +22,17 @@ export interface Army {
   created_at: string;
   last_join_at: string;
   is_active: boolean;
+  // Nuovi campi sistema livelli
+  invite_code?: string;
+  level?: number;
+  level_wins?: number;
+  total_wins?: number;
+  total_losses?: number;
+  total_battles?: number;
+  season_points?: number;
+  follower_count?: number;
+  is_eligible_to_create?: boolean;
+  // Legacy (per compatibilità)
   battles_won?: number;
   battles_lost?: number;
 }
@@ -34,7 +46,7 @@ export interface ArmyOrder {
   created_at: string;
 }
 
-type ArmySortType = 'top' | 'onfire' | 'leaderboard';
+type ArmySortType = 'top' | 'onfire' | 'leaderboard' | 'ultra';
 
 // =============================================
 // HOOK: useArmies
@@ -59,8 +71,8 @@ export function useArmies(sort: ArmySortType = 'top', wallet?: string) {
       const data = await response.json();
       return data.armies as Army[];
     },
-    staleTime: 30000, // 30 secondi
-    refetchInterval: 60000, // Auto-refresh ogni 60 secondi
+    staleTime: 30000,
+    refetchInterval: 60000,
   });
 }
 
@@ -83,7 +95,7 @@ export function useArmy(armyId: string | null) {
       const data = await response.json();
       return data.army as Army;
     },
-    enabled: !!armyId, // Solo se armyId è presente
+    enabled: !!armyId,
     staleTime: 30000,
   });
 }
@@ -108,8 +120,8 @@ export function useArmyOrders(armyId: string | null) {
       return data.orders as ArmyOrder[];
     },
     enabled: !!armyId,
-    staleTime: 10000, // 10 secondi (ordini cambiano più frequentemente)
-    refetchInterval: 30000, // Auto-refresh ogni 30 secondi
+    staleTime: 10000,
+    refetchInterval: 30000,
   });
 }
 
@@ -120,6 +132,7 @@ export function useArmyOrders(armyId: string | null) {
 interface CreateArmyParams {
   name: string;
   icon: string;
+  description: string;  // NUOVO - obbligatorio
   image_url: string;
   twitter_url?: string;
   telegram_url?: string;
@@ -145,10 +158,9 @@ export function useCreateArmy() {
       }
 
       const data = await response.json();
-      return data.army as Army;
+      return data;  // Ritorna tutto (army + invite_link)
     },
     onSuccess: () => {
-      // Invalida cache per re-fetch automatico
       queryClient.invalidateQueries({ queryKey: ['armies'] });
     },
   });
@@ -184,7 +196,6 @@ export function useJoinArmy() {
       return await response.json();
     },
     onSuccess: () => {
-      // Invalida cache
       queryClient.invalidateQueries({ queryKey: ['armies'] });
       queryClient.invalidateQueries({ queryKey: ['army'] });
     },
@@ -259,7 +270,6 @@ export function usePostOrder() {
       return await response.json();
     },
     onSuccess: (_, variables) => {
-      // Invalida solo gli ordini di questa army
       queryClient.invalidateQueries({ queryKey: ['army-orders', variables.armyId] });
     },
   });
@@ -296,7 +306,6 @@ export function usePromoteToken() {
       return await response.json();
     },
     onSuccess: (_, variables) => {
-      // Invalida cache army
       queryClient.invalidateQueries({ queryKey: ['army', variables.armyId] });
     },
   });

@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { WelcomePopupProvider } from "@/components/points/WelcomePopupProvider";
 import { VictoryProviderWrapper } from "@/components/victory/VictoryProviderWrapper";
 import { NotificationsProvider } from "@/providers/NotificationsProvider";
+import { HowItWorksProvider } from "@/components/onboarding/HowItWorksProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -83,17 +84,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body suppressHydrationWarning className={geistSans.variable + ' ' + geistMono.variable + ' antialiased bg-[#1a1b21] text-white min-h-screen overflow-x-hidden'}>
-        <QueryProvider>
-          <SolanaProvider>
-            <NotificationsProvider>
-              <VictoryProviderWrapper>
-                <WelcomePopupProvider>
-                  {children}
-                </WelcomePopupProvider>
-              </VictoryProviderWrapper>
-            </NotificationsProvider>
-          </SolanaProvider>
-        </QueryProvider>
+        <HowItWorksProvider>
+          <QueryProvider>
+            <SolanaProvider>
+              <NotificationsProvider>
+                <VictoryProviderWrapper>
+                  <WelcomePopupProvider>
+                    {children}
+                  </WelcomePopupProvider>
+                </VictoryProviderWrapper>
+              </NotificationsProvider>
+            </SolanaProvider>
+          </QueryProvider>
+        </HowItWorksProvider>
       </body>
     </html>
   );
