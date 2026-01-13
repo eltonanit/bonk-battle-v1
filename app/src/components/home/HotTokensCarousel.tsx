@@ -1,196 +1,248 @@
-﻿'use client';
+/**
+ * ========================================================================
+ * BONK BATTLE - HOT TOKENS CAROUSEL (OPTIMIZED)
+ * ========================================================================
+ *
+ * BEFORE: 15,000+ RPC calls/day
+ * - fetchAllTokens() every 120s (getProgramAccounts = expensive!)
+ * - connection.onLogs() WebSocket always active
+ * - Re-fetch on every purchase event
+ *
+ * AFTER: 0 RPC calls
+ * - Supabase query (free, unlimited)
+ * - Supabase Realtime subscription (free)
+ * - document.hidden check (no fetch when tab hidden)
+ *
+ * ========================================================================
+ */
 
-import { useEffect, useState, useRef } from 'react';
-import { fetchAllTokens } from '@/lib/solana/fetch-all-tokens';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { RPC_ENDPOINT, PROGRAM_ID } from '@/config/solana';
+'use client';
+
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { fetchHotTokens, FormattedToken } from '@/lib/supabase/fetch-tokens';
 import Link from 'next/link';
 
-interface HotToken {
-  mint: string;
-  name: string;
-  symbol: string;
-  metadataUri: string;
-  progress: number;
-  solRaised: number;
-  targetSol: number;
-  virtualSolInit: number;
-  marketCap: number;
-}
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
 
-const SOL_PRICE_USD = 100;
+const CONFIG = {
+  // Polling interval when tab is visible (ms)
+  POLL_INTERVAL: 60_000, // 60 seconds (was 120s with RPC, can be faster now)
+
+  // Flash animation duration (ms)
+  FLASH_DURATION: 600,
+
+  // Auto-scroll speed
+  SCROLL_SPEED: 0.5,
+  SCROLL_INTERVAL: 30,
+
+  // Max tokens to display
+  MAX_TOKENS: 20,
+};
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function HotTokensCarousel() {
-  const [tokens, setTokens] = useState<HotToken[]>([]);
+  const [tokens, setTokens] = useState<FormattedToken[]>([]);
+  const [loading, setLoading] = useState(true);
   const [flashingIndices, setFlashingIndices] = useState<number[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isHovering, setIsHovering] = useState(false);
 
-  useEffect(() => {
-    async function loadTokens() {
-      try {
-        console.log('🔥 Loading hot tokens...');
+  // ============================================================================
+  // FETCH TOKENS FROM SUPABASE (NO RPC!)
+  // ============================================================================
 
-        const allTokens = await fetchAllTokens();
-
-        if (allTokens.length === 0) {
-          console.log('No tokens found');
-          return;
-        }
-
-        const hotTokens: HotToken[] = allTokens.map((token) => {
-          const marketCap = (token.virtualSolInit + token.solRaised) * SOL_PRICE_USD;
-
-          return {
-            mint: token.mint.toString(),
-            name: token.name,
-            symbol: token.symbol,
-            metadataUri: token.metadataUri,
-            progress: token.progress,
-            solRaised: token.solRaised,
-            targetSol: token.targetSol,
-            virtualSolInit: token.virtualSolInit,
-            marketCap,
-          };
-        });
-
-        setTokens(hotTokens);
-        console.log(`✅ Hot tokens loaded: ${hotTokens.length}`);
-      } catch (error) {
-        console.error('Error loading hot tokens:', error);
-      }
+  const loadTokens = useCallback(async () => {
+    // Don't fetch if tab is hidden
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
     }
 
+    try {
+      const hotTokens = await fetchHotTokens(CONFIG.MAX_TOKENS);
+      setTokens(hotTokens);
+
+      if (loading) {
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error loading hot tokens:', error);
+      setLoading(false);
+    }
+  }, [loading]);
+
+  // ============================================================================
+  // INITIAL LOAD + POLLING
+  // ============================================================================
+
+  useEffect(() => {
+    // Initial load
     loadTokens();
-    const interval = setInterval(loadTokens, 120000);
-    return () => clearInterval(interval);
-  }, []);
 
-  useEffect(() => {
-    if (tokens.length === 0) return;
-
-    const connection = new Connection(RPC_ENDPOINT, 'confirmed');
-    let subscriptionId: number | null = null;
-
-    async function subscribeToEvents() {
-      try {
-        console.log('🎧 HotTokens: Subscribing to purchase events...');
-
-        subscriptionId = connection.onLogs(
-          new PublicKey(PROGRAM_ID),
-          (logs) => {
-            const logMessages = logs.logs;
-
-            const isPurchaseEvent = logMessages.some(log =>
-              log.includes('TokensPurchased') ||
-              log.includes('buy_tokens') ||
-              log.includes('buy_more_tokens')
-            );
-
-            if (isPurchaseEvent) {
-              console.log('💰 Purchase detected! Flashing carousel...');
-
-              const numFlashing = Math.floor(Math.random() * 2) + 1;
-              const indices: number[] = [];
-
-              for (let i = 0; i < numFlashing; i++) {
-                const randomIndex = Math.floor(Math.random() * tokens.length);
-                if (!indices.includes(randomIndex)) {
-                  indices.push(randomIndex);
-                }
-              }
-
-              setFlashingIndices(indices);
-              setTimeout(() => setFlashingIndices([]), 600);
-
-              fetchAllTokens().then(allTokens => {
-                if (allTokens.length > 0) {
-                  const hotTokens: HotToken[] = allTokens.map((token) => {
-                    const marketCap = (token.virtualSolInit + token.solRaised) * SOL_PRICE_USD;
-                    return {
-                      mint: token.mint.toString(),
-                      name: token.name,
-                      symbol: token.symbol,
-                      metadataUri: token.metadataUri,
-                      progress: token.progress,
-                      solRaised: token.solRaised,
-                      targetSol: token.targetSol,
-                      virtualSolInit: token.virtualSolInit,
-                      marketCap,
-                    };
-                  });
-                  setTokens(hotTokens);
-                }
-              });
-            }
-          },
-          'confirmed'
-        );
-
-        console.log('✅ HotTokens: Subscribed');
-      } catch (error) {
-        console.error('❌ Subscribe failed:', error);
+    // Poll every 60s (only when tab is visible)
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        loadTokens();
       }
-    }
+    }, CONFIG.POLL_INTERVAL);
 
-    subscribeToEvents();
-
-    return () => {
-      if (subscriptionId !== null) {
-        connection.removeOnLogsListener(subscriptionId);
-        console.log('🔌 HotTokens: Unsubscribed');
+    // Handle visibility change
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && !document.hidden) {
+        loadTokens(); // Refresh when tab becomes visible
       }
     };
-  }, [tokens]);
+
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+  }, [loadTokens]);
+
+  // ============================================================================
+  // SUPABASE REALTIME SUBSCRIPTION (Replaces WebSocket onLogs)
+  // ============================================================================
+
+  useEffect(() => {
+    // Subscribe to token updates via Supabase Realtime
+    const channel = supabase
+      .channel('hot-tokens-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'tokens',
+        },
+        (payload) => {
+          // Token was updated (new trade, status change, etc.)
+          const updatedToken = payload.new as { mint?: string };
+
+          // Flash effect for updated token
+          setTokens((prev) => {
+            const index = prev.findIndex((t) => t.mint === updatedToken.mint);
+            if (index !== -1) {
+              // Trigger flash
+              setFlashingIndices([index]);
+              setTimeout(() => setFlashingIndices([]), CONFIG.FLASH_DURATION);
+            }
+            return prev;
+          });
+
+          // Reload tokens to get fresh data
+          loadTokens();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'tokens',
+        },
+        () => {
+          // New token created
+          loadTokens();
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ HotTokens: Supabase Realtime connected (0 RPC!)');
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      console.log('🔌 HotTokens: Supabase Realtime disconnected');
+    };
+  }, [loadTokens]);
+
+  // ============================================================================
+  // AUTO-SCROLL ANIMATION
+  // ============================================================================
 
   useEffect(() => {
     if (!scrollRef.current || isHovering) return;
+
     const interval = setInterval(() => {
       if (scrollRef.current) {
-        scrollRef.current.scrollLeft += 0.5;
-        if (
-          scrollRef.current.scrollLeft >=
-          scrollRef.current.scrollWidth - scrollRef.current.clientWidth
-        ) {
+        scrollRef.current.scrollLeft += CONFIG.SCROLL_SPEED;
+
+        // Reset to start when reaching end
+        const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+        if (scrollLeft >= scrollWidth - clientWidth) {
           scrollRef.current.scrollLeft = 0;
         }
       }
-    }, 30);
+    }, CONFIG.SCROLL_INTERVAL);
+
     return () => clearInterval(interval);
   }, [isHovering]);
 
-  const getTokenImage = (metadataUri: string): string => {
-    try {
-      if (metadataUri.startsWith('{')) {
-        const metadata = JSON.parse(metadataUri);
-        return metadata.image || '';
-      }
-    } catch (e) {
-      // ignore
-    }
-    return '';
-  };
+  // ============================================================================
+  // HELPERS
+  // ============================================================================
 
   const formatMarketCap = (mc: number): string => {
-    if (mc >= 1000000) return `$${(mc / 1000000).toFixed(2)}M`;
-    if (mc >= 1000) return `$${(mc / 1000).toFixed(2)}K`;
+    if (mc >= 1_000_000) return `$${(mc / 1_000_000).toFixed(2)}M`;
+    if (mc >= 1_000) return `$${(mc / 1_000).toFixed(2)}K`;
     return `$${mc.toFixed(2)}`;
   };
+
+  // ============================================================================
+  // RENDER: LOADING STATE
+  // ============================================================================
+
+  if (loading) {
+    return (
+      <div className="px-4 lg:px-6 mb-8">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+          <h2 className="text-xl font-bold mb-4">🔥 Hot Tokens</h2>
+          <div className="flex gap-4 overflow-hidden">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="flex-shrink-0 w-[260px] h-[100px] rounded-xl bg-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // RENDER: EMPTY STATE
+  // ============================================================================
 
   if (tokens.length === 0) {
     return (
       <div className="px-4 lg:px-6 mb-8">
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
           <h2 className="text-xl font-bold mb-4">🔥 Hot Tokens</h2>
-          <p className="text-gray-400">Loading tokens...</p>
+          <p className="text-gray-400">No tokens found. Create the first one!</p>
         </div>
       </div>
     );
   }
 
+  // ============================================================================
+  // RENDER: CAROUSEL
+  // ============================================================================
+
   return (
     <div className="w-full mb-8">
-      {/* ⭐ FIX: Rimosso px-5 lg:px-6 da qui */}
       <div className="px-4 lg:px-6">
         <h2 className="text-xl font-bold mb-4">🔥 Hot Tokens</h2>
       </div>
@@ -201,7 +253,6 @@ export function HotTokensCarousel() {
         }
       `}</style>
 
-      {/* ⭐ FIX: Rimosso -mx-5 lg:-mx-6 che causava overflow */}
       <div className="w-full overflow-x-hidden">
         <div
           ref={scrollRef}
@@ -210,33 +261,37 @@ export function HotTokensCarousel() {
           className="carousel-scroll flex gap-4 overflow-x-auto px-4 lg:px-6 pb-2"
           style={{
             scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
+            msOverflowStyle: 'none',
           }}
         >
           {tokens.map((token, index) => {
-            const image = getTokenImage(token.metadataUri);
             const isFlashing = flashingIndices.includes(index);
 
             return (
               <Link
                 key={token.mint}
                 href={`/token/${token.mint}`}
-                className={`flex-shrink-0 w-[260px] lg:min-w-[280px] rounded-xl p-4 transition-all cursor-pointer ${isFlashing
+                className={`flex-shrink-0 w-[260px] lg:min-w-[280px] rounded-xl p-4 transition-all cursor-pointer ${
+                  isFlashing
                     ? 'bg-yellow-400 border-2 border-yellow-400 scale-105 shadow-lg shadow-yellow-400/50'
                     : 'bg-white/5 border border-white/10 hover:bg-white/10'
-                  }`}
+                }`}
                 style={{
                   transition: isFlashing ? 'all 0.6s ease' : 'all 0.2s ease',
                 }}
               >
-                {/* ⭐ FIX: Ridotto width su mobile da 280px a 260px */}
                 <div className="flex gap-3">
+                  {/* Token Image */}
                   <div className="flex-shrink-0">
-                    {image ? (
+                    {token.image ? (
                       <img
-                        src={image}
+                        src={token.image}
                         alt={token.name}
                         className="w-16 h-16 rounded-lg object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '';
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl">
@@ -245,27 +300,43 @@ export function HotTokensCarousel() {
                     )}
                   </div>
 
+                  {/* Token Info */}
                   <div className="flex-1 min-w-0">
-                    <div className={`font-bold text-base mb-1 truncate ${isFlashing ? 'text-black' : 'text-white'}`}>
+                    <div
+                      className={`font-bold text-base mb-1 truncate ${
+                        isFlashing ? 'text-black' : 'text-white'
+                      }`}
+                    >
                       {token.name}
                     </div>
 
-                    <div className={`text-sm font-semibold mb-2 ${isFlashing ? 'text-black' : 'text-green-400'}`}>
-                      MC: {formatMarketCap(token.marketCap)}
+                    <div
+                      className={`text-sm font-semibold mb-2 ${
+                        isFlashing ? 'text-black' : 'text-green-400'
+                      }`}
+                    >
+                      MC: {formatMarketCap(token.marketCapUsd)}
                     </div>
 
+                    {/* Progress Bar */}
                     <div>
                       <div className="flex justify-between items-center text-xs mb-1">
                         <span className={isFlashing ? 'text-black/70' : 'text-white/60'}>
                           Progress
                         </span>
-                        <span className={`font-bold ${isFlashing ? 'text-black' : 'text-green-400'}`}>
+                        <span
+                          className={`font-bold ${
+                            isFlashing ? 'text-black' : 'text-green-400'
+                          }`}
+                        >
                           {token.progress.toFixed(1)}%
                         </span>
                       </div>
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all ${isFlashing ? 'bg-black' : 'bg-green-400'}`}
+                          className={`h-full rounded-full transition-all ${
+                            isFlashing ? 'bg-black' : 'bg-green-400'
+                          }`}
                           style={{ width: `${Math.min(token.progress, 100)}%` }}
                         />
                       </div>

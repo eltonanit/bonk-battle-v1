@@ -23,6 +23,14 @@ import {
   calculateVolumeProgress,
 } from '@/lib/solana/constants';
 
+// ⭐ Import tier config for correct MC calculation
+import {
+  VIRTUAL_TOKEN_INIT,
+  TOTAL_SUPPLY,
+  ACTIVE_TIER,
+  calculateMarketCapUsd as tierCalculateMarketCapUsd,
+} from '@/config/tier-config';
+
 // ═══════════════════════════════════════════════════════════════════════════
 // OPTIMIZED POLLING CONFIG FOR MAINNET
 // ═══════════════════════════════════════════════════════════════════════════
@@ -250,36 +258,84 @@ export function useCanTokenBattle(mint: PublicKey | null): boolean {
 
 /**
  * ========================================================================
- * CALCULATION FUNCTIONS (unchanged)
+ * MARKET CAP CALCULATION - CORRECT BONDING CURVE FORMULA (xy=k)
  * ========================================================================
+ * 
+ * This uses the Pump.fun style constant product formula:
+ * MC = (virtualSol / virtualToken) × totalSupply × solPrice
+ * 
+ * The formula accounts for:
+ * - Virtual SOL reserves (increases as users buy)
+ * - Virtual Token reserves (decreases as users buy)
+ * - Constant product k = virtualSol × virtualToken
  */
 
-const TOTAL_SUPPLY = 1_000_000_000_000_000_000;
-
+/**
+ * Calculate Market Cap using the CORRECT bonding curve formula (xy=k)
+ * 
+ * ⭐ UPDATED: Uses tier-config formula for consistency across all components
+ * 
+ * @param solCollected - SOL collected in the bonding curve (in SOL, not lamports)
+ * @param solPriceUsd - Current SOL price from oracle
+ * @returns Market cap in USD
+ */
 export function calculateMarketCapFromReserves(
   virtualSolReserves: number,
   virtualTokenReserves: number,
   solPriceUsd: number,
   totalSupply: number = TOTAL_SUPPLY
 ): number {
-  if (virtualTokenReserves === 0 || virtualSolReserves === 0) return 0;
-  const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
+  if (virtualTokenReserves === 0 || virtualSolReserves === 0 || !solPriceUsd) return 0;
+
+  // Convert lamports to SOL for calculation
+  const virtualSolLamports = virtualSolReserves;
+  const virtualTokenLamports = virtualTokenReserves;
+
+  // Price per token = virtualSol / virtualToken
+  const pricePerTokenLamports = virtualSolLamports / virtualTokenLamports;
+
+  // MC = pricePerToken × totalSupply
   const mcLamports = pricePerTokenLamports * totalSupply;
+
+  // Convert to USD
   const mcUsd = (mcLamports / 1e9) * solPriceUsd;
+
   return mcUsd;
 }
 
+/**
+ * ⭐ NEW: Calculate Market Cap using tier-config formula
+ * This is the RECOMMENDED function for UI components
+ * 
+ * @param solCollectedLamports - SOL collected (in lamports)
+ * @param solPriceUsd - Current SOL price from oracle
+ * @returns Market cap in USD
+ */
+export function calculateMarketCapFromSolCollected(
+  solCollectedLamports: number,
+  solPriceUsd: number
+): number {
+  const solCollected = solCollectedLamports / 1e9; // Convert to SOL
+  return tierCalculateMarketCapUsd(solCollected, solPriceUsd);
+}
+
+/**
+ * Calculate price per token in USD
+ */
 export function calculatePricePerToken(
   virtualSolReserves: number,
   virtualTokenReserves: number,
   solPriceUsd: number
 ): number {
-  if (virtualTokenReserves === 0) return 0;
+  if (virtualTokenReserves === 0 || !solPriceUsd) return 0;
   const pricePerTokenLamports = virtualSolReserves / virtualTokenReserves;
   const pricePerTokenUsd = (pricePerTokenLamports / 1e9) * solPriceUsd;
   return pricePerTokenUsd;
 }
 
+/**
+ * Calculate tokens out for a given SOL input (for buy preview)
+ */
 export function calculateTokensOut(
   solIn: number,
   virtualSolReserves: number,
@@ -290,6 +346,9 @@ export function calculateTokensOut(
   return tokensOut;
 }
 
+/**
+ * Calculate SOL out for a given token input (for sell preview)
+ */
 export function calculateSolOut(
   tokensIn: number,
   virtualSolReserves: number,

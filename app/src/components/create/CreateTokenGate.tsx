@@ -61,7 +61,7 @@ export function CreateTokenGate({ children }: CreateTokenGateProps) {
             Only Army Commanders can create tokens.
           </p>
           <p className="text-gray-500 text-sm mb-8">
-            Create your own Army and recruit at least 2 soldiers to unlock token creation.
+            Create your own Army and recruit at least 2 followers to unlock token creation.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -87,8 +87,11 @@ export function CreateTokenGate({ children }: CreateTokenGateProps) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <div className="text-6xl mb-6">⚔️</div>
-          <h2 className="text-2xl font-bold text-white mb-4">Recruit More Soldiers!</h2>
+          {/* BONK Logo */}
+          <div className="flex justify-center mb-6">
+            <img src="/BONK-LOGO.svg" alt="BONK" className="w-24 h-24" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-4">Only Commander with minimum 2 followers can create a coin</h2>
 
           {/* Army Info Card */}
           <div className="bg-[#1d2531] border border-[#2a3544] rounded-xl p-4 mb-6">
@@ -96,14 +99,13 @@ export function CreateTokenGate({ children }: CreateTokenGateProps) {
               <span className="text-2xl">🛡️</span>
               <div>
                 <p className="text-white font-bold">{army.name}</p>
-                <p className="text-gray-400 text-sm">${army.ticker}</p>
               </div>
             </div>
 
             {/* Progress */}
             <div className="mb-3">
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-400">Soldiers</span>
+                <span className="text-gray-400">Followers</span>
                 <span className="text-white font-bold">{army.memberCount} / {army.minRequired}</span>
               </div>
               <div className="h-3 bg-[#3b415a] rounded-full overflow-hidden">
@@ -115,31 +117,36 @@ export function CreateTokenGate({ children }: CreateTokenGateProps) {
             </div>
 
             <p className="text-orange-400 font-semibold">
-              Need {army.needed} more soldier{army.needed !== 1 ? 's' : ''} to create tokens!
+              Need {army.needed} more follower{army.needed !== 1 ? 's' : ''} to create tokens!
             </p>
           </div>
 
           <p className="text-gray-500 text-sm mb-6">
-            Share your Army invite link to recruit soldiers and unlock token creation.
+            Share your Army invite link to recruit followers and unlock token creation.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href={`/army/${army.id}`}
-              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:opacity-90 transition-all"
-            >
-              📣 Recruit Soldiers
-            </Link>
+          <div className="flex flex-col gap-4 justify-center">
             <button
               onClick={() => {
                 const inviteUrl = `${window.location.origin}/army/invite/${army.id}`;
                 navigator.clipboard.writeText(inviteUrl);
                 alert('Invite link copied!');
               }}
-              className="px-6 py-3 bg-[#2a3544] text-white font-bold rounded-xl hover:bg-[#3b415a] transition-all"
+              className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-xl hover:opacity-90 transition-all"
             >
               📋 Copy Invite Link
             </button>
+          </div>
+
+          {/* You don't have an army? */}
+          <div className="mt-8 pt-6 border-t border-gray-700">
+            <p className="text-gray-400 text-sm mb-4">You don't have an army?</p>
+            <Link
+              href="/armies/create"
+              className="inline-block px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl hover:opacity-90 transition-all"
+            >
+              👑 Create Your Army
+            </Link>
           </div>
         </div>
       </div>
@@ -175,7 +182,7 @@ export function CreateTokenGate({ children }: CreateTokenGateProps) {
             <span className="text-2xl">✅</span>
             <div>
               <p className="text-green-400 font-bold">Creating token for {army.name}</p>
-              <p className="text-gray-400 text-sm">${army.ticker} • {army.memberCount} members</p>
+              <p className="text-gray-400 text-sm">{army.memberCount} followers</p>
             </div>
           </div>
         </div>
