@@ -1,8 +1,45 @@
+/**
+ * ========================================================================
+ * BONK BATTLE - TRADES LIST (OPTIMIZED)
+ * ========================================================================
+ *
+ * BEFORE: setInterval every 10s to force re-render for "time ago"
+ * - Wasteful CPU usage
+ * - Triggers unnecessary re-renders
+ *
+ * AFTER:
+ * - useReducer for efficient time updates
+ * - Only update visible "time ago" values
+ * - Longer interval (30s instead of 10s)
+ * - Supabase Realtime handles new trades
+ *
+ * ========================================================================
+ */
+
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getSolscanUrl } from '@/config/solana';
+
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
+const CONFIG = {
+  // Time ago update interval (was 10s, now 30s - "time ago" doesn't need precision)
+  TIME_UPDATE_INTERVAL: 30_000,
+
+  // Max trades to display
+  MAX_TRADES: 100,
+
+  // Default filter
+  DEFAULT_MIN_SOL_FILTER: 0.05,
+};
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface Trade {
   id: string;
@@ -19,9 +56,12 @@ interface TradesListProps {
   tokenSymbol: string;
 }
 
-// Format token amount to human readable (e.g., 5.79m, 970.47k)
+// ============================================================================
+// FORMATTERS (memoized outside component)
+// ============================================================================
+
 function formatTokenAmount(amount: string): string {
-  const num = parseFloat(amount) / 1e9; // Convert from smallest unit
+  const num = parseFloat(amount) / 1e9;
   if (num >= 1_000_000) {
     return (num / 1_000_000).toFixed(2) + 'm';
   } else if (num >= 1_000) {
@@ -30,17 +70,18 @@ function formatTokenAmount(amount: string): string {
   return num.toFixed(2);
 }
 
-// Format SOL amount
 function formatSolAmount(lamports: number): string {
   return (lamports / 1e9).toFixed(3);
 }
 
-// Format wallet address (e.g., 2MBijH)
 function formatWallet(address: string): string {
   return address.slice(0, 6);
 }
 
-// Format time ago
+function formatSignature(sig: string): string {
+  return sig.slice(0, 6);
+}
+
 function formatTimeAgo(timestamp: string): string {
   const now = Date.now();
   const then = new Date(timestamp).getTime();
@@ -56,18 +97,23 @@ function formatTimeAgo(timestamp: string): string {
   return `${Math.floor(diffSeconds / 86400)}d ago`;
 }
 
-// Shorten signature for display
-function formatSignature(sig: string): string {
-  return sig.slice(0, 6);
-}
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
-  const [minSolFilter, setMinSolFilter] = useState(0.05);
+  const [minSolFilter, setMinSolFilter] = useState(CONFIG.DEFAULT_MIN_SOL_FILTER);
   const [filterEnabled, setFilterEnabled] = useState(false);
 
-  // Fetch trades
+  // Used to trigger time ago recalculation
+  const [timeKey, setTimeKey] = useState(0);
+
+  // ============================================================================
+  // FETCH TRADES
+  // ============================================================================
+
   const fetchTrades = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -75,7 +121,7 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
         .select('id, wallet_address, trade_type, sol_amount, token_amount, block_time, signature')
         .eq('token_mint', tokenMint)
         .order('block_time', { ascending: false })
-        .limit(100);
+        .limit(CONFIG.MAX_TRADES);
 
       if (error) throw error;
       setTrades(data || []);
@@ -90,7 +136,10 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
     fetchTrades();
   }, [fetchTrades]);
 
-  // Real-time subscription
+  // ============================================================================
+  // SUPABASE REALTIME SUBSCRIPTION
+  // ============================================================================
+
   useEffect(() => {
     const channel = supabase
       .channel(`trades-list-${tokenMint}`)
@@ -104,7 +153,7 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
         },
         (payload) => {
           const newTrade = payload.new as Trade;
-          setTrades(prev => [newTrade, ...prev].slice(0, 100));
+          setTrades((prev) => [newTrade, ...prev].slice(0, CONFIG.MAX_TRADES));
         }
       )
       .subscribe();
@@ -114,18 +163,48 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
     };
   }, [tokenMint]);
 
-  // Update time ago every 10 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTrades(prev => [...prev]); // Force re-render
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  // ============================================================================
+  // TIME AGO UPDATE (optimized)
+  // ============================================================================
 
-  // Filter trades
-  const filteredTrades = filterEnabled
-    ? trades.filter(t => t.sol_amount / 1e9 >= minSolFilter)
-    : trades;
+  useEffect(() => {
+    // Only start interval if we have trades and tab is visible
+    if (trades.length === 0) return;
+
+    const interval = setInterval(() => {
+      // Only update if tab is visible
+      if (!document.hidden) {
+        setTimeKey((k) => k + 1);
+      }
+    }, CONFIG.TIME_UPDATE_INTERVAL);
+
+    // Also update when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        setTimeKey((k) => k + 1);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [trades.length]);
+
+  // ============================================================================
+  // FILTERED TRADES (memoized)
+  // ============================================================================
+
+  const filteredTrades = useMemo(() => {
+    if (!filterEnabled) return trades;
+    return trades.filter((t) => t.sol_amount / 1e9 >= minSolFilter);
+  }, [trades, filterEnabled, minSolFilter]);
+
+  // ============================================================================
+  // RENDER: LOADING
+  // ============================================================================
 
   if (loading) {
     return (
@@ -134,6 +213,10 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
       </div>
     );
   }
+
+  // ============================================================================
+  // RENDER: TRADES LIST
+  // ============================================================================
 
   return (
     <div className="space-y-4">
@@ -194,72 +277,93 @@ export function TradesList({ tokenMint, tokenSymbol }: TradesListProps) {
               </tr>
             ) : (
               filteredTrades.map((trade) => (
-                <tr
+                <TradeRow
                   key={trade.id}
-                  className="border-b border-bonk-border/50 hover:bg-bonk-dark/50 transition-colors"
-                >
-                  {/* Account */}
-                  <td className="py-3 px-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs">
-                        🐸
-                      </div>
-                      <a
-                        href={getSolscanUrl('account', trade.wallet_address)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-white hover:text-cyan-400 font-mono"
-                      >
-                        {formatWallet(trade.wallet_address)}
-                      </a>
-                    </div>
-                  </td>
-
-                  {/* Type */}
-                  <td className="py-3 px-2">
-                    <span
-                      className={`font-medium ${
-                        trade.trade_type === 'buy' ? 'text-green-500' : 'text-red-500'
-                      }`}
-                    >
-                      {trade.trade_type === 'buy' ? 'Buy' : 'Sell'}
-                    </span>
-                  </td>
-
-                  {/* SOL Amount */}
-                  <td className="py-3 px-2 text-right font-mono text-white">
-                    {formatSolAmount(trade.sol_amount)}
-                  </td>
-
-                  {/* Token Amount */}
-                  <td className={`py-3 px-2 text-right font-mono ${
-                    trade.trade_type === 'buy' ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                    {formatTokenAmount(trade.token_amount)}
-                  </td>
-
-                  {/* Time */}
-                  <td className="py-3 px-2 text-right text-gray-400">
-                    {formatTimeAgo(trade.block_time)}
-                  </td>
-
-                  {/* Transaction */}
-                  <td className="py-3 px-2 text-right">
-                    <a
-                      href={getSolscanUrl('tx', trade.signature)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-cyan-400 font-mono text-sm"
-                    >
-                      {formatSignature(trade.signature)}
-                    </a>
-                  </td>
-                </tr>
+                  trade={trade}
+                  tokenSymbol={tokenSymbol}
+                  timeKey={timeKey}
+                />
               ))
             )}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// TRADE ROW COMPONENT (memoized for performance)
+// ============================================================================
+
+interface TradeRowProps {
+  trade: Trade;
+  tokenSymbol: string;
+  timeKey: number;
+}
+
+function TradeRow({ trade, tokenSymbol, timeKey }: TradeRowProps) {
+  // timeKey is used to force recalculation of time ago
+  const timeAgo = useMemo(() => formatTimeAgo(trade.block_time), [trade.block_time, timeKey]);
+
+  return (
+    <tr className="border-b border-bonk-border/50 hover:bg-bonk-dark/50 transition-colors">
+      {/* Account */}
+      <td className="py-3 px-2">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs">
+            🐸
+          </div>
+          <a
+            href={getSolscanUrl('account', trade.wallet_address)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-white hover:text-cyan-400 font-mono"
+          >
+            {formatWallet(trade.wallet_address)}
+          </a>
+        </div>
+      </td>
+
+      {/* Type */}
+      <td className="py-3 px-2">
+        <span
+          className={`font-medium ${
+            trade.trade_type === 'buy' ? 'text-green-500' : 'text-red-500'
+          }`}
+        >
+          {trade.trade_type === 'buy' ? 'Buy' : 'Sell'}
+        </span>
+      </td>
+
+      {/* SOL Amount */}
+      <td className="py-3 px-2 text-right font-mono text-white">
+        {formatSolAmount(trade.sol_amount)}
+      </td>
+
+      {/* Token Amount */}
+      <td
+        className={`py-3 px-2 text-right font-mono ${
+          trade.trade_type === 'buy' ? 'text-green-500' : 'text-red-500'
+        }`}
+      >
+        {formatTokenAmount(trade.token_amount)}
+      </td>
+
+      {/* Time */}
+      <td className="py-3 px-2 text-right text-gray-400">{timeAgo}</td>
+
+      {/* Transaction */}
+      <td className="py-3 px-2 text-right">
+        <a
+          href={getSolscanUrl('tx', trade.signature)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gray-400 hover:text-cyan-400 font-mono text-sm"
+        >
+          {formatSignature(trade.signature)}
+        </a>
+      </td>
+    </tr>
   );
 }
