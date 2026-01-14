@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { FEATURES } from '@/config/features';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -73,23 +74,25 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Home</span>
           </Link>
 
-          {/* CREATE */}
-          <Link
-            href="/create"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
-                ? 'text-orange-400 bg-orange-500/20'
-                : 'text-white/60'
-              }`}
-          >
-            <span className="w-6 h-6">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8" />
-                <path d="M12 18V6" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-semibold">Create</span>
-          </Link>
+          {/* CREATE - HIDDEN in Season 1 */}
+          {FEATURES.SHOW_CREATE_COIN && (
+            <Link
+              href="/create"
+              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
+                  ? 'text-orange-400 bg-orange-500/20'
+                  : 'text-white/60'
+                }`}
+            >
+              <span className="w-6 h-6">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8" />
+                  <path d="M12 18V6" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold">Create</span>
+            </Link>
+          )}
 
           {/* BATTLE - CENTRALE IN ARANCIONE */}
           <Link
@@ -102,7 +105,7 @@ export function MobileBottomNav() {
             <span className="w-8 h-8" style={{ filter: 'brightness(0) saturate(100%) invert(57%) sepia(81%) saturate(1562%) hue-rotate(358deg) brightness(102%) contrast(101%)' }}>
               <img src="/icons8-battaglia-100.png" alt="Battle" className="w-full h-full object-contain" />
             </span>
-            <span className="text-[11px] font-bold">Start</span>
+            <span className="text-[11px] font-bold">Top Fight</span>
           </Link>
 
           {/* PROFILE - Shows balance instead of icon */}
@@ -119,21 +122,41 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Profile</span>
           </Link>
 
-          {/* ARMY */}
-          <Link
-            href="/armies"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/armies')
-                ? 'text-green-400 bg-green-500/20'
-                : 'text-green-400'
-              }`}
-          >
-            <span className="w-6 h-6">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </span>
-            <span className="text-[11px] font-semibold">Army</span>
-          </Link>
+          {/* HOLDERS / POTENTIAL */}
+          {FEATURES.SHOW_POTENTIAL && (
+            <Link
+              href="/holders"
+              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/holders')
+                  ? 'text-purple-400 bg-purple-500/20'
+                  : 'text-purple-400'
+                }`}
+            >
+              <span className="w-6 h-6">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold">Holders</span>
+            </Link>
+          )}
+
+          {/* ARMY - HIDDEN in Season 1 */}
+          {FEATURES.SHOW_ARMIES && (
+            <Link
+              href="/armies"
+              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/armies')
+                  ? 'text-green-400 bg-green-500/20'
+                  : 'text-green-400'
+                }`}
+            >
+              <span className="w-6 h-6">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </span>
+              <span className="text-[11px] font-semibold">Army</span>
+            </Link>
+          )}
 
         </div>
       </nav>

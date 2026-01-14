@@ -264,13 +264,9 @@ export function FOMOTicker() {
             opponentImage: winner.image,
           }));
 
-        // 7. Combine all events, prioritize by type: winners > defeated > battles > trades > created
+        // 7. SEASON 1: Only show buy/sell events (no winners, defeated, battles, created)
         const allEvents = [
-          ...winnerEvents,
-          ...defeatedEvents,
-          ...battleEvents,
-          ...tradeEvents,
-          ...createEvents.filter(c => !tradeEvents.some(t => t.mint === c.mint)), // Don't duplicate
+          ...tradeEvents, // Only buy/sell events
         ];
 
         // Sort by timestamp (newest first)

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
+import { FEATURES } from '@/config/features';
 
 interface ProfileHeaderProps {
   createdCoinsCount: number;
@@ -85,10 +86,13 @@ export function ProfileHeader({ createdCoinsCount }: ProfileHeaderProps) {
 
             {/* Stats row: coins - following - followers */}
             <div className="flex items-center gap-8 text-sm">
-              <div className="text-center">
-                <div className="font-bold text-white text-lg">{createdCoinsCount}</div>
-                <div className="text-gray-400 text-xs">coins</div>
-              </div>
+              {/* Coins stat - HIDDEN in Season 1 */}
+              {FEATURES.SHOW_PROFILE_COINS_TAB && (
+                <div className="text-center">
+                  <div className="font-bold text-white text-lg">{createdCoinsCount}</div>
+                  <div className="text-gray-400 text-xs">coins</div>
+                </div>
+              )}
               <div className="text-center">
                 <div className="font-bold text-white text-lg">{followingCount}</div>
                 <div className="text-gray-400 text-xs">following</div>

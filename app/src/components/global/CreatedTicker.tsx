@@ -5,6 +5,7 @@ import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
+import { FEATURES } from '@/config/features';
 
 interface CreatedEvent {
   signature: string;
@@ -41,7 +42,16 @@ export function CreatedTicker() {
   const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Feature flag check - skip data fetching if hidden
+  const isHidden = !FEATURES.SHOW_CREATED_TICKER;
+
   useEffect(() => {
+    // Skip fetching if component is hidden
+    if (isHidden) {
+      setLoading(false);
+      return;
+    }
+
     async function loadCreatedTokens() {
       try {
         const allTokens = await fetchAllBonkTokens();
@@ -103,10 +113,10 @@ export function CreatedTicker() {
     loadCreatedTokens();
     const interval = setInterval(loadCreatedTokens, 30000); // Refresh ogni 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [isHidden]);
 
   useEffect(() => {
-    if (createdEvents.length === 0) return;
+    if (isHidden || createdEvents.length === 0) return;
 
     const timer = setInterval(() => {
       setShake(true);
@@ -116,7 +126,12 @@ export function CreatedTicker() {
     }, 900); // Cambia ogni 0.9 secondi
 
     return () => clearInterval(timer);
-  }, [createdEvents]);
+  }, [isHidden, createdEvents]);
+
+  // HIDDEN in Season 1 - return null after all hooks
+  if (isHidden) {
+    return null;
+  }
 
   if (loading) {
     return (

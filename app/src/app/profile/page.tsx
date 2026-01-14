@@ -14,23 +14,25 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { BalancesTab } from '@/components/profile/BalancesTab';
 import { CoinsTab } from '@/components/profile/CoinsTab';
 import { YourArmyTab } from '@/components/profile/YourArmyTab';
+import { ActivityTab } from '@/components/profile/ActivityTab';
 import { useUserPoints } from '@/hooks/useUserPoints';
+import { FEATURES } from '@/config/features';
 
 function ProfileContent() {
   const { publicKey } = useWallet();
   const searchParams = useSearchParams();
   const { points, loading: pointsLoading } = useUserPoints();
 
-  // Tab: balances, coins, army, points
-  const initialTab = (searchParams.get('tab') as 'balances' | 'coins' | 'army' | 'points') || 'balances';
+  // Tab: balances, activity, coins, army, points
+  const initialTab = (searchParams.get('tab') as 'balances' | 'activity' | 'coins' | 'army' | 'points') || 'balances';
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'coins' | 'army' | 'points'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'balances' | 'activity' | 'coins' | 'army' | 'points'>(initialTab);
   const [createdCoinsCount, setCreatedCoinsCount] = useState(0);
 
   // Update tab quando cambia URL
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'balances' || tab === 'coins' || tab === 'army' || tab === 'points') {
+    if (tab === 'balances' || tab === 'activity' || tab === 'coins' || tab === 'army' || tab === 'points') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -78,23 +80,38 @@ function ProfileContent() {
               Balance
             </button>
             <button
-              onClick={() => setActiveTab('coins')}
-              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'coins'
-                ? 'text-white border-cyan-500'
+              onClick={() => setActiveTab('activity')}
+              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'activity'
+                ? 'text-white border-purple-500'
                 : 'text-gray-400 border-transparent hover:text-gray-300'
                 }`}
             >
-              Coins
+              Activity
             </button>
-            <button
-              onClick={() => setActiveTab('army')}
-              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'army'
-                ? 'text-white border-orange-500'
-                : 'text-gray-400 border-transparent hover:text-gray-300'
-                }`}
-            >
-              Army
-            </button>
+            {/* Coins Tab - HIDDEN in Season 1 */}
+            {FEATURES.SHOW_PROFILE_COINS_TAB && (
+              <button
+                onClick={() => setActiveTab('coins')}
+                className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'coins'
+                  ? 'text-white border-cyan-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+                  }`}
+              >
+                Coins
+              </button>
+            )}
+            {/* Army Tab - HIDDEN in Season 1 */}
+            {FEATURES.SHOW_PROFILE_ARMY_TAB && (
+              <button
+                onClick={() => setActiveTab('army')}
+                className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'army'
+                  ? 'text-white border-orange-500'
+                  : 'text-gray-400 border-transparent hover:text-gray-300'
+                  }`}
+              >
+                Army
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('points')}
               className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'points'
@@ -110,8 +127,9 @@ function ProfileContent() {
         {/* Tab Content */}
         <div>
           {activeTab === 'balances' && <BalancesTab />}
-          {activeTab === 'coins' && <CoinsTab />}
-          {activeTab === 'army' && <YourArmyTab />}
+          {activeTab === 'activity' && <ActivityTab />}
+          {activeTab === 'coins' && FEATURES.SHOW_PROFILE_COINS_TAB && <CoinsTab />}
+          {activeTab === 'army' && FEATURES.SHOW_PROFILE_ARMY_TAB && <YourArmyTab />}
           {activeTab === 'points' && (
             <div className="space-y-6">
               {/* Points Summary */}

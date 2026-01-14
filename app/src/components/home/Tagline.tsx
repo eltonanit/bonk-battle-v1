@@ -10,6 +10,7 @@ import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
 import { supabase } from '@/lib/supabase';
+import { FEATURES } from '@/config/features';
 
 // ⭐ TIER TARGETS - Must match smart contract!
 const TIER_TARGETS = {
@@ -439,82 +440,84 @@ export function Tagline() {
           </div>
         </div>
 
-        {/* ===== RIGHT SIDE - SLIDER IMMAGINI (DESKTOP ONLY) ===== */}
-        <div className="hidden lg:block order-2">
-          {/* DONT TRADE ALONE JOIN AN ARMY */}
-          <h2
-            className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-6 mb-4 flex items-center justify-center gap-2"
-            style={{
-              color: '#FACC15',
-              textShadow: '0 0 15px rgba(250, 204, 21, 0.4)'
-            }}
-          >
-            DONT TRADE ALONE JOIN AN ARMY
-          </h2>
-
-          {/* JOIN ARMY TO BATTLE Button */}
-          <div className="flex justify-center mb-4">
-            <Link
-              href="/armies"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-colors"
+        {/* ===== RIGHT SIDE - SLIDER IMMAGINI (DESKTOP ONLY) - HIDDEN IN SEASON 1 ===== */}
+        {FEATURES.SHOW_ARMIES && (
+          <div className="hidden lg:block order-2">
+            {/* DONT TRADE ALONE JOIN AN ARMY */}
+            <h2
+              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-6 mb-4 flex items-center justify-center gap-2"
+              style={{
+                color: '#FACC15',
+                textShadow: '0 0 15px rgba(250, 204, 21, 0.4)'
+              }}
             >
-            <svg viewBox="0 0 640 640" fill="currentColor" className="w-5 h-5">
-              <path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/>
-            </svg>
-            JOIN ARMY TO BATTLE
-            </Link>
-          </div>
+              DONT TRADE ALONE JOIN AN ARMY
+            </h2>
 
-          {/* ⭐ Container slider - ALTEZZA RIDOTTA per matchare sinistra */}
-          <div className="relative w-full h-[180px] lg:h-[280px] bg-black border border-white/10 rounded-xl overflow-hidden">
-            {/* Immagini */}
-            {FEATURED_IMAGES.map((imgSrc, index) => (
-              <div
-                key={index}
-                className={`absolute inset-0 transition-opacity duration-500 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                  }`}
+            {/* JOIN ARMY TO BATTLE Button */}
+            <div className="flex justify-center mb-4">
+              <Link
+                href="/armies"
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-colors"
               >
-                <Image
-                  src={imgSrc}
-                  alt={`Featured ${index + 1}`}
-                  fill
-                  className="object-cover"
-                  priority={index === 0}
-                  onError={(e) => {
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      parent.innerHTML = `
-                        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-600 text-white text-4xl font-bold">
-                          🚀
-                        </div>
-                      `;
-                    }
-                  }}
-                />
-              </div>
-            ))}
-
-            {/* ⭐ PALLINI INDICATORI */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-              {FEATURED_IMAGES.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`h-2 rounded-full transition-all ${index === currentImageIndex
-                    ? 'bg-yellow-400 w-6'
-                    : 'bg-white/40 hover:bg-white/60 w-2'
-                    }`}
-                  aria-label={`Go to image ${index + 1}`}
-                />
-              ))}
+              <svg viewBox="0 0 640 640" fill="currentColor" className="w-5 h-5">
+                <path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/>
+              </svg>
+              JOIN ARMY TO BATTLE
+              </Link>
             </div>
-          </div>
 
-          {/* Purple text below slides */}
-          <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#a855f7', textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}>
-            BONK BATTLE IS WHERE COMMUNITIES TURN IN TO ARMIES
-          </p>
-        </div>
+            {/* ⭐ Container slider - ALTEZZA RIDOTTA per matchare sinistra */}
+            <div className="relative w-full h-[180px] lg:h-[280px] bg-black border border-white/10 rounded-xl overflow-hidden">
+              {/* Immagini */}
+              {FEATURED_IMAGES.map((imgSrc, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 transition-opacity duration-500 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                    }`}
+                >
+                  <Image
+                    src={imgSrc}
+                    alt={`Featured ${index + 1}`}
+                    fill
+                    className="object-cover"
+                    priority={index === 0}
+                    onError={(e) => {
+                      const parent = e.currentTarget.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-600 text-white text-4xl font-bold">
+                            🚀
+                          </div>
+                        `;
+                      }
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* ⭐ PALLINI INDICATORI */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                {FEATURED_IMAGES.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`h-2 rounded-full transition-all ${index === currentImageIndex
+                      ? 'bg-yellow-400 w-6'
+                      : 'bg-white/40 hover:bg-white/60 w-2'
+                      }`}
+                    aria-label={`Go to image ${index + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Purple text below slides */}
+            <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#a855f7', textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}>
+              BONK BATTLE IS WHERE COMMUNITIES TURN IN TO ARMIES
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useConnection } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PublicKey, Transaction, TransactionInstruction, SystemProgram } from '@solana/web3.js';
 import { getSolscanUrl } from '@/config/solana';
+import Link from 'next/link';
 
 export default function AdminPage() {
     const { publicKey, signTransaction } = useWallet();
@@ -97,10 +98,43 @@ export default function AdminPage() {
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-2xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold">🔧 Admin - Initialize Price Oracle</h1>
+                    <h1 className="text-3xl font-bold">🔧 Admin Panel</h1>
                     <WalletMultiButton />
                 </div>
 
+                {/* Admin Tools Section */}
+                <div className="bg-gray-800 rounded-lg p-6 mb-6">
+                    <h2 className="text-xl font-bold mb-4">Admin Tools</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Create Token - Hidden from public, only accessible here */}
+                        <Link
+                            href="/create"
+                            className="flex items-center gap-3 bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold px-6 py-4 rounded-lg hover:from-yellow-400 hover:to-orange-400 transition-all"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8" />
+                                <path d="M12 18V6" />
+                            </svg>
+                            <span>Create Token</span>
+                        </Link>
+
+                        {/* Back to Home */}
+                        <Link
+                            href="/"
+                            className="flex items-center gap-3 bg-gray-700 text-white font-bold px-6 py-4 rounded-lg hover:bg-gray-600 transition-all"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                                <polyline points="9 22 9 12 15 12 15 22" />
+                            </svg>
+                            <span>Back to Home</span>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* Price Oracle Section */}
+                <h2 className="text-xl font-bold mb-4">Initialize Price Oracle</h2>
                 <div className="bg-gray-800 rounded-lg p-6 mb-4">
                     {publicKey ? (
                         <>

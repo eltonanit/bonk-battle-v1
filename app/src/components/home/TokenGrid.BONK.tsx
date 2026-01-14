@@ -11,6 +11,7 @@ import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { supabase } from '@/lib/supabase';
 import { lamportsToSol } from '@/lib/solana/constants';
+import { FEATURES } from '@/config/features';
 
 // ⭐ TIER TARGETS - Must match smart contract!
 const TIER_TARGETS = {
@@ -372,64 +373,76 @@ export function TokenGridBonk() {
 
   return (
     <div className="px-5 lg:px-6 pb-32">
-      {/* Filter Tabs */}
-      <div className="flex gap-3 mb-6 overflow-x-auto scrollbar-hide">
-        <button
-          onClick={() => setActiveFilter('battle')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'battle'
-            ? 'bg-bonk-orange text-white'
-            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
-            }`}
-        >
-          ⚔️ Battle
-        </button>
+      {/* Filter Tabs - HIDDEN in Season 1 */}
+      {(FEATURES.SHOW_BATTLE_TAB || FEATURES.SHOW_NEW_COINS_TAB || FEATURES.SHOW_ABOUT_TO_WIN_TAB || FEATURES.SHOW_WINNERS_TAB) && (
+        <div className="flex gap-3 mb-6 overflow-x-auto scrollbar-hide">
+          {FEATURES.SHOW_BATTLE_TAB && (
+            <button
+              onClick={() => setActiveFilter('battle')}
+              className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'battle'
+                ? 'bg-bonk-orange text-white'
+                : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+                }`}
+            >
+              ⚔️ Battle
+            </button>
+          )}
 
-        <button
-          onClick={() => setActiveFilter('new')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'new'
-            ? 'bg-bonk-blue-dark text-white'
-            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
-            }`}
-        >
-          🆕 New Coins
-        </button>
+          {FEATURES.SHOW_NEW_COINS_TAB && (
+            <button
+              onClick={() => setActiveFilter('new')}
+              className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'new'
+                ? 'bg-bonk-blue-dark text-white'
+                : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+                }`}
+            >
+              🆕 New Coins
+            </button>
+          )}
 
-        <button
-          onClick={() => setActiveFilter('aboutToWin')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'aboutToWin'
-            ? 'bg-bonk-gold text-black'
-            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
-            }`}
-        >
-          🏆 About to Win
-        </button>
+          {FEATURES.SHOW_ABOUT_TO_WIN_TAB && (
+            <button
+              onClick={() => setActiveFilter('aboutToWin')}
+              className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'aboutToWin'
+                ? 'bg-bonk-gold text-black'
+                : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+                }`}
+            >
+              🏆 About to Win
+            </button>
+          )}
 
-        <button
-          onClick={() => setActiveFilter('winners')}
-          className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'winners'
-            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black'
-            : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
-            }`}
-        >
-          👑 Winners
-        </button>
-      </div>
+          {FEATURES.SHOW_WINNERS_TAB && (
+            <button
+              onClick={() => setActiveFilter('winners')}
+              className={`px-6 py-2.5 rounded-lg font-semibold transition-all whitespace-nowrap ${activeFilter === 'winners'
+                ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black'
+                : 'bg-bonk-card text-bonk-text hover:bg-bonk-border'
+                }`}
+            >
+              👑 Winners
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Count Display */}
-      <div className="mb-4 text-sm text-bonk-text">
-        {isLoading ? (
-          'Loading tokens...'
-        ) : activeFilter === 'battle' ? (
-          `${battlePairs.length} active battle${battlePairs.length !== 1 ? 's' : ''}`
-        ) : activeFilter === 'new' ? (
-          `${newAndQualifiedTokens.length} tokens (${newCount} new, ${qualifiedCount} qualified)`
-        ) : (
-          `${getCount()} token${getCount() !== 1 ? 's' : ''} found`
-        )}
-      </div>
+      {/* Count Display - HIDDEN in Season 1 when tabs are hidden */}
+      {(FEATURES.SHOW_BATTLE_TAB || FEATURES.SHOW_NEW_COINS_TAB || FEATURES.SHOW_ABOUT_TO_WIN_TAB || FEATURES.SHOW_WINNERS_TAB) && (
+        <div className="mb-4 text-sm text-bonk-text">
+          {isLoading ? (
+            'Loading tokens...'
+          ) : activeFilter === 'battle' ? (
+            `${battlePairs.length} active battle${battlePairs.length !== 1 ? 's' : ''}`
+          ) : activeFilter === 'new' ? (
+            `${newAndQualifiedTokens.length} tokens (${newCount} new, ${qualifiedCount} qualified)`
+          ) : (
+            `${getCount()} token${getCount() !== 1 ? 's' : ''} found`
+          )}
+        </div>
+      )}
 
-      {/* Content Based on Active Tab */}
-      {isLoading ? (
+      {/* Content Based on Active Tab - HIDDEN in Season 1 when tabs are hidden */}
+      {(FEATURES.SHOW_BATTLE_TAB || FEATURES.SHOW_NEW_COINS_TAB || FEATURES.SHOW_ABOUT_TO_WIN_TAB || FEATURES.SHOW_WINNERS_TAB) && (isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
@@ -631,7 +644,7 @@ export function TokenGridBonk() {
             ))}
           </div>
         )
-      )}
+      ))}
     </div>
   );
 }

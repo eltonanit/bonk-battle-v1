@@ -14,6 +14,7 @@ import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 import { PointsIcon } from '@/components/icons/PointsIcon';
+import { FEATURES } from '@/config/features';
 
 export function DesktopHeader() {
   const { connected, publicKey, disconnect } = useWallet();
@@ -140,8 +141,8 @@ export function DesktopHeader() {
                   )}
                 </Link>
 
-                {/* Join ARMY Button - Animato con spade */}
-                <JoinArmyButton size="lg" />
+                {/* Join ARMY Button - Animato con spade - HIDDEN in Season 1 */}
+                {FEATURES.SHOW_JOIN_ARMY && <JoinArmyButton size="lg" />}
               </>
             )}
 
