@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
@@ -9,16 +9,20 @@ import {
   TorusWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { useMemo, useCallback } from 'react';
-import { RPC_ENDPOINT } from '@/config/solana';
+import { useNetwork } from '@/providers/NetworkProvider';
+import { getNetworkConfig } from '@/config/network';
 
 // Import wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
 
 export function SolanaProvider({ children }: { children: React.ReactNode }) {
+  const { network } = useNetwork();
+  const config = getNetworkConfig(network);
+
   const endpoint = useMemo(() => {
-    console.log('🔗 SolanaProvider usando RPC endpoint:', RPC_ENDPOINT);
-    return RPC_ENDPOINT;
-  }, []);
+    console.log(`🔗 SolanaProvider usando ${config.name}:`, config.rpcEndpoint);
+    return config.rpcEndpoint;
+  }, [config]);
 
   const wallets = useMemo(
     () => [
@@ -31,11 +35,7 @@ export function SolanaProvider({ children }: { children: React.ReactNode }) {
 
   // Handle wallet errors gracefully - don't crash the app
   const onError = useCallback((error: WalletError) => {
-    // Log but don't crash - autoConnect failures are common and recoverable
     console.warn('⚠️ Wallet error (non-fatal):', error.name, error.message);
-
-    // If it's an autoConnect failure, the user can manually connect later
-    // No need to show an alert or disrupt the user experience
   }, []);
 
   return (

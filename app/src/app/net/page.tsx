@@ -5,9 +5,39 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Header } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
+import { useNetwork } from '@/providers/NetworkProvider';
+import { isDevnetConfigured } from '@/config/network';
 
 export default function NetPage() {
-  const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet'>('mainnet');
+  const { network, setNetwork } = useNetwork();
+  const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet'>(network);
+
+  const devnetReady = isDevnetConfigured();
+
+  const handleConfirm = () => {
+    // Se già sulla stessa rete, non fare nulla
+    if (selectedNetwork === network) {
+      return;
+    }
+
+    // Se seleziona Devnet ma non è configurato
+    if (selectedNetwork === 'devnet' && !devnetReady) {
+      alert('⚠️ Devnet is not configured yet.\n\nThe smart contract needs to be deployed on Devnet first.');
+      return;
+    }
+
+    // Conferma cambio rete
+    const confirmed = confirm(
+      `Switch to ${selectedNetwork.toUpperCase()}?\n\n` +
+      `This will reload the page and disconnect your wallet.\n` +
+      `Make sure you have no pending transactions.`
+    );
+
+    if (confirmed) {
+      setNetwork(selectedNetwork);
+      // Il reload avviene automaticamente nel NetworkProvider
+    }
+  };
 
   return (
     <div className="min-h-screen bg-bonk-dark text-white overflow-x-hidden">
@@ -27,6 +57,14 @@ export default function NetPage() {
               <p className="text-bonk-text text-lg">
                 Choose the Solana network for your session
               </p>
+            </div>
+
+            {/* Current Network Indicator */}
+            <div className="text-center mb-6">
+              <span className="text-white/50 text-sm">Currently on: </span>
+              <span className={`font-bold ${network === 'mainnet' ? 'text-green-400' : 'text-purple-400'}`}>
+                {network.toUpperCase()}
+              </span>
             </div>
 
             {/* Toggle Switch Container */}
@@ -80,6 +118,13 @@ export default function NetPage() {
                     <br />
                     Use test SOL and tokens without real value.
                   </p>
+                  {!devnetReady && (
+                    <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <p className="text-yellow-400 text-xs">
+                        ⚠️ Devnet not configured yet - Smart contract deployment pending
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-6">
@@ -100,22 +145,23 @@ export default function NetPage() {
             <div className="mt-8 flex justify-center">
               <button
                 className={`px-8 py-3 rounded-lg font-bold text-lg transition-all duration-300 ${
-                  selectedNetwork === 'devnet'
+                  selectedNetwork === network
+                    ? 'bg-gray-500 cursor-not-allowed text-white/50'
+                    : selectedNetwork === 'devnet'
                     ? 'bg-purple-500 hover:bg-purple-600 text-white'
                     : 'bg-green-500 hover:bg-green-600 text-white'
                 }`}
-                onClick={() => {
-                  alert(`Network switched to ${selectedNetwork.toUpperCase()} (Coming soon!)`);
-                }}
+                onClick={handleConfirm}
+                disabled={selectedNetwork === network}
               >
-                Confirm Selection
+                {selectedNetwork === network ? 'Already Selected' : 'Confirm Selection'}
               </button>
             </div>
 
-            {/* Warning */}
+            {/* Info */}
             <div className="mt-8 text-center">
               <p className="text-xs text-white/40">
-                ⚠️ Network switching functionality will be enabled soon
+                🔄 Changing network will reload the page and disconnect your wallet
               </p>
             </div>
           </div>

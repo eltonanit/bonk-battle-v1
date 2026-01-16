@@ -2,6 +2,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "@/styles/animations.css";
+import { NetworkProvider } from "@/providers/NetworkProvider";
 import { SolanaProvider } from "@/components/providers/SolanaProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { WelcomePopupProvider } from "@/components/points/WelcomePopupProvider";
@@ -86,15 +87,17 @@ export default function RootLayout({
       <body suppressHydrationWarning className={geistSans.variable + ' ' + geistMono.variable + ' antialiased bg-[#1a1b21] text-white min-h-screen overflow-x-hidden'}>
         <HowItWorksProvider>
           <QueryProvider>
-            <SolanaProvider>
-              <NotificationsProvider>
-                <VictoryProviderWrapper>
-                  <WelcomePopupProvider>
-                    {children}
-                  </WelcomePopupProvider>
-                </VictoryProviderWrapper>
-              </NotificationsProvider>
-            </SolanaProvider>
+            <NetworkProvider>
+              <SolanaProvider>
+                <NotificationsProvider>
+                  <VictoryProviderWrapper>
+                    <WelcomePopupProvider>
+                      {children}
+                    </WelcomePopupProvider>
+                  </VictoryProviderWrapper>
+                </NotificationsProvider>
+              </SolanaProvider>
+            </NetworkProvider>
           </QueryProvider>
         </HowItWorksProvider>
       </body>
