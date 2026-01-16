@@ -146,6 +146,27 @@ export function DesktopHeader() {
               </>
             )}
 
+            {/* NET Button - Verde */}
+            <Link
+              href="/net"
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+            >
+              NET
+            </Link>
+
+            {/* Mainnet Badge - Luminoso e inclinato */}
+            <div className="bg-green-400 text-black px-2 py-0.5 rounded text-[10px] font-bold shadow-lg shadow-green-400/50 transform rotate-12">
+              MAINNET
+            </div>
+
+            {/* COLOR Button - Blu */}
+            <Link
+              href="/color"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors whitespace-nowrap"
+            >
+              COLOR
+            </Link>
+
             {/* Login Button (quando NON loggato) o Profile (quando loggato) */}
             {!connected ? (
               // ⭐ Log in Button - GIALLO/ORO

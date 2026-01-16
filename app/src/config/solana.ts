@@ -7,7 +7,7 @@ export const PROGRAM_ID = 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
 export const NETWORK = 'mainnet-beta';
 
 // ✅ FIX CRITICO: Usa variabile env corretta + Helius MAINNET come fallback
-export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=54911811-93e0-430b-a296-c18efa362e01';
+export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846';
 
 // ✅ FIX CRITICO: Treasury address dal smart contract (riga 21)
 export const TREASURY = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';

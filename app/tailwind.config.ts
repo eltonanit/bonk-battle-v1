@@ -17,7 +17,7 @@ export default {
     },
     extend: {
       colors: {
-        'bonk-dark': '#181A20',       // Background principale
+        'bonk-dark': '#0C1426',       // Background principale
         'bonk-card': '#1E2330',       // Cards e panels
         'bonk-border': '#2A3142',     // Borders
         'bonk-text': '#B8BFCC',       // Testo secondario

@@ -161,6 +161,27 @@ export function Header() {
             {/* Join ARMY Button - HIDDEN in Season 1 */}
             {FEATURES.SHOW_JOIN_ARMY && <JoinArmyButton size="md" />}
 
+            {/* NET Button - Verde */}
+            <Link
+              href="/net"
+              className="bg-green-500 hover:bg-green-600 text-white px-2.5 py-1.5 rounded-lg font-bold text-xs transition-colors whitespace-nowrap"
+            >
+              NET
+            </Link>
+
+            {/* Mainnet Badge - Luminoso e inclinato */}
+            <div className="bg-green-400 text-black px-1.5 py-0.5 rounded text-[8px] font-bold shadow-md shadow-green-400/50 transform rotate-12">
+              MAINNET
+            </div>
+
+            {/* COLOR Button - Blu */}
+            <Link
+              href="/color"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-2.5 py-1.5 rounded-lg font-bold text-xs transition-colors whitespace-nowrap"
+            >
+              COLOR
+            </Link>
+
             {/* Login/Profile */}
             {!connected ? (
               <button

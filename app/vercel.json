@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/battles/auto-complete",
-      "schedule": "* * * * *"
+      "schedule": "*/20 * * * *"
     },
     {
       "path": "/api/cron/update-price",
