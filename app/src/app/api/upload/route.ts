@@ -1,90 +1,86 @@
+// app/src/app/api/upload/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { createClient } from '@supabase/supabase-js';
+import { nanoid } from 'nanoid';
 
-// Increase body size limit for Vercel
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-  },
-};
-
-// Cloudflare R2 client
-const r2Client = process.env.R2_ACCESS_KEY_ID ? new S3Client({
-    region: 'auto',
-    endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-    },
-}) : null;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(request: NextRequest) {
-    try {
-        const formData = await request.formData();
-        const file = formData.get('file') as File;
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
 
-        if (!file) {
-            return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-        }
-
-        // Validate file
-        const maxSize = file.type.startsWith('video/') ? 30 * 1024 * 1024 : 15 * 1024 * 1024;
-        if (file.size > maxSize) {
-            return NextResponse.json({ error: 'File too large' }, { status: 400 });
-        }
-
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'video/mp4'];
-        if (!allowedTypes.includes(file.type)) {
-            return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
-        }
-
-        // Generate unique filename
-        const timestamp = Date.now();
-        const randomStr = Math.random().toString(36).substring(2, 15);
-        const extension = file.name.split('.').pop();
-        const filename = `${timestamp}-${randomStr}.${extension}`;
-
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-
-        // Upload to R2 if configured
-        if (r2Client && process.env.R2_BUCKET_NAME) {
-            const key = `tokens/${filename}`;
-
-            await r2Client.send(new PutObjectCommand({
-                Bucket: process.env.R2_BUCKET_NAME,
-                Key: key,
-                Body: buffer,
-                ContentType: file.type,
-            }));
-
-            // R2 public URL
-            const url = `${process.env.R2_PUBLIC_URL}/${key}`;
-
-            return NextResponse.json({ url, filename });
-        }
-
-        // Fallback: Save to local public directory for testing
-        const uploadsDir = join(process.cwd(), 'public', 'uploads');
-        await mkdir(uploadsDir, { recursive: true });
-
-        const filepath = join(uploadsDir, filename);
-        await writeFile(filepath, buffer);
-
-        const url = `/uploads/${filename}`;
-
-        return NextResponse.json({ url, filename });
-
-    } catch (error: unknown) {
-        console.error('Upload error:', error);
-
-        // Type-safe error message extraction
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-
-        return NextResponse.json({ error: 'Upload failed: ' + errorMessage }, { status: 500 });
+    if (!file) {
+      return NextResponse.json(
+        { error: 'No file provided' },
+        { status: 400 }
+      );
     }
-} 
+
+    // Validazione tipo file (supporta sia immagini che video)
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Invalid file type. Use JPG, PNG, WEBP, GIF for images or MP4, WEBM for videos' },
+        { status: 400 }
+      );
+    }
+
+    // Validazione dimensione (max 15MB per immagini, 30MB per video)
+    const isVideo = allowedVideoTypes.includes(file.type);
+    const maxSize = isVideo ? 30 * 1024 * 1024 : 15 * 1024 * 1024;
+
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: `File too large. Max ${isVideo ? '30MB for videos' : '15MB for images'}` },
+        { status: 400 }
+      );
+    }
+
+    // Genera nome file unico
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || (isVideo ? 'mp4' : 'png');
+    const fileName = `token_${nanoid(12)}.${fileExt}`;
+    const filePath = `tokens/${fileName}`;
+
+    // Converti file in buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Upload su Supabase Storage (bucket 'avatars')
+    const { data, error } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Supabase storage error:', error);
+      throw error;
+    }
+
+    // Genera URL pubblico
+    const { data: urlData } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    return NextResponse.json({
+      success: true,
+      url: urlData.publicUrl,
+      file_path: filePath,
+    });
+
+  } catch (error: any) {
+    console.error('Upload error:', error);
+    return NextResponse.json(
+      { error: error.message || 'Upload failed' },
+      { status: 500 }
+    );
+  }
+}
