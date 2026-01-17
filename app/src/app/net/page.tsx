@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Header } from '@/components/layout/Header';
@@ -13,6 +13,11 @@ export default function NetPage() {
   const [selectedNetwork, setSelectedNetwork] = useState<'devnet' | 'mainnet'>(network);
 
   const devnetReady = isDevnetConfigured();
+
+  // Sync selectedNetwork with network on mount and when network changes
+  useEffect(() => {
+    setSelectedNetwork(network);
+  }, [network]);
 
   const handleConfirm = () => {
     // Se già sulla stessa rete, non fare nulla

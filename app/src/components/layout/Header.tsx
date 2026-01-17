@@ -13,6 +13,7 @@ import { useVictory } from '@/components/victory/VictoryProvider';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 import { PointsIcon } from '@/components/icons/PointsIcon';
 import { FEATURES } from '@/config/features';
+import { useNetwork } from '@/providers/NetworkProvider';
 
 export function Header() {
   const { connected, publicKey, disconnect, select, wallets } = useWallet();
@@ -22,6 +23,7 @@ export function Header() {
   const { feedUnreadCount } = useFollowers();
   const { profile } = useProfile();
   const { unreadCount: victoryUnreadCount } = useVictory();
+  const { network, isMainnet, isDevnet } = useNetwork();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
@@ -169,10 +171,16 @@ export function Header() {
               NET
             </Link>
 
-            {/* Mainnet Badge - Luminoso e inclinato */}
-            <div className="bg-green-400 text-black px-1.5 py-0.5 rounded text-[8px] font-bold shadow-md shadow-green-400/50 transform rotate-12">
-              MAINNET
-            </div>
+            {/* Network Badge - Dynamic based on selected network */}
+            {isMainnet ? (
+              <div className="bg-green-400 text-black px-1.5 py-0.5 rounded text-[8px] font-bold shadow-md shadow-green-400/50 transform rotate-12">
+                MAINNET
+              </div>
+            ) : (
+              <div className="bg-purple-400 text-black px-1.5 py-0.5 rounded text-[8px] font-bold shadow-md shadow-purple-400/50 transform rotate-12">
+                DEVNET
+              </div>
+            )}
 
             {/* COLOR Button - Blu */}
             <Link

@@ -13,6 +13,7 @@ import { useNotifications } from '@/providers/NotificationsProvider';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
+import { useNetwork } from '@/providers/NetworkProvider';
 import { PointsIcon } from '@/components/icons/PointsIcon';
 import { FEATURES } from '@/config/features';
 
@@ -23,6 +24,7 @@ export function DesktopHeader() {
   const { unreadCount } = useNotifications();
   const { feedUnreadCount } = useFollowers();
   const { profile } = useProfile();
+  const { network, isMainnet, isDevnet } = useNetwork();
   const [showDropdown, setShowDropdown] = useState(false);
 
   // Track se già registrato in questa sessione
@@ -154,10 +156,16 @@ export function DesktopHeader() {
               NET
             </Link>
 
-            {/* Mainnet Badge - Luminoso e inclinato */}
-            <div className="bg-green-400 text-black px-2 py-0.5 rounded text-[10px] font-bold shadow-lg shadow-green-400/50 transform rotate-12">
-              MAINNET
-            </div>
+            {/* Network Badge - Dynamic based on selected network */}
+            {isMainnet ? (
+              <div className="bg-green-400 text-black px-2 py-0.5 rounded text-[10px] font-bold shadow-lg shadow-green-400/50 transform rotate-12">
+                MAINNET
+              </div>
+            ) : (
+              <div className="bg-purple-400 text-black px-2 py-0.5 rounded text-[10px] font-bold shadow-lg shadow-purple-400/50 transform rotate-12">
+                DEVNET
+              </div>
+            )}
 
             {/* COLOR Button - Blu */}
             <Link
