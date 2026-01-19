@@ -15,6 +15,9 @@ export interface RankedToken {
   marketCapUsd: number;
   volume24hUsd: number;
   change1h: number;
+  change24h: number;
+  change7d: number;
+  holders: number;
   lastTradeAmountUsd: number;
   lastTradeSecondsAgo: number;
   lastTradeType: 'buy' | 'sell' | null;
@@ -34,13 +37,15 @@ export interface RankingsData {
   totalTokens: number;
 }
 
-type SortBy = 'lastTrade' | 'marketCap';
+type SortBy = 'lastTrade' | 'marketCap' | 'lastCreated';
+type NetworkType = 'mainnet' | 'devnet';
 
 interface UseRankingsOptions {
   limit?: number;
   sortBy?: SortBy;
   refreshInterval?: number;
   enabled?: boolean;
+  network?: NetworkType; // ⭐ Optional network override
 }
 
 interface UseRankingsReturn {
@@ -50,28 +55,62 @@ interface UseRankingsReturn {
   refresh: () => Promise<void>;
 }
 
+/**
+ * Get current network from localStorage
+ */
+function getCurrentNetwork(): NetworkType {
+  if (typeof window === 'undefined') return 'mainnet';
+  const saved = localStorage.getItem('bonk-network');
+  return (saved === 'devnet' || saved === 'mainnet') ? saved : 'mainnet';
+}
+
 export function useRankings(options: UseRankingsOptions = {}): UseRankingsReturn {
   const {
     limit = 10,
     sortBy = 'lastTrade',
     refreshInterval = 2000,
     enabled = true,
+    network: networkOverride,
   } = options;
 
   const [data, setData] = useState<RankingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentNetwork, setCurrentNetwork] = useState<NetworkType>('mainnet');
 
   const previousPositions = useRef<Map<string, number>>(new Map());
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ⭐ Track network changes from localStorage
+  useEffect(() => {
+    const updateNetwork = () => {
+      const network = networkOverride || getCurrentNetwork();
+      setCurrentNetwork(network);
+    };
+
+    updateNetwork();
+
+    // Listen for storage changes (network toggle)
+    window.addEventListener('storage', updateNetwork);
+
+    // Also poll for changes (same-tab updates)
+    const pollInterval = setInterval(updateNetwork, 1000);
+
+    return () => {
+      window.removeEventListener('storage', updateNetwork);
+      clearInterval(pollInterval);
+    };
+  }, [networkOverride]);
 
   const fetchRankings = useCallback(async () => {
     if (!enabled) return;
 
     try {
+      const network = networkOverride || getCurrentNetwork();
       const params = new URLSearchParams({
         limit: limit.toString(),
         sortBy: sortBy,
+        network: network, // ⭐ Pass network to API
       });
 
       const response = await fetch(`/api/rankings?${params}`);
@@ -116,14 +155,17 @@ export function useRankings(options: UseRankingsOptions = {}): UseRankingsReturn
     } finally {
       setLoading(false);
     }
-  }, [enabled, limit, sortBy]);
+  }, [enabled, limit, sortBy, networkOverride]);
 
-  // Initial fetch
+  // Initial fetch and refetch on network change
   useEffect(() => {
     if (enabled) {
+      // Clear previous positions when network changes
+      previousPositions.current.clear();
+      setLoading(true);
       fetchRankings();
     }
-  }, [enabled, sortBy]);
+  }, [enabled, sortBy, currentNetwork]);
 
   // Auto-refresh
   useEffect(() => {
@@ -175,4 +217,10 @@ export function formatTimeAgo(seconds: number): string {
 export function formatChange(value: number): string {
   const sign = value >= 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
+}
+
+export function formatHolders(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toString();
 }

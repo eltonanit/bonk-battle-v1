@@ -26,15 +26,15 @@ export function HowItWorks() {
           }`}
         >
           <div className="bg-[#0d2626] border border-[#1a3a3a] rounded-xl p-4 lg:p-5">
-            {/* Header with BONK logo */}
+            {/* Header with logo */}
             <div className="flex items-center gap-3 mb-5">
               <Image
                 src="/BONK-LOGO.svg"
-                alt="BONK BATTLE"
+                alt="BATTLECOIN MARKET"
                 width={40}
                 height={40}
               />
-              <h2 className="text-lg font-bold text-white">How BONK Battle Works</h2>
+              <h2 className="text-lg font-bold text-white">How Battlecoin Market Works</h2>
             </div>
 
             {/* Steps */}
@@ -47,7 +47,7 @@ export function HowItWorks() {
                 <div>
                   <h3 className="text-white font-semibold text-sm">Create Your Token</h3>
                   <p className="text-gray-400 text-xs">
-                    Launch your own token on BONK Battle. Choose a name, symbol, and image for your token.
+                    Launch your own token on Battlecoin Market. Choose a name, symbol, and image for your token.
                   </p>
                 </div>
               </div>

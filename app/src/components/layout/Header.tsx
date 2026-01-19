@@ -285,7 +285,7 @@ export function Header() {
               <div className="w-[60px] h-[60px] rounded-lg flex items-center justify-center overflow-hidden bg-bonk-dark/95 backdrop-blur-xl">
                 <Image
                   src="/BONK-LOGO.svg"
-                  alt="Bonk Battle"
+                  alt="Battlecoin Market"
                   width={60}
                   height={60}
                   className="w-full h-full object-contain"

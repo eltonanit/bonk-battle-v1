@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const parts = id.split('-');
   if (parts.length !== 2) {
     return {
-      title: 'Battle | BONK BATTLE',
+      title: 'Battle | BATTLECOIN MARKET',
       description: 'Epic token battle on Solana',
     };
   }
@@ -90,7 +90,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const ogImageUrl = `${baseUrl}/api/og/battle?${ogParams.toString()}`;
 
-  const title = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} | BONK BATTLE`;
+  const title = `⚔️ $${tokenA.symbol} vs $${tokenB.symbol} | BATTLECOIN MARKET`;
   const description = `🏆 Who will win? Vote now! 📊 ${tokenA.symbol}: ${progressA.toFixed(1)}% vs ${tokenB.symbol}: ${progressB.toFixed(1)}% 🔥 Winner gets listed on DEX!`;
 
   return {
@@ -109,7 +109,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           alt: `${tokenA.symbol} vs ${tokenB.symbol} Battle`,
         },
       ],
-      siteName: 'BONK BATTLE',
+      siteName: 'BATTLECOIN MARKET',
     },
     twitter: {
       card: 'summary_large_image',

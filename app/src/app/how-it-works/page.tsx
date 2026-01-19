@@ -35,7 +35,7 @@ export default function HowItWorksPage() {
               How It Works
             </h1>
             <p className="text-gray-400 mt-2">
-              Learn how to battle and win on BONK Battle!
+              Learn how to battle and win on Battlecoin Market!
             </p>
           </div>
 
@@ -44,11 +44,11 @@ export default function HowItWorksPage() {
             <div className="flex items-center gap-3 mb-6">
               <Image
                 src="/BONK-LOGO.svg"
-                alt="BONK BATTLE"
+                alt="BATTLECOIN MARKET"
                 width={48}
                 height={48}
               />
-              <h2 className="text-xl font-bold text-white">How BONK Battle Works</h2>
+              <h2 className="text-xl font-bold text-white">How Battlecoin Market Works</h2>
             </div>
 
             <div className="space-y-6">
@@ -60,7 +60,7 @@ export default function HowItWorksPage() {
                 <div>
                   <h3 className="text-white font-semibold mb-1">Create Your Token</h3>
                   <p className="text-gray-400 text-sm">
-                    Launch your own token on BONK Battle. Choose a name, symbol, and image for your token.
+                    Launch your own token on Battlecoin Market. Choose a name, symbol, and image for your token.
                   </p>
                 </div>
               </div>

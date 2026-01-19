@@ -95,14 +95,14 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
 
           {/* Welcome Text */}
           <h2 className="text-center text-orange-400 font-bold text-lg lg:text-2xl mb-2 lg:mb-4">
-            WELCOME TO BONK BATTLE!
+            WELCOME TO BATTLECOIN MARKET!
           </h2>
 
           {/* Logo */}
           <div className="w-14 h-14 lg:w-20 lg:h-20 mx-auto mb-3 lg:mb-4">
             <img
               src="/BONK-LOGO.svg"
-              alt="BONK BATTLE"
+              alt="BATTLECOIN MARKET"
               className="w-full h-full object-contain"
             />
           </div>
@@ -160,7 +160,7 @@ export function WelcomePopup({ onClose }: WelcomePopupProps) {
           <div className="w-12 h-12 mx-auto mb-3">
             <img
               src="/BONK-LOGO.svg"
-              alt="BONK BATTLE"
+              alt="BATTLECOIN MARKET"
               className="w-full h-full object-contain"
             />
           </div>

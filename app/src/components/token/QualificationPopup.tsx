@@ -95,7 +95,10 @@ export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified,
                 publicKey,
                 mint,
                 solAmount,
-                signTransaction
+                signTransaction,
+                0,           // minTokensOut (slippage protection disabled)
+                undefined,   // battleStatus (not needed)
+                connection   // Use wallet adapter connection for consistent balance
             );
 
             console.log('✅ Qualification buy successful!', result);

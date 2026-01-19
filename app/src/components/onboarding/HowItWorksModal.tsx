@@ -17,7 +17,7 @@ export function HowItWorksModal({ onAccept }: HowItWorksModalProps) {
 
         {/* Main Description */}
         <p className="text-white text-center text-sm leading-relaxed mb-2">
-          <span className="text-orange-600 font-semibold">BONK BATTLE</span> is where communities turn into{' '}
+          <span className="text-orange-600 font-semibold">BATTLECOIN MARKET</span> is where communities turn into{' '}
           <span className="text-orange-600 font-semibold">armies</span>.
         </p>
 

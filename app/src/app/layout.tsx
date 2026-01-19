@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   // ========================================================================
   // BASIC METADATA
   // ========================================================================
-  title: "BONK BATTLE - Launch, Battle, Win",
+  title: "BATTLECOIN MARKET - Launch, Battle, Win",
   description: "Launch your token, battle against others. Winner gets listed on Raydium DEX. The ultimate gladiator arena for meme coins on Solana.",
 
   // ========================================================================
@@ -34,15 +34,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://bonkbattle.lol",
-    siteName: "BONK BATTLE",
-    title: "BONK BATTLE - Launch, Battle, Win",
+    siteName: "BATTLECOIN MARKET",
+    title: "BATTLECOIN MARKET - Launch, Battle, Win",
     description: "Launch your token, battle against rivals. Winner takes the spoils and gets listed on Raydium DEX!",
     images: [
       {
         url: "https://bonkbattle.lol/bonk.og.png",
         width: 1200,
         height: 630,
-        alt: "BONK BATTLE - Gladiator Arena for Meme Coins",
+        alt: "BATTLECOIN MARKET - Gladiator Arena for Meme Coins",
       },
     ],
   },
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   // ========================================================================
   twitter: {
     card: "summary_large_image",
-    title: "BONK BATTLE - Launch, Battle, Win",
+    title: "BATTLECOIN MARKET - Launch, Battle, Win",
     description: "Launch your token, battle against rivals. Winner gets listed on Raydium DEX!",
     images: ["https://bonkbattle.lol/bonk.og.png"],
   },

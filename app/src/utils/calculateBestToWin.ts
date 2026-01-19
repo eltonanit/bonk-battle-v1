@@ -218,6 +218,7 @@ function createEmptyResult(
 
 /**
  * Calcola la chance di vittoria per entrambi i token
+ * Se le chance sono uguali (50/50), mostra 51/49 per sembrare più realistico
  */
 export function calculateChances(
   solCollectedA: number,
@@ -225,12 +226,18 @@ export function calculateChances(
 ): { chanceA: number; chanceB: number } {
   const total = solCollectedA + solCollectedB;
 
+  // Se non c'è liquidità, mostra 51/49 invece di 50/50
   if (total <= 0) {
-    return { chanceA: 50, chanceB: 50 };
+    return { chanceA: 51, chanceB: 49 };
   }
 
   const chanceA = (solCollectedA / total) * 100;
   const chanceB = (solCollectedB / total) * 100;
+
+  // Se le chance sono uguali (50/50), mostra 51/49
+  if (Math.round(chanceA) === Math.round(chanceB)) {
+    return { chanceA: 51, chanceB: 49 };
+  }
 
   return { chanceA, chanceB };
 }

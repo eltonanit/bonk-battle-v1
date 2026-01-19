@@ -15,10 +15,11 @@ import {
   formatVolume,
   formatTimeAgo,
   formatChange,
+  formatHolders,
   type RankedToken
 } from '@/hooks/useRankings';
 
-type TabType = 'lastTrade' | 'marketCap';
+type TabType = 'lastTrade' | 'marketCap' | 'lastCreated';
 
 export function LiveRankingsHome() {
   const [activeTab, setActiveTab] = useState<TabType>('lastTrade');
@@ -26,7 +27,7 @@ export function LiveRankingsHome() {
   const { data, loading, error, refresh } = useRankings({
     limit: 10,
     sortBy: activeTab,
-    refreshInterval: activeTab === 'lastTrade' ? 2000 : 5000,
+    refreshInterval: activeTab === 'lastTrade' ? 2000 : activeTab === 'lastCreated' ? 10000 : 5000,
   });
 
   // Track animating tokens
@@ -70,18 +71,28 @@ export function LiveRankingsHome() {
   if (!data?.tokens || data.tokens.length === 0) return null;
 
   return (
-    <div className="px-5 lg:px-6 mb-6 lg:flex lg:justify-center">
-      <div className="w-full lg:w-[480px]">
+    <div className="px-5 lg:px-6 mb-6">
+      <div className="w-full">
         <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl overflow-hidden">
           {/* Header with Tabs */}
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#1e3a5a]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e3a5a]">
             {/* Left: Icon + Tabs */}
-            <div className="flex items-center gap-2">
-              <span className="text-base">🏆</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏆</span>
               <div className="flex bg-bonk-dark rounded-lg p-0.5">
                 <button
+                  onClick={() => setActiveTab('lastCreated')}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'lastCreated'
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-400 hover:text-white'
+                  }`}
+                >
+                  New
+                </button>
+                <button
                   onClick={() => setActiveTab('lastTrade')}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
                     activeTab === 'lastTrade'
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-400 hover:text-white'
@@ -91,7 +102,7 @@ export function LiveRankingsHome() {
                 </button>
                 <button
                   onClick={() => setActiveTab('marketCap')}
-                  className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all duration-200 ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
                     activeTab === 'marketCap'
                       ? 'bg-blue-600 text-white'
                       : 'text-gray-400 hover:text-white'
@@ -103,9 +114,9 @@ export function LiveRankingsHome() {
             </div>
 
             {/* Right: Live indicator */}
-            <div className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="text-[9px] text-gray-500 font-mono uppercase tracking-wider">Live</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              <span className="text-xs text-gray-500 font-mono uppercase tracking-wider">Live</span>
             </div>
           </div>
 
@@ -114,14 +125,15 @@ export function LiveRankingsHome() {
             <table className="w-full">
               {/* Header */}
               <thead>
-                <tr className="text-gray-500 text-[9px] border-b border-[#1e3a5a]/50">
-                  <th className="text-left py-1.5 px-2.5 font-medium w-6">#</th>
-                  <th className="text-left py-1.5 px-2.5 font-medium">Token</th>
-                  <th className="text-right py-1.5 px-2.5 font-medium">1h</th>
-                  <th className="text-right py-1.5 px-2.5 font-medium">MC</th>
-                  {activeTab === 'lastTrade' && (
-                    <th className="text-right py-1.5 px-2.5 font-medium">Trade</th>
-                  )}
+                <tr className="text-gray-500 text-xs border-b border-[#1e3a5a]/50">
+                  <th className="text-left py-3 px-4 font-medium w-10">#</th>
+                  <th className="text-left py-3 px-4 font-medium min-w-[160px]">Name</th>
+                  <th className="text-right py-3 px-4 font-medium">Price</th>
+                  <th className="text-right py-3 px-4 font-medium">1h %</th>
+                  <th className="text-right py-3 px-4 font-medium hidden sm:table-cell">24h %</th>
+                  <th className="text-right py-3 px-4 font-medium hidden md:table-cell">7d %</th>
+                  <th className="text-right py-3 px-4 font-medium">Market Cap</th>
+                  <th className="text-right py-3 px-4 font-medium hidden lg:table-cell">Holders</th>
                 </tr>
               </thead>
 
@@ -132,7 +144,6 @@ export function LiveRankingsHome() {
                     key={token.mint}
                     token={token}
                     isAnimating={animatingTokens.has(token.mint)}
-                    showLastTrade={activeTab === 'lastTrade'}
                   />
                 ))}
               </tbody>
@@ -151,11 +162,9 @@ export function LiveRankingsHome() {
 function TokenRow({
   token,
   isAnimating,
-  showLastTrade,
 }: {
   token: RankedToken;
   isAnimating: boolean;
-  showLastTrade: boolean;
 }) {
   const highlightClass = isAnimating
     ? token.isMovingUp
@@ -175,10 +184,10 @@ function TokenRow({
       `}
     >
       {/* Rank */}
-      <td className="py-2 px-2.5">
-        <div className="flex items-center gap-0.5">
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-1">
           <span className={`
-            text-[10px] font-semibold tabular-nums
+            text-sm font-semibold tabular-nums
             ${token.rank === 1 ? 'text-yellow-400' :
               token.rank === 2 ? 'text-gray-400' :
               token.rank === 3 ? 'text-orange-500' :
@@ -187,44 +196,56 @@ function TokenRow({
             {token.rank}
           </span>
           {isAnimating && (
-            <span className={`text-[7px] ${token.isMovingUp ? 'text-green-400' : 'text-red-400'}`}>
+            <span className={`text-xs ${token.isMovingUp ? 'text-green-400' : 'text-red-400'}`}>
               {token.isMovingUp ? '▲' : '▼'}
             </span>
           )}
         </div>
       </td>
 
-      {/* Token */}
-      <td className="py-2 px-2.5">
+      {/* Token Name */}
+      <td className="py-3 px-4">
         <Link
           href={`/token/${token.mint}`}
-          className="flex items-center gap-1.5 group"
+          className="flex items-center gap-3 group"
         >
-          <div className="w-5 h-5 rounded-full overflow-hidden bg-[#1e3a5a] flex-shrink-0">
+          <div className="w-9 h-9 rounded-full overflow-hidden bg-[#1e3a5a] flex-shrink-0">
             {token.image ? (
               <Image
                 src={token.image}
                 alt={token.symbol}
-                width={20}
-                height={20}
+                width={36}
+                height={36}
                 className="w-full h-full object-cover"
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gray-500">
+              <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-500">
                 {token.symbol.charAt(0)}
               </div>
             )}
           </div>
-          <span className="text-[10px] font-semibold text-white group-hover:text-blue-400 transition-colors truncate max-w-[80px]">
-            {token.symbol}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors truncate max-w-[140px]">
+              {token.name}
+            </span>
+            <span className="text-xs text-gray-500">
+              {token.symbol}
+            </span>
+          </div>
         </Link>
       </td>
 
+      {/* Price */}
+      <td className="py-3 px-4 text-right">
+        <span className="text-white text-sm font-medium">
+          {formatPrice(token.priceUsd)}
+        </span>
+      </td>
+
       {/* 1h Change */}
-      <td className="py-2 px-2.5 text-right">
-        <span className={`text-[10px] font-medium ${
+      <td className="py-3 px-4 text-right">
+        <span className={`text-sm font-medium ${
           token.change1h > 0 ? 'text-green-400' :
           token.change1h < 0 ? 'text-red-400' :
           'text-gray-500'
@@ -233,36 +254,41 @@ function TokenRow({
         </span>
       </td>
 
+      {/* 24h Change */}
+      <td className="py-3 px-4 text-right hidden sm:table-cell">
+        <span className={`text-sm font-medium ${
+          token.change24h > 0 ? 'text-green-400' :
+          token.change24h < 0 ? 'text-red-400' :
+          'text-gray-500'
+        }`}>
+          {formatChange(token.change24h)}
+        </span>
+      </td>
+
+      {/* 7d Change */}
+      <td className="py-3 px-4 text-right hidden md:table-cell">
+        <span className={`text-sm font-medium ${
+          token.change7d > 0 ? 'text-green-400' :
+          token.change7d < 0 ? 'text-red-400' :
+          'text-gray-500'
+        }`}>
+          {formatChange(token.change7d)}
+        </span>
+      </td>
+
       {/* Market Cap */}
-      <td className="py-2 px-2.5 text-right">
-        <span className="text-white text-[10px]">
+      <td className="py-3 px-4 text-right">
+        <span className="text-white text-sm font-semibold">
           {formatMarketCap(token.marketCapUsd)}
         </span>
       </td>
 
-      {/* Last Trade */}
-      {showLastTrade && (
-        <td className="py-2 px-2.5 text-right">
-          <div className="flex flex-col items-end">
-            <span className={`text-[9px] font-medium ${
-              token.lastTradeType === 'buy' ? 'text-green-400' :
-              token.lastTradeType === 'sell' ? 'text-red-400' :
-              'text-gray-500'
-            }`}>
-              {token.lastTradeAmountUsd > 0
-                ? formatVolume(token.lastTradeAmountUsd)
-                : '—'
-              }
-            </span>
-            <span className="text-[8px] text-gray-600">
-              {token.lastTradeSecondsAgo < 86400
-                ? formatTimeAgo(token.lastTradeSecondsAgo)
-                : '—'
-              }
-            </span>
-          </div>
-        </td>
-      )}
+      {/* Holders */}
+      <td className="py-3 px-4 text-right hidden lg:table-cell">
+        <span className="text-white text-sm">
+          {formatHolders(token.holders)}
+        </span>
+      </td>
     </tr>
   );
 }

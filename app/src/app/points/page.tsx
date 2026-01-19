@@ -595,12 +595,12 @@ export default function PointsPage() {
                 <div className="flex flex-col items-center gap-2">
                   <Image
                     src="/BONK-LOGO.svg"
-                    alt="BONK BATTLE"
+                    alt="BATTLECOIN MARKET"
                     width={48}
                     height={48}
                     className="opacity-80"
                   />
-                  <div className="text-xs text-gray-500">Team BONK BATTLE</div>
+                  <div className="text-xs text-gray-500">Team BATTLECOIN MARKET</div>
                 </div>
               </div>
             </>

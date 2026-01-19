@@ -98,16 +98,16 @@ export default function SupportPage() {
             </div>
           </div>
 
-          {/* How BONK Battle Works */}
+          {/* How Battlecoin Market Works */}
           <div className="bg-[#0d2626] border border-[#1a3a3a] rounded-xl p-6">
             <div className="flex items-center gap-3 mb-6">
               <Image
                 src="/BONK-LOGO.svg"
-                alt="BONK BATTLE"
+                alt="BATTLECOIN MARKET"
                 width={48}
                 height={48}
               />
-              <h2 className="text-xl font-bold text-white">How BONK Battle Works</h2>
+              <h2 className="text-xl font-bold text-white">How Battlecoin Market Works</h2>
             </div>
 
             <div className="space-y-6">
@@ -119,7 +119,7 @@ export default function SupportPage() {
                 <div>
                   <h3 className="text-white font-semibold mb-1">Create Your Token</h3>
                   <p className="text-gray-400 text-sm">
-                    Launch your own token on BONK Battle with just a few clicks.
+                    Launch your own token on Battlecoin Market with just a few clicks.
                     Choose a name, symbol, and image for your token.
                   </p>
                 </div>

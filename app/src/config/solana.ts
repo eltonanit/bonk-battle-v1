@@ -3,7 +3,7 @@
 // ========================================================================
 
 // ✅ VERIFICATO: Program ID dal smart contract (MAINNET)
-export const PROGRAM_ID = 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
+export const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
 export const NETWORK = 'mainnet-beta';
 
 // ✅ FIX CRITICO: Usa variabile env corretta + Helius MAINNET come fallback

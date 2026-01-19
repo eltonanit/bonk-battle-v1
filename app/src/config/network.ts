@@ -26,7 +26,7 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
   mainnet: {
     name: 'Mainnet',
     rpcEndpoint: process.env.NEXT_PUBLIC_MAINNET_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
-    programId: process.env.NEXT_PUBLIC_MAINNET_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD',
+    programId: process.env.NEXT_PUBLIC_MAINNET_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq',
     treasuryWallet: process.env.NEXT_PUBLIC_MAINNET_TREASURY || '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf',
     keeperWallet: process.env.NEXT_PUBLIC_MAINNET_KEEPER || '65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea',
     explorerUrl: 'https://solscan.io',

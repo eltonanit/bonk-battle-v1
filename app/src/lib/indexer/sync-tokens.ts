@@ -3,9 +3,13 @@ import { supabase } from '@/lib/supabase';
 import { BONK_BATTLE_PROGRAM_ID, BattleStatus } from '@/lib/solana/constants';
 import { RPC_ENDPOINT } from '@/config/solana';
 
-// ⭐ Network detection from env
-const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
-const CURRENT_NETWORK_DB = SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet';
+// ⭐ Network types
+export type NetworkType = 'mainnet' | 'devnet';
+
+export interface SyncAllOptions {
+    network?: NetworkType;
+    rpcEndpoint?: string;
+}
 
 /**
  * Helper to parse metadata that might be stored as JSON string
@@ -24,11 +28,16 @@ function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image'): 
     return value;
 }
 
-export async function syncTokensToSupabase() {
-    console.log('🔄 Starting token sync (V2)...');
+export async function syncTokensToSupabase(options?: SyncAllOptions) {
+    // Use provided network or fall back to env var
+    const networkDb: NetworkType = options?.network ||
+        (process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'devnet' : 'mainnet');
+    const rpcEndpoint = options?.rpcEndpoint || RPC_ENDPOINT;
+
+    console.log(`🔄 Starting token sync (V2)... (network: ${networkDb})`);
 
     try {
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const connection = new Connection(rpcEndpoint, 'confirmed');
 
         // 1. Fetch all accounts from RPC
         const response = await connection.getProgramAccounts(BONK_BATTLE_PROGRAM_ID);
@@ -181,7 +190,7 @@ export async function syncTokensToSupabase() {
                 tokensToUpsert.push({
                     mint: mint.toString(),
                     tier: tier,
-                    network: CURRENT_NETWORK_DB, // ⭐ Save network (mainnet/devnet)
+                    network: networkDb, // ⭐ Save network (mainnet/devnet) - from options or env
                     virtual_sol_reserves: virtualSolReserves,
                     virtual_token_reserves: virtualTokenReserves,
                     real_sol_reserves: realSolReserves,

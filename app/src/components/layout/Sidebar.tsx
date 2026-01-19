@@ -237,15 +237,15 @@ export function Sidebar() {
           <div className="w-[55px] h-[55px] rounded-lg flex items-center justify-center overflow-hidden">
             <Image
               src="/BONK-LOGO.svg"
-              alt="Bonk Battle"
+              alt="Battlecoin Market"
               width={55}
               height={55}
               className="w-full h-full object-contain"
             />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="text-xl font-extrabold text-white">Bonk</span>
-            <span className="text-xl font-extrabold text-white">Battle</span>
+            <span className="text-xl font-extrabold text-white">Battlecoin</span>
+            <span className="text-xl font-extrabold text-white">Market</span>
           </div>
         </Link>
       </div>

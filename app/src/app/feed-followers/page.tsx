@@ -369,7 +369,7 @@ export default function FeedFollowersPage() {
 
                 <button
                   onClick={() => {
-                    const text = `Join me on BONK Battle! The ultimate token battle arena on Solana 🔥\n\nhttps://bonkbattle.fun/?ref=${publicKey?.toString()}`;
+                    const text = `Join me on Battlecoin Market! The ultimate token battle arena on Solana 🔥\n\nhttps://bonkbattle.fun/?ref=${publicKey?.toString()}`;
                     const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
                     window.open(url, '_blank');
                   }}

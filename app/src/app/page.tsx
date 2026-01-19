@@ -1,6 +1,6 @@
 // =================================================================
 // FILE: app/src/app/page.tsx
-// HOMEPAGE - Con LiveRankings sotto HOW IT WORKS
+// HOMEPAGE
 // =================================================================
 
 import { Header } from '@/components/layout/Header';
@@ -9,7 +9,6 @@ import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Tagline } from '@/components/home/Tagline';
-import { HowItWorks } from '@/components/home/HowItWorks';
 import { LiveRankingsHome } from '@/components/home/LiveRankingsHome';
 import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
@@ -37,9 +36,7 @@ export default function HomePage() {
 
         <Tagline />
 
-        <HowItWorks />
-
-        {/* LIVE RANKINGS - Sotto HOW IT WORKS */}
+        {/* LIVE RANKINGS */}
         <LiveRankingsHome />
 
         <TokenGridBonk />

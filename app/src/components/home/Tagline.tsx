@@ -12,6 +12,7 @@ import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
 import { supabase } from '@/lib/supabase';
 import { FEATURES } from '@/config/features';
+import { calculateMarketCapUsd as calcMcUsd } from '@/config/tier-config';
 
 // ⭐ TIER TARGETS - Must match smart contract!
 const TIER_TARGETS = {
@@ -185,14 +186,10 @@ export function Tagline() {
     return `$${mc.toFixed(2)}`;
   };
 
-  // Helper to calculate MC using bonding curve
+  // Helper to calculate MC using correct bonding curve formula
   const calculateMarketCapUsd = (token: ParsedTokenBattleState): number => {
-    const virtualSol = token.virtualSolReserves ?? 0;
-    const virtualToken = token.virtualTokenReserves ?? 0;
-    if (virtualToken === 0 || !solPriceUsd) return 0;
-    const TOTAL_SUPPLY = 1_000_000_000;
-    const mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9);
-    return (mcInLamports / 1e9) * solPriceUsd;
+    const solCollected = lamportsToSol(token.realSolReserves ?? 0);
+    return calcMcUsd(solCollected, solPriceUsd || 0);
   };
 
   // Convert token to BattleCard format (SOL-based!)
@@ -342,14 +339,13 @@ export function Tagline() {
             {/* ⭐ BattleCard + Race - SIDE BY SIDE on desktop */}
             {latestBattle ? (
               <>
-                {/* Title above card */}
-                <h2 className="text-center text-xl lg:text-2xl font-bold text-white mb-4">
-                  Who will get more liquidity?
-                </h2>
-
                 <div className="flex flex-col lg:flex-row lg:items-start lg:gap-4">
-                  {/* LEFT: BattleCard */}
+                  {/* LEFT: Title + BattleCard */}
                   <div className="flex-shrink-0">
+                    {/* Title at same height row as chart */}
+                    <h2 className="text-center lg:text-left text-xl lg:text-2xl font-bold text-white mb-4">
+                      Who will get more liquidity?
+                    </h2>
                     <BattleCard
                       tokenA={toBattleToken(latestBattle.tokenA)}
                       tokenB={toBattleToken(latestBattle.tokenB)}
@@ -359,7 +355,7 @@ export function Tagline() {
                     />
                   </div>
 
-                  {/* RIGHT: Kalshi Chart - FULL WIDTH */}
+                  {/* RIGHT: Kalshi Chart */}
                   <div className="mt-4 lg:mt-0 flex-1 min-w-0">
                     <KalshiChart
                       tokenA={{
@@ -486,7 +482,7 @@ export function Tagline() {
 
             {/* Purple text below slides */}
             <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#a855f7', textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}>
-              BONK BATTLE IS WHERE COMMUNITIES TURN IN TO ARMIES
+              BATTLECOIN MARKET IS WHERE COMMUNITIES TURN IN TO ARMIES
             </p>
           </div>
         )}

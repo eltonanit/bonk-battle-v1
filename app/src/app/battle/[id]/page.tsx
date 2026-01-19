@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { PublicKey } from '@solana/web3.js';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -14,6 +15,7 @@ import { TradingPanel } from '@/components/token/TradingPanel';
 import { PriceChart } from '@/components/token/PriceChart';
 import { useTokenBattleState } from '@/hooks/useTokenBattleState';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
+import { useComments } from '@/hooks/useComments';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { BattleStatus } from '@/types/bonk';
@@ -81,6 +83,11 @@ export default function BattleDetailPage() {
   const [attackA, setAttackA] = useState(false);
   const [attackB, setAttackB] = useState(false);
   const [clash, setClash] = useState(false);
+
+  // Comments state
+  const [newComment, setNewComment] = useState('');
+  const { publicKey, connected } = useWallet();
+  const { comments, isLoading: commentsLoading, postComment, deleteComment, isPosting } = useComments(battleId);
 
   // ═══════════════════════════════════════════════════════════════
   // CHECK IF BATTLE ALREADY COMPLETED ON LOAD
@@ -414,13 +421,13 @@ export default function BattleDetailPage() {
           <div className="mb-4 animate-bounce">
             <Image
               src="/BONK-LOGO.svg"
-              alt="Bonk Battle"
+              alt="Battlecoin Market"
               width={64}
               height={64}
               className="mx-auto"
             />
           </div>
-          <div className="text-xl font-bold">Loading Bonk Battle...</div>
+          <div className="text-xl font-bold">Loading Battlecoin Market...</div>
         </div>
       </div>
     );
@@ -748,27 +755,75 @@ export default function BattleDetailPage() {
                       {/* Add Comment */}
                       <div className="flex gap-3 mb-4">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                          ?
+                          {connected && publicKey ? publicKey.toString().slice(0, 2).toUpperCase() : '?'}
                         </div>
                         <div className="flex-1">
                           <textarea
-                            placeholder="Add a comment..."
+                            placeholder={connected ? "Add a comment..." : "Connect wallet to comment..."}
                             className="w-full bg-[#2a3544] border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-orange-500/50"
                             rows={2}
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            disabled={!connected || isPosting}
                           />
                           <div className="flex justify-end mt-2">
-                            <button className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 text-black font-bold text-sm rounded-lg transition-colors">
-                              Post
+                            <button
+                              onClick={async () => {
+                                if (!connected || !publicKey || !newComment.trim()) return;
+                                const success = await postComment(newComment, publicKey.toString());
+                                if (success) {
+                                  setNewComment('');
+                                }
+                              }}
+                              disabled={!connected || isPosting || !newComment.trim()}
+                              className="px-4 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-black font-bold text-sm rounded-lg transition-colors"
+                            >
+                              {isPosting ? 'Posting...' : 'Post'}
                             </button>
                           </div>
                         </div>
                       </div>
 
                       {/* Comments List */}
-                      <div className="space-y-4">
-                        <div className="text-center text-gray-500 text-sm py-4">
-                          No comments yet. Be the first to comment!
-                        </div>
+                      <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                        {commentsLoading ? (
+                          <div className="text-center text-gray-500 text-sm py-4">
+                            Loading comments...
+                          </div>
+                        ) : comments.length === 0 ? (
+                          <div className="text-center text-gray-500 text-sm py-4">
+                            No comments yet. Be the first to comment!
+                          </div>
+                        ) : (
+                          comments.map((comment) => (
+                            <div key={comment.id} className="flex gap-3 group">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-bold flex-shrink-0 text-xs">
+                                {comment.username ? comment.username.slice(0, 2).toUpperCase() : comment.user_wallet.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-white font-medium text-sm">
+                                    {comment.username || `${comment.user_wallet.slice(0, 4)}...${comment.user_wallet.slice(-4)}`}
+                                  </span>
+                                  <span className="text-gray-500 text-xs">
+                                    {new Date(comment.created_at).toLocaleString()}
+                                  </span>
+                                  {connected && publicKey && publicKey.toString() === comment.user_wallet && (
+                                    <button
+                                      onClick={() => deleteComment(comment.id, publicKey.toString())}
+                                      className="text-red-400 hover:text-red-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      Delete
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-gray-300 text-sm mt-1 break-words">
+                                  {comment.content}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </>
                   ) : (

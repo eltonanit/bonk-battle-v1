@@ -98,7 +98,8 @@ export async function buyToken(
   solAmount: number,
   signTransaction: (tx: VersionedTransaction) => Promise<VersionedTransaction>,
   minTokensOut: number = 0,  // V2: Slippage protection (0 = disabled)
-  battleStatus?: number      // Kept for backwards compatibility
+  battleStatus?: number,     // Kept for backwards compatibility
+  externalConnection?: Connection  // Optional: use wallet adapter connection
 ): Promise<BuyTokenResult> {
   console.log('💰 Starting buy token transaction (V3 - Any Buy Qualifies)...');
   console.log('📋 Buy Details:');
@@ -117,7 +118,8 @@ export async function buyToken(
     throw new Error('Minimum buy amount is 0.001 SOL');
   }
 
-  const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+  // Use external connection if provided, otherwise create new one
+  const connection = externalConnection || new Connection(RPC_ENDPOINT, 'confirmed');
   const lamports = Math.floor(solAmount * 1e9);
 
   // ✅ V3: ANY FIRST BUY = QUALIFIED

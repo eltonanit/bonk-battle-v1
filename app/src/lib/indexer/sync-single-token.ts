@@ -24,11 +24,32 @@ const MAX_REALISTIC_TOKENS = 10_000_000_000_000_000_000n; // 10B tokens with 9 d
 const MIN_VALID_TIMESTAMP = 1577836800; // Jan 1, 2020
 const MAX_VALID_TIMESTAMP = 4102444800; // Jan 1, 2100
 
-export async function syncSingleToken(mint: string): Promise<{ success: boolean; error?: string }> {
-    console.log(`🔄 Syncing token: ${mint.slice(0, 8)}...`);
+// ⭐ Network types
+export type NetworkType = 'mainnet' | 'devnet';
+
+export interface SyncOptions {
+    network?: NetworkType;
+    rpcEndpoint?: string;
+}
+
+/**
+ * Sync a single token from on-chain data
+ * @param mint - Token mint address
+ * @param options - Optional network and RPC endpoint override
+ */
+export async function syncSingleToken(
+    mint: string,
+    options?: SyncOptions
+): Promise<{ success: boolean; error?: string }> {
+    // Use provided network or fall back to env var
+    const networkDb: NetworkType = options?.network ||
+        (process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'devnet' : 'mainnet');
+    const rpcEndpoint = options?.rpcEndpoint || RPC_ENDPOINT;
+
+    console.log(`🔄 Syncing token: ${mint.slice(0, 8)}... (network: ${networkDb})`);
 
     try {
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const connection = new Connection(rpcEndpoint, 'confirmed');
         const mintPubkey = new PublicKey(mint);
 
         // 1. Get Battle State PDA
@@ -248,6 +269,13 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
         // Import from constants or hardcode based on deployment
         const tier = 1; // 1 = Production (era 0 = Test)
 
+        // Check if token already exists to preserve created_at
+        const { data: existingToken } = await supabase
+            .from('tokens')
+            .select('created_at')
+            .eq('mint', mint)
+            .single();
+
         const tokenData = {
             mint: mint,
             name: name || null,
@@ -255,6 +283,7 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
             uri: uri || null,
             image: image || null,
             tier: tier,
+            network: networkDb, // ⭐ Save network (mainnet/devnet) - from options or env
             virtual_sol_reserves: calculatedVirtualSol,
             virtual_token_reserves: calculatedVirtualTokens.toString(),
             real_sol_reserves: solCollected,
@@ -274,7 +303,9 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
             victory_timestamp: victoryTimestamp || null,
             listing_timestamp: listingTimestamp || null,
             bump: bump,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            // Set created_at only for new tokens
+            ...(existingToken ? {} : { created_at: new Date().toISOString() })
         };
 
         const { error } = await supabase
@@ -300,15 +331,20 @@ export async function syncSingleToken(mint: string): Promise<{ success: boolean;
 
 /**
  * Re-sync all tokens from a list of mints
+ * @param mints - Array of token mint addresses
+ * @param options - Optional network and RPC endpoint override
  */
-export async function resyncAllTokens(mints: string[]): Promise<{ success: number; failed: number }> {
-    console.log(`🔄 Re-syncing ${mints.length} tokens...`);
+export async function resyncAllTokens(
+    mints: string[],
+    options?: SyncOptions
+): Promise<{ success: number; failed: number }> {
+    console.log(`🔄 Re-syncing ${mints.length} tokens... (network: ${options?.network || 'default'})`);
 
     let success = 0;
     let failed = 0;
 
     for (const mint of mints) {
-        const result = await syncSingleToken(mint);
+        const result = await syncSingleToken(mint, options);
         if (result.success) {
             success++;
         } else {

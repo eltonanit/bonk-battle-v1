@@ -13,7 +13,7 @@ function ShareModal({ isOpen, onClose, tokenMint, tokenSymbol }: { isOpen: boole
   if (!isOpen) return null;
 
   const shareUrl = `https://bonk-battle.vercel.app/token/${tokenMint}`;
-  const tweetText = `Check out $${tokenSymbol} on BONK BATTLE! `;
+  const tweetText = `Check out $${tokenSymbol} on BATTLECOIN MARKET! `;
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(shareUrl);

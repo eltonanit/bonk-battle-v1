@@ -5,15 +5,17 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { syncSingleToken } from '@/lib/indexer/sync-single-token';
+import { syncSingleToken, NetworkType } from '@/lib/indexer/sync-single-token';
 import { createClient } from '@supabase/supabase-js';
+import { NETWORK_CONFIGS } from '@/config/network';
 
-const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
+// ⭐ Program IDs for network detection
+const MAINNET_PROGRAM_ID = NETWORK_CONFIGS.mainnet.programId;
+const DEVNET_PROGRAM_ID = NETWORK_CONFIGS.devnet.programId;
 const TREASURY_WALLET = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
 
-// ⭐ Network detection from env
-const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
-const CURRENT_NETWORK_DB = SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet';
+// ⭐ Default network from env (can be overridden per request)
+const DEFAULT_NETWORK: NetworkType = process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'devnet' : 'mainnet';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,9 +113,10 @@ async function saveUserTrade(params: {
     tokenAmount: number;
     slot: number;
     timestamp: number;
+    network: NetworkType; // ⭐ Network from caller
 }) {
     try {
-        console.log(`💾 Attempting to save trade: ${params.tradeType} ${params.tokenMint.slice(0, 8)}...`);
+        console.log(`💾 Attempting to save trade: ${params.tradeType} ${params.tokenMint.slice(0, 8)}... (${params.network})`);
 
         let solPriceUsd = 240;
         try {
@@ -141,7 +144,7 @@ async function saveUserTrade(params: {
             trade_value_usd: tradeValueUsd,
             block_time: new Date(params.timestamp * 1000),
             slot: params.slot,
-            network: CURRENT_NETWORK_DB, // ⭐ Save network (mainnet/devnet)
+            network: params.network, // ⭐ Use network from params
         });
 
         if (error) {
@@ -286,13 +289,20 @@ export async function POST(request: NextRequest) {
             console.warn('⚠️ Webhook auth mismatch (continuing anyway)');
         }
 
+        // ⭐ Network detection: from query param, header, or default
+        const { searchParams } = new URL(request.url);
+        const networkParam = searchParams.get('network') || request.headers.get('x-network');
+        const network: NetworkType = (networkParam === 'devnet' || networkParam === 'mainnet')
+            ? networkParam
+            : DEFAULT_NETWORK;
+
         const payload = await request.json() as HeliusWebhookEvent[];
 
         if (!Array.isArray(payload) || payload.length === 0) {
             return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 });
         }
 
-        console.log(`📥 Webhook received ${payload.length} event(s)`);
+        console.log(`📥 Webhook received ${payload.length} event(s) (network: ${network})`);
 
         const mints = new Set<string>();
         let tradesSaved = 0;
@@ -356,6 +366,7 @@ export async function POST(request: NextRequest) {
                     tokenAmount: detected.tokenAmount,
                     slot: event.slot,
                     timestamp: event.timestamp,
+                    network, // ⭐ Pass network
                 });
                 if (saved) tradesSaved++;
             }
@@ -385,6 +396,7 @@ export async function POST(request: NextRequest) {
                     tokenAmount: detected.tokenAmount,
                     slot: event.slot,
                     timestamp: event.timestamp,
+                    network, // ⭐ Pass network
                 });
                 if (saved) tradesSaved++;
             }
@@ -432,13 +444,13 @@ export async function POST(request: NextRequest) {
 
         console.log(`🪙 Mints to sync: ${mintArray.join(', ')}`);
 
-        // Sync tokens
+        // Sync tokens with correct network
         const results = await Promise.all(
             mintArray.map(async (mint) => {
                 try {
-                    const result = await syncSingleToken(mint);
+                    const result = await syncSingleToken(mint, { network });
                     if (result.success) {
-                        console.log(`✅ Synced: ${mint.slice(0, 8)}...`);
+                        console.log(`✅ Synced: ${mint.slice(0, 8)}... (${network})`);
                     } else {
                         console.error(`❌ Failed: ${mint.slice(0, 8)}... - ${result.error}`);
                     }
