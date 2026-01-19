@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -63,6 +63,18 @@ export function Sidebar() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+      )
+    },
+    // ⭐ NEW: Activity Feed Link
+    {
+      href: '/activity',
+      label: 'Activity',
+      hidden: false,
+      isLive: true, // Special styling for LIVE indicator
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
         </svg>
       )
     },
@@ -176,9 +188,49 @@ export function Sidebar() {
   // Filter out hidden items
   const navItems = allNavItems.filter(item => !item.hidden);
 
+  // Helper function to get link classes
+  const getLinkClasses = (item: typeof allNavItems[0], active: boolean) => {
+    const baseClasses = 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] relative';
+
+    // ⭐ NEW: Activity with LIVE indicator (red/pink theme)
+    if (item.isLive) {
+      return active
+        ? `${baseClasses} bg-red-500/20 text-red-400`
+        : `${baseClasses} text-red-400 hover:text-red-300 hover:bg-red-500/10`;
+    }
+
+    if (item.isGreen) {
+      return active
+        ? `${baseClasses} bg-green-500/20 text-green-400`
+        : `${baseClasses} text-green-400 hover:text-green-300 hover:bg-green-500/10`;
+    }
+
+    if (item.isPurple) {
+      return active
+        ? `${baseClasses} bg-purple-500/20 text-purple-400`
+        : `${baseClasses} text-purple-400 hover:text-purple-300 hover:bg-purple-500/10`;
+    }
+
+    if (item.href === '/leaderboard') {
+      return active
+        ? `${baseClasses} bg-orange-500/20 text-orange-400`
+        : `${baseClasses} text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10`;
+    }
+
+    if (item.href === '/burned') {
+      return active
+        ? `${baseClasses} bg-red-500/20 text-red-400`
+        : `${baseClasses} text-red-500 hover:text-red-400 hover:bg-red-500/10`;
+    }
+
+    // Default white
+    return active
+      ? `${baseClasses} bg-orange-500/20 text-orange-400`
+      : `${baseClasses} text-white hover:text-white hover:bg-bonk-card/50`;
+  };
+
   return (
     <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-56 bg-bonk-dark border-r border-bonk-border z-50">
-      {/* Logo - FIX */}
       {/* Logo */}
       <div className="p-6 border-b border-bonk-border">
         <Link href="/" className="flex items-center gap-3">
@@ -205,32 +257,22 @@ export function Sidebar() {
           <Link
             key={item.href}
             href={item.href}
-            className={
-              isActive(item.href)
-                ? item.isGreen
-                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-green-500/20 text-green-400 relative'
-                  : item.isPurple
-                    ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-purple-500/20 text-purple-400 relative'
-                    : item.href === '/leaderboard'
-                      ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
-                      : item.href === '/burned'
-                        ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-red-500/20 text-red-400 relative'
-                        : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] bg-orange-500/20 text-orange-400 relative'
-                : item.isGreen
-                  ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-green-400 hover:text-green-300 hover:bg-green-500/10 relative'
-                  : item.isPurple
-                    ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 relative'
-                    : item.href === '/leaderboard'
-                      ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10 relative'
-                      : item.href === '/burned'
-                        ? 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-red-500 hover:text-red-400 hover:bg-red-500/10 relative'
-                        : 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] text-white hover:text-white hover:bg-bonk-card/50 relative'
-            }
+            className={getLinkClasses(item, isActive(item.href))}
           >
             <span className="flex-shrink-0">
               {item.icon}
             </span>
             <span className="flex-1">{item.label}</span>
+
+            {/* ⭐ LIVE indicator for Activity */}
+            {item.isLive && (
+              <span className="flex items-center gap-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                </span>
+              </span>
+            )}
 
             {/* Balance per Profile */}
             {item.showBalance && connected && balanceUsd && (

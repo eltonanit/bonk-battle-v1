@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
 import { BattleCard } from '@/components/shared/BattleCard';
+import { KalshiChart } from '@/components/shared/KalshiChart';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
 import { supabase } from '@/lib/supabase';
@@ -331,80 +332,51 @@ export function Tagline() {
         }
       `}</style>
 
-      {/* ⭐ LAYOUT: Mobile stack (images first), Desktop grid */}
-      <div className="flex flex-col lg:grid lg:grid-cols-2 gap-6">
+      {/* ⭐ LAYOUT: Mobile stack, Desktop full width when ARMIES hidden */}
+      <div className={`flex flex-col gap-6 ${FEATURES.SHOW_ARMIES ? 'lg:grid lg:grid-cols-2' : ''}`}>
 
         {/* ===== LEFT SIDE - COLOSSEUM (visible on all screens) ===== */}
         <div className="order-1 lg:order-1">
-          {/* ⭐ THE COLOSSEUM - Visible on ALL screens */}
+          {/* ⭐ Battle Section */}
           <div>
-            {/* Titolo THE COLOSSEUM - CENTRATO */}
-            <h2
-              className="text-2xl sm:text-3xl lg:text-5xl font-extrabold mb-2 flex items-center justify-center gap-2 lg:gap-4"
-              style={{
-                color: '#a855f7',
-                textShadow: '0 0 20px rgba(168, 85, 247, 0.6)'
-              }}
-            >
-              <span className="text-2xl sm:text-3xl lg:text-5xl">⚔️</span>
-              THE COLOSSEUM
-              <span className="text-2xl sm:text-3xl lg:text-5xl">⚔️</span>
-            </h2>
-
-            {/* About to Win - Leading Token - RIGHT UNDER TITLE */}
-            {latestBattle && (() => {
-              const tokenAVolume = lamportsToSol(latestBattle.tokenA.totalTradeVolume ?? 0);
-              const tokenBVolume = lamportsToSol(latestBattle.tokenB.totalTradeVolume ?? 0);
-              const tokenASol = lamportsToSol(latestBattle.tokenA.realSolReserves ?? 0);
-              const tokenBSol = lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0);
-
-              // ⭐ Use tier-specific targets for progress calculation
-              const { targetSol, victoryVolumeSol } = battleTargets;
-              const tokenAProgress = ((tokenASol / targetSol) + (tokenAVolume / victoryVolumeSol)) / 2;
-              const tokenBProgress = ((tokenBSol / targetSol) + (tokenBVolume / victoryVolumeSol)) / 2;
-
-              const leadingToken = tokenAProgress >= tokenBProgress ? latestBattle.tokenA : latestBattle.tokenB;
-
-              return (
-                <div className="flex items-center justify-center gap-3 mb-4 bg-black/40 rounded-xl py-2 px-4 mx-auto w-fit">
-                  <span className="text-black font-bold bg-yellow-400 px-2 py-0.5 rounded text-sm">About to win</span>
-                  <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-yellow-400">
-                    <Image
-                      src={leadingToken.image || '/default-token.png'}
-                      alt={leadingToken.symbol || 'Leading'}
-                      width={32}
-                      height={32}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
-                  <span className="text-yellow-400 font-bold text-sm">${leadingToken.symbol}</span>
-                </div>
-              );
-            })()}
-
-            {/* ⭐ BattleCard - Uses token's tier for correct targets */}
+            {/* ⭐ BattleCard + Race - SIDE BY SIDE on desktop */}
             {latestBattle ? (
               <>
-                <div className="clash-royale-border transform scale-100 lg:scale-90 origin-top">
-                  {/* Electric Sparks */}
-                  <div className="spark" style={{ top: '10%', left: '-2px', animationDelay: '0s' }} />
-                  <div className="spark" style={{ top: '50%', right: '-2px', animationDelay: '0.2s' }} />
-                  <div className="spark" style={{ bottom: '20%', left: '30%', animationDelay: '0.4s' }} />
-                  <div className="spark" style={{ top: '-2px', left: '60%', animationDelay: '0.6s' }} />
-                  <div className="spark" style={{ bottom: '-2px', right: '40%', animationDelay: '0.3s' }} />
-                  <div className="spark" style={{ top: '30%', left: '-2px', animationDelay: '0.5s' }} />
-                  <div className="spark" style={{ bottom: '10%', right: '-2px', animationDelay: '0.1s' }} />
-                  <div className="spark" style={{ top: '-2px', left: '20%', animationDelay: '0.7s' }} />
+                {/* Title above card */}
+                <h2 className="text-center text-xl lg:text-2xl font-bold text-white mb-4">
+                  Who will get more liquidity?
+                </h2>
 
-                  <div className="clash-royale-inner !p-0">
-                    {/* ⭐ KEY FIX: Pass tier-specific targets */}
+                <div className="flex flex-col lg:flex-row lg:items-start lg:gap-4">
+                  {/* LEFT: BattleCard */}
+                  <div className="flex-shrink-0">
                     <BattleCard
                       tokenA={toBattleToken(latestBattle.tokenA)}
                       tokenB={toBattleToken(latestBattle.tokenB)}
                       targetSol={battleTargets.targetSol}
                       targetVolumeSol={battleTargets.victoryVolumeSol}
                       isEpicBattle={true}
+                    />
+                  </div>
+
+                  {/* RIGHT: Kalshi Chart - FULL WIDTH */}
+                  <div className="mt-4 lg:mt-0 flex-1 min-w-0">
+                    <KalshiChart
+                      tokenA={{
+                        mint: latestBattle.tokenA.mint.toString(),
+                        name: latestBattle.tokenA.name || 'Unknown',
+                        symbol: latestBattle.tokenA.symbol || '???',
+                        image: latestBattle.tokenA.image || null,
+                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenA),
+                      }}
+                      tokenB={{
+                        mint: latestBattle.tokenB.mint.toString(),
+                        name: latestBattle.tokenB.name || 'Unknown',
+                        symbol: latestBattle.tokenB.symbol || '???',
+                        image: latestBattle.tokenB.image || null,
+                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenB),
+                      }}
+                      targetMarketCap={10_000_000_000}
                     />
                   </div>
                 </div>

@@ -792,31 +792,25 @@ export function BattleCard({
             {/* Buy Winner Buttons - Responsive */}
             {showBuyButtons && (
               <div className="bg-[#1d2531] px-2 sm:px-3 py-1.5 sm:py-2 my-2 sm:my-3 flex items-center justify-between gap-2">
-                {/* Token A - Blue Button */}
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <span className="text-white font-bold text-sm sm:text-base">{Math.round(chanceA)}%</span>
-                  <button
-                    data-buy-button
-                    onClick={(e) => handleBuyClick('A', e)}
-                    className="py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: '#386BFD' }}
-                  >
-                    Buy winner
-                  </button>
-                </div>
+                {/* Token A - Green Button */}
+                <button
+                  data-buy-button
+                  onClick={(e) => handleBuyClick('A', e)}
+                  className="py-1.5 sm:py-2 px-3 sm:px-4 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
+                  style={{ backgroundColor: '#22C55E' }}
+                >
+                  Buy winner {Math.round(chanceA)}%
+                </button>
 
-                {/* Token B - Pink Button */}
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <button
-                    data-buy-button
-                    onClick={(e) => handleBuyClick('B', e)}
-                    className="py-1 sm:py-1.5 px-2 sm:px-3 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: '#FD1F6F' }}
-                  >
-                    Buy winner
-                  </button>
-                  <span className="text-white font-bold text-sm sm:text-base">{Math.round(chanceB)}%</span>
-                </div>
+                {/* Token B - Orange Button */}
+                <button
+                  data-buy-button
+                  onClick={(e) => handleBuyClick('B', e)}
+                  className="py-1.5 sm:py-2 px-3 sm:px-4 rounded-md font-bold text-white text-xs sm:text-sm transition-all hover:opacity-90 active:scale-95"
+                  style={{ backgroundColor: '#F97316' }}
+                >
+                  Buy winner {Math.round(chanceB)}%
+                </button>
               </div>
             )}
 

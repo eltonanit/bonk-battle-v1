@@ -11,6 +11,10 @@ import { createClient } from '@supabase/supabase-js';
 const PROGRAM_ID = process.env.NEXT_PUBLIC_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD';
 const TREASURY_WALLET = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
 
+// ⭐ Network detection from env
+const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
+const CURRENT_NETWORK_DB = SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet';
+
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -137,6 +141,7 @@ async function saveUserTrade(params: {
             trade_value_usd: tradeValueUsd,
             block_time: new Date(params.timestamp * 1000),
             slot: params.slot,
+            network: CURRENT_NETWORK_DB, // ⭐ Save network (mainnet/devnet)
         });
 
         if (error) {

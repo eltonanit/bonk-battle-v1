@@ -3,6 +3,10 @@ import { supabase } from '@/lib/supabase';
 import { BONK_BATTLE_PROGRAM_ID, BattleStatus } from '@/lib/solana/constants';
 import { RPC_ENDPOINT } from '@/config/solana';
 
+// ⭐ Network detection from env
+const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
+const CURRENT_NETWORK_DB = SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet';
+
 /**
  * Helper to parse metadata that might be stored as JSON string
  */
@@ -177,6 +181,7 @@ export async function syncTokensToSupabase() {
                 tokensToUpsert.push({
                     mint: mint.toString(),
                     tier: tier,
+                    network: CURRENT_NETWORK_DB, // ⭐ Save network (mainnet/devnet)
                     virtual_sol_reserves: virtualSolReserves,
                     virtual_token_reserves: virtualTokenReserves,
                     real_sol_reserves: realSolReserves,

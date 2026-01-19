@@ -22,6 +22,7 @@ import { BondingCurveCard } from '@/components/token/BondingCurveCard';
 import { QualificationPopup } from '@/components/token/QualificationPopup';
 import { TradesList } from '@/components/token/TradesList';
 import { MobileTradingDrawer } from '@/components/token/MobileTradingDrawer';
+import { TokenActivityFeed } from '@/components/feed/TokenActivityFeed';
 
 /**
  * Validates if a string is a valid Solana public key
@@ -43,8 +44,8 @@ export default function TokenDetailPage() {
   // ⭐ Stato per tracciare se popup è stato chiuso
   const [qualificationPopupDismissed, setQualificationPopupDismissed] = useState(false);
 
-  // ⭐ Tab state for Thread/Trades/Holders
-  const [activeTab, setActiveTab] = useState<'thread' | 'trades' | 'holders'>('trades');
+  // ⭐ Tab state for Thread/Trades/Activity/Holders
+  const [activeTab, setActiveTab] = useState<'thread' | 'trades' | 'activity' | 'holders'>('trades');
 
   // ⭐ Winner state for Raydium pool integration
   const [isWinner, setIsWinner] = useState(false);
@@ -486,6 +487,19 @@ export default function TokenDetailPage() {
                     Trades
                   </button>
                   <button
+                    onClick={() => setActiveTab('activity')}
+                    className={`font-bold pb-4 -mb-4.5 transition-colors flex items-center gap-2 ${activeTab === 'activity'
+                      ? 'text-white border-b-2 border-bonk-green'
+                      : 'text-gray-400 hover:text-white'
+                      }`}
+                  >
+                    Activity
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  </button>
+                  <button
                     onClick={() => setActiveTab('holders')}
                     className={`font-bold pb-4 -mb-4.5 transition-colors ${activeTab === 'holders'
                       ? 'text-white border-b-2 border-bonk-green'
@@ -507,6 +521,14 @@ export default function TokenDetailPage() {
                   <TradesList
                     tokenMint={mintAddress}
                     tokenSymbol={state.symbol || 'TOKEN'}
+                  />
+                )}
+
+                {activeTab === 'activity' && (
+                  <TokenActivityFeed
+                    tokenMint={mintAddress}
+                    tokenSymbol={state.symbol || 'TOKEN'}
+                    tokenImage={state.image || ''}
                   />
                 )}
 

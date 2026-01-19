@@ -29,6 +29,7 @@ import {
   calculateVolumeProgress,
   hasMetGraduationConditions,
 } from '@/config/tier-config';
+import { BattleActivityFeed } from '@/components/feed/BattleActivityFeed';
 
 export default function BattleDetailPage() {
   const params = useParams();
@@ -54,8 +55,8 @@ export default function BattleDetailPage() {
   // Currently selected token for trading
   const [selectedToken, setSelectedToken] = useState<'A' | 'B'>('A');
 
-  // Tab state for Comments/Trade section
-  const [activeTab, setActiveTab] = useState<'comments' | 'trade'>('comments');
+  // Tab state for Comments/Activity section
+  const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
 
   // ═══════════════════════════════════════════════════════════════
   // VICTORY STATE MANAGEMENT
@@ -712,7 +713,7 @@ export default function BattleDetailPage() {
                 }} />
               )}
 
-              {/* Comments/Trade Tabs Section */}
+              {/* Comments/Activity Tabs Section */}
               <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl overflow-hidden">
                 {/* Tabs */}
                 <div className="flex border-b border-[#2a3544]">
@@ -726,13 +727,17 @@ export default function BattleDetailPage() {
                     💬 Comments
                   </button>
                   <button
-                    onClick={() => setActiveTab('trade')}
-                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${activeTab === 'trade'
+                    onClick={() => setActiveTab('activity')}
+                    className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${activeTab === 'activity'
                         ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
                         : 'text-gray-400 hover:text-white'
                       }`}
                   >
-                    📊 Trade
+                    ⚡ Activity
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
                   </button>
                 </div>
 
@@ -767,25 +772,15 @@ export default function BattleDetailPage() {
                       </div>
                     </>
                   ) : (
-                    /* Trade Tab Content */
-                    <div className="space-y-4">
-                      <div className="text-center py-6">
-                        <div className="text-4xl mb-3">📈</div>
-                        <p className="text-gray-400 text-sm mb-4">Recent trades for {currentState?.symbol}</p>
-                      </div>
-
-                      {/* Trade History Placeholder */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-xs text-gray-500 px-2">
-                          <span>Type</span>
-                          <span>Amount</span>
-                          <span>Time</span>
-                        </div>
-                        <div className="text-center text-gray-500 text-sm py-4">
-                          No trades yet
-                        </div>
-                      </div>
-                    </div>
+                    /* Activity Tab Content */
+                    <BattleActivityFeed
+                      tokenAMint={tokenAMint?.toString() || ''}
+                      tokenBMint={effectiveTokenBMint?.toString() || ''}
+                      tokenASymbol={stateA?.symbol || 'TOKEN A'}
+                      tokenBSymbol={stateB?.symbol || 'TOKEN B'}
+                      tokenAImage={stateA ? getTokenImage(stateA) : undefined}
+                      tokenBImage={stateB ? getTokenImage(stateB) : undefined}
+                    />
                   )}
                 </div>
               </div>
