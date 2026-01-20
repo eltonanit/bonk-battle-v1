@@ -53,15 +53,14 @@ const TEST_VICTORY_VOLUME_SOL: u64 = 6_600_000_000; // 6.6 SOL in lamports
 const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
 
 
-// ============ TIER PRODUCTION (AGGRESSIVO) ============
-// MC Iniziale: ~$1,700 | MC Finale: ~$25,000 (@ $137/SOL) | Multiplier: ~14.68x
-// Battaglie veloci: 4-12 ore
+// ============ TIER BATTLECOIN MARKET ($10B) ============
+// Target: $10B Market Cap | Keeper-controlled battles for Season 1
 
 /// Target SOL per graduation TIER PROD
-const PROD_TARGET_SOL: u64 = 37_700_000_000; // 37.7 SOL in lamports
+const PROD_TARGET_SOL: u64 = 14_586_338_000_000_000; // 14,586,338 SOL (~$2.07B)
 
 /// Volume target per vittoria TIER PROD (110% di TARGET_SOL)
-const PROD_VICTORY_VOLUME_SOL: u64 = 41_500_000_000; // 41.5 SOL in lamports
+const PROD_VICTORY_VOLUME_SOL: u64 = 16_044_972_000_000_000; // 16,044,972 SOL (110%)
 
 /// Qualification threshold TIER PROD - Qualsiasi acquisto qualifica
 const PROD_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
