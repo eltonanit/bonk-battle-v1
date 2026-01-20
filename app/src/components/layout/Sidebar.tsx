@@ -78,6 +78,18 @@ export function Sidebar() {
         </svg>
       )
     },
+    // ⭐ NEW: Now Page
+    {
+      href: '/now',
+      label: 'Now',
+      hidden: false,
+      isNow: true, // Special orange/fire styling
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+        </svg>
+      )
+    },
     {
       href: '/armies',
       label: 'Armies',
@@ -192,11 +204,18 @@ export function Sidebar() {
   const getLinkClasses = (item: typeof allNavItems[0], active: boolean) => {
     const baseClasses = 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] relative';
 
-    // ⭐ NEW: Activity with LIVE indicator (red/pink theme)
+    // ⭐ Activity with LIVE indicator (white text, light blue when active)
     if (item.isLive) {
       return active
-        ? `${baseClasses} bg-red-500/20 text-red-400`
-        : `${baseClasses} text-red-400 hover:text-red-300 hover:bg-red-500/10`;
+        ? `${baseClasses} bg-sky-500/20 text-sky-400`
+        : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
+    }
+
+    // ⭐ Now page with fire/orange styling
+    if (item.isNow) {
+      return active
+        ? `${baseClasses} bg-orange-500/20 text-orange-400`
+        : `${baseClasses} text-orange-400 hover:text-orange-300 hover:bg-orange-500/10`;
     }
 
     if (item.isGreen) {
@@ -205,16 +224,18 @@ export function Sidebar() {
         : `${baseClasses} text-green-400 hover:text-green-300 hover:bg-green-500/10`;
     }
 
+    // Holders - white text, light blue when active
     if (item.isPurple) {
       return active
-        ? `${baseClasses} bg-purple-500/20 text-purple-400`
-        : `${baseClasses} text-purple-400 hover:text-purple-300 hover:bg-purple-500/10`;
+        ? `${baseClasses} bg-sky-500/20 text-sky-400`
+        : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
     }
 
+    // Leaderboard - white text, light blue when active
     if (item.href === '/leaderboard') {
       return active
-        ? `${baseClasses} bg-orange-500/20 text-orange-400`
-        : `${baseClasses} text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10`;
+        ? `${baseClasses} bg-sky-500/20 text-sky-400`
+        : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
     }
 
     if (item.href === '/burned') {
@@ -223,14 +244,21 @@ export function Sidebar() {
         : `${baseClasses} text-red-500 hover:text-red-400 hover:bg-red-500/10`;
     }
 
-    // Default white
+    // Home - white text, light blue when active
+    if (item.href === '/') {
+      return active
+        ? `${baseClasses} bg-sky-500/20 text-sky-400`
+        : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
+    }
+
+    // Default white with sky blue when active
     return active
-      ? `${baseClasses} bg-orange-500/20 text-orange-400`
+      ? `${baseClasses} bg-sky-500/20 text-sky-400`
       : `${baseClasses} text-white hover:text-white hover:bg-bonk-card/50`;
   };
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-56 bg-bonk-dark border-r border-bonk-border z-50">
+    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-56 bg-[#0C1426] border-r border-bonk-border z-50">
       {/* Logo */}
       <div className="p-6 border-b border-bonk-border">
         <Link href="/" className="flex items-center gap-3">
@@ -264,12 +292,12 @@ export function Sidebar() {
             </span>
             <span className="flex-1">{item.label}</span>
 
-            {/* ⭐ LIVE indicator for Activity */}
+            {/* ⭐ LIVE indicator for Activity (green pulsing dot) */}
             {item.isLive && (
               <span className="flex items-center gap-1">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
               </span>
             )}

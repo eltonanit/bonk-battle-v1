@@ -88,6 +88,8 @@ export async function GET(request: Request) {
       ? networkParam
       : DEFAULT_NETWORK;
 
+    console.log(`📊 Rankings API: sortBy=${sortBy}, network=${networkDb}, excludedStatuses=${sortBy === 'lastCreated' ? '[2,3,4,5]' : '[3,4,5]'}`);
+
     const solPrice = await getSolPrice();
     const now = Math.floor(Date.now() / 1000);
     const oneHourAgo = now - 3600;
@@ -100,13 +102,15 @@ export async function GET(request: Request) {
     let tokensError;
 
     // ⭐ Exclude completed tokens (winners/defeated):
+    // - battle_status 2 = InBattle (only for "New" tab)
     // - battle_status 3 = VictoryPending (winner waiting for listing)
     // - battle_status 4 = Listed (graduated to Raydium)
     // - battle_status 5 = Defeated (lost the battle)
-    const EXCLUDED_STATUSES = [3, 4, 5];
+    // For "New" tab: also exclude tokens in battle (status 2) - show only qualifying tokens
+    const EXCLUDED_STATUSES = sortBy === 'lastCreated' ? [2, 3, 4, 5] : [3, 4, 5];
 
     // Try full query with all optional columns
-    // Order by created_at DESC so new tokens are always included
+    // Order by creation_timestamp DESC so new tokens are always included (on-chain creation time)
     const result = await supabase
       .from('tokens')
       .select(`
@@ -115,16 +119,16 @@ export async function GET(request: Request) {
         virtual_sol_reserves, virtual_token_reserves,
         total_trade_volume, market_cap_usd,
         last_trade_timestamp, battle_status, is_active,
-        holder_count, holder_updated_at, created_at, creation_timestamp
+        holder_count, holder_updated_at, creation_timestamp
       `)
       .eq('network', networkDb)
       .not('battle_status', 'in', `(${EXCLUDED_STATUSES.join(',')})`)
-      .order('created_at', { ascending: false, nullsFirst: false })
+      .order('creation_timestamp', { ascending: false, nullsFirst: false })
       .limit(limit);
 
     // If error (missing columns), try progressively simpler queries
     if (result.error) {
-      // Try without holder columns but with created_at
+      // Try without holder columns but with creation_timestamp
       const fallback1 = await supabase
         .from('tokens')
         .select(`
@@ -133,15 +137,15 @@ export async function GET(request: Request) {
           virtual_sol_reserves, virtual_token_reserves,
           total_trade_volume, market_cap_usd,
           last_trade_timestamp, battle_status, is_active,
-          created_at, creation_timestamp
+          creation_timestamp
         `)
         .eq('network', networkDb)
         .not('battle_status', 'in', `(${EXCLUDED_STATUSES.join(',')})`)
-        .order('created_at', { ascending: false, nullsFirst: false })
+        .order('creation_timestamp', { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (fallback1.error) {
-        // Final fallback: minimal query without created_at or holder columns
+        // Final fallback: minimal query without creation_timestamp or holder columns
         const fallback2 = await supabase
           .from('tokens')
           .select(`
@@ -152,6 +156,7 @@ export async function GET(request: Request) {
             last_trade_timestamp, battle_status, is_active
           `)
           .eq('network', networkDb)
+          .not('battle_status', 'in', `(${EXCLUDED_STATUSES.join(',')})`)
           .order('last_trade_timestamp', { ascending: false, nullsFirst: false })
           .limit(limit);
 
@@ -303,12 +308,8 @@ export async function GET(request: Request) {
       const change24h = marketCapUsd > 0 ? (stats.netFlow24h / marketCapUsd) * 100 : 0;
       const change7d = marketCapUsd > 0 ? (stats.netFlow7d / marketCapUsd) * 100 : 0;
 
-      // Use created_at or creation_timestamp as fallback for new tokens without trades
-      const createdAtTimestamp = token.created_at
-        ? Math.floor(new Date(token.created_at).getTime() / 1000)
-        : token.creation_timestamp
-          ? token.creation_timestamp
-          : 0;
+      // Use creation_timestamp for new tokens without trades (this is the on-chain timestamp)
+      const createdAtTimestamp = token.creation_timestamp || 0;
       const lastTradeTimestamp = token.last_trade_timestamp || createdAtTimestamp;
       const activityScore = calculateActivityScore(
         lastTradeTimestamp,
@@ -341,7 +342,7 @@ export async function GET(request: Request) {
     if (sortBy === 'lastTrade') {
       rankedTokens.sort((a, b) => b.activityScore - a.activityScore);
     } else if (sortBy === 'lastCreated') {
-      // Already sorted by created_at from database query, keep that order
+      // Already sorted by creation_timestamp from database query, keep that order
     } else {
       rankedTokens.sort((a, b) => b.marketCapUsd - a.marketCapUsd);
     }

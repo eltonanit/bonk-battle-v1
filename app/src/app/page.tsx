@@ -9,7 +9,7 @@ import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Tagline } from '@/components/home/Tagline';
-import { LiveRankingsHome } from '@/components/home/LiveRankingsHome';
+import { HomeTabsSection } from '@/components/home/HomeTabsSection';
 import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
@@ -36,8 +36,8 @@ export default function HomePage() {
 
         <Tagline />
 
-        {/* LIVE RANKINGS */}
-        <LiveRankingsHome />
+        {/* HOME TABS: Last Trade | On Battle */}
+        <HomeTabsSection />
 
         <TokenGridBonk />
       </div>

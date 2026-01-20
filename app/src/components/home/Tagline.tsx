@@ -6,13 +6,24 @@ import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
-import { BattleCard } from '@/components/shared/BattleCard';
+import { KalshiBattleCard } from '@/components/shared/KalshiBattleCard';
 import { KalshiChart } from '@/components/shared/KalshiChart';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
-import { supabase } from '@/lib/supabase';
 import { FEATURES } from '@/config/features';
 import { calculateMarketCapUsd as calcMcUsd } from '@/config/tier-config';
+
+// Battle Card Config from admin
+interface BattleCardConfig {
+  question: string;
+  target_text: string;
+  context_text: string;
+  token_a_mint: string | null;
+  token_b_mint: string | null;
+  token_a_link: string | null;
+  token_b_link: string | null;
+  is_active: boolean;
+}
 
 // ⭐ TIER TARGETS - Must match smart contract!
 const TIER_TARGETS = {
@@ -64,8 +75,24 @@ export function Tagline() {
   const [isHoveringTokens, setIsHoveringTokens] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { solPriceUsd } = usePriceOracle();
-  // ⭐ Creator profiles cache (wallet -> avatar_url)
-  const [creatorAvatars, setCreatorAvatars] = useState<Record<string, string | null>>({});
+  // ⭐ Battle Card Config from admin
+  const [battleCardConfig, setBattleCardConfig] = useState<BattleCardConfig | null>(null);
+
+  // ⭐ Fetch Battle Card Config from admin
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const res = await fetch('/api/admin/battle-card-config');
+        if (res.ok) {
+          const data = await res.json();
+          setBattleCardConfig(data);
+        }
+      } catch (err) {
+        console.error('Error fetching battle card config:', err);
+      }
+    }
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     async function loadTokens() {
@@ -145,41 +172,6 @@ export function Tagline() {
     return () => clearInterval(interval);
   }, []);
 
-  // ⭐ Fetch creator profiles for avatar photos
-  useEffect(() => {
-    async function fetchCreatorProfiles() {
-      if (!latestBattle) return;
-
-      const creatorWallets = [
-        latestBattle.tokenA.creator?.toString(),
-        latestBattle.tokenB.creator?.toString(),
-      ].filter((w): w is string => !!w);
-
-      if (creatorWallets.length === 0) return;
-
-      const { data: profiles, error } = await supabase
-        .from('users')
-        .select('wallet_address, avatar_url')
-        .in('wallet_address', creatorWallets);
-
-      if (error) {
-        console.error('❌ Error fetching creator profiles:', error);
-        return;
-      }
-
-      const avatarMap: Record<string, string | null> = {};
-      profiles?.forEach(p => {
-        if (p.avatar_url) {
-          avatarMap[p.wallet_address] = p.avatar_url;
-        }
-      });
-
-      setCreatorAvatars(avatarMap);
-    }
-
-    fetchCreatorProfiles();
-  }, [latestBattle]);
-
   const formatMarketCap = (mc: number): string => {
     if (mc >= 1000000) return `$${(mc / 1000000).toFixed(2)}M`;
     if (mc >= 1000) return `$${(mc / 1000).toFixed(2)}K`;
@@ -190,23 +182,6 @@ export function Tagline() {
   const calculateMarketCapUsd = (token: ParsedTokenBattleState): number => {
     const solCollected = lamportsToSol(token.realSolReserves ?? 0);
     return calcMcUsd(solCollected, solPriceUsd || 0);
-  };
-
-  // Convert token to BattleCard format (SOL-based!)
-  const toBattleToken = (token: ParsedTokenBattleState) => {
-    const creatorWallet = token.creator?.toString() || null;
-    return {
-      mint: token.mint.toString(),
-      name: token.name || 'Unknown',
-      symbol: token.symbol || '???',
-      image: token.image || null,
-      marketCapUsd: calculateMarketCapUsd(token),
-      solCollected: lamportsToSol(token.realSolReserves ?? 0),
-      totalVolumeSol: lamportsToSol(token.totalTradeVolume ?? 0),
-      // ⭐ Pass creator wallet and avatar for BattleCard
-      creatorWallet,
-      creatorAvatarUrl: creatorWallet ? creatorAvatars[creatorWallet] || null : null,
-    };
   };
 
   // ⭐ Get tier targets for the battle (use tokenA's tier, both should match)
@@ -227,7 +202,7 @@ export function Tagline() {
     <div
       className="py-5 px-2 lg:px-6 lg:py-6"
       style={{
-        background: '#1C032B',
+        background: '#0C1426',
         borderBottom: '0.5px solid rgba(255, 255, 255, 0.05)'
       }}
     >
@@ -253,30 +228,30 @@ export function Tagline() {
 
         @keyframes electric-border {
           0%, 100% {
-            box-shadow: 0 0 5px #9333ea, 0 0 10px #9333ea, 0 0 15px #a855f7, 0 0 20px #a855f7;
+            box-shadow: 0 0 5px #0ea5e9, 0 0 10px #0ea5e9, 0 0 15px #38bdf8, 0 0 20px #38bdf8;
           }
           50% {
-            box-shadow: 0 0 10px #a855f7, 0 0 20px #a855f7, 0 0 30px #c084fc, 0 0 40px #c084fc;
+            box-shadow: 0 0 10px #38bdf8, 0 0 20px #38bdf8, 0 0 30px #7dd3fc, 0 0 40px #7dd3fc;
           }
         }
 
         .electric-border {
           animation: electric-border 1.5s ease-in-out infinite;
-          border: 2px solid #9333ea;
+          border: 2px solid #0ea5e9;
         }
 
         @keyframes electric-pulse {
           0%, 100% {
             box-shadow:
-              0 0 4px #a855f7,
-              0 0 8px #c084fc,
-              0 0 12px #c084fc;
+              0 0 4px #38bdf8,
+              0 0 8px #7dd3fc,
+              0 0 12px #7dd3fc;
           }
           50% {
             box-shadow:
-              0 0 6px #c084fc,
-              0 0 12px #a855f7,
-              0 0 18px #9333ea;
+              0 0 6px #7dd3fc,
+              0 0 12px #38bdf8,
+              0 0 18px #0ea5e9;
           }
         }
 
@@ -288,7 +263,7 @@ export function Tagline() {
         }
 
         .clash-royale-border {
-          background: linear-gradient(180deg, #d8b4fe 0%, #c084fc 15%, #a855f7 35%, #9333ea 55%, #7c3aed 75%, #6d28d9 100%);
+          background: linear-gradient(180deg, #bae6fd 0%, #7dd3fc 15%, #38bdf8 35%, #0ea5e9 55%, #0284c7 75%, #0369a1 100%);
           padding: 4px;
           border-radius: 16px;
           animation: electric-pulse 1.5s ease-in-out infinite;
@@ -310,7 +285,7 @@ export function Tagline() {
         }
 
         .clash-royale-inner {
-          background: linear-gradient(180deg, #1e1245 0%, #120a2e 50%, #0a0618 100%);
+          background: linear-gradient(180deg, #0f2744 0%, #0a1a30 50%, #061220 100%);
           border-radius: 12px;
           padding: 16px;
           position: relative;
@@ -324,10 +299,15 @@ export function Tagline() {
           height: 6px;
           background: #fff;
           border-radius: 50%;
-          box-shadow: 0 0 8px #fff, 0 0 15px #c084fc, 0 0 25px #a855f7;
+          box-shadow: 0 0 8px #fff, 0 0 15px #7dd3fc, 0 0 25px #38bdf8;
           animation: spark-flash 0.6s ease-in-out infinite;
         }
       `}</style>
+
+      {/* ⭐ MAIN QUESTION - Above everything */}
+      <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white text-center mb-6">
+        {battleCardConfig?.question || 'Which coin deserves to reach a $10B market cap?'}
+      </h1>
 
       {/* ⭐ LAYOUT: Mobile stack, Desktop full width when ARMIES hidden */}
       <div className={`flex flex-col gap-6 ${FEATURES.SHOW_ARMIES ? 'lg:grid lg:grid-cols-2' : ''}`}>
@@ -336,27 +316,42 @@ export function Tagline() {
         <div className="order-1 lg:order-1">
           {/* ⭐ Battle Section */}
           <div>
-            {/* ⭐ BattleCard + Race - SIDE BY SIDE on desktop */}
+            {/* ⭐ NEW: Kalshi-style Battle Card */}
             {latestBattle ? (
               <>
-                <div className="flex flex-col lg:flex-row lg:items-start lg:gap-4">
-                  {/* LEFT: Title + BattleCard */}
-                  <div className="flex-shrink-0">
-                    {/* Title at same height row as chart */}
-                    <h2 className="text-center lg:text-left text-xl lg:text-2xl font-bold text-white mb-4">
-                      Who will get more liquidity?
-                    </h2>
-                    <BattleCard
-                      tokenA={toBattleToken(latestBattle.tokenA)}
-                      tokenB={toBattleToken(latestBattle.tokenB)}
-                      targetSol={battleTargets.targetSol}
-                      targetVolumeSol={battleTargets.victoryVolumeSol}
-                      isEpicBattle={true}
+                {/* Battle Card + Chart side by side on desktop */}
+                <div className="flex flex-col lg:flex-row gap-4 justify-center items-stretch">
+                  {/* Battle Card */}
+                  <div className="flex-1 max-w-[420px]">
+                    <KalshiBattleCard
+                      tokenA={{
+                        mint: latestBattle.tokenA.mint.toString(),
+                        name: latestBattle.tokenA.name || 'Unknown',
+                        symbol: latestBattle.tokenA.symbol || '???',
+                        image: latestBattle.tokenA.image || null,
+                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenA),
+                        solCollected: lamportsToSol(latestBattle.tokenA.realSolReserves ?? 0),
+                      }}
+                      tokenB={{
+                        mint: latestBattle.tokenB.mint.toString(),
+                        name: latestBattle.tokenB.name || 'Unknown',
+                        symbol: latestBattle.tokenB.symbol || '???',
+                        image: latestBattle.tokenB.image || null,
+                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenB),
+                        solCollected: lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0),
+                      }}
+                      config={{
+                        question: '', // Question shown above, not in card
+                        target_text: battleCardConfig?.target_text || 'First to $10B wins.',
+                        context_text: battleCardConfig?.context_text || '',
+                        token_a_link: battleCardConfig?.token_a_link || null,
+                        token_b_link: battleCardConfig?.token_b_link || null,
+                      }}
                     />
                   </div>
 
-                  {/* RIGHT: Kalshi Chart */}
-                  <div className="mt-4 lg:mt-0 flex-1 min-w-0">
+                  {/* Chart */}
+                  <div className="flex-1 max-w-[500px]">
                     <KalshiChart
                       tokenA={{
                         mint: latestBattle.tokenA.mint.toString(),
@@ -378,7 +373,7 @@ export function Tagline() {
                 </div>
 
                 {/* Prize description */}
-                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#c084fc', textShadow: '0 0 15px rgba(192, 132, 252, 0.6)' }}>
+                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#38bdf8', textShadow: '0 0 15px rgba(56, 189, 248, 0.6)' }}>
                   Winner gets listed on DEX + 50% liquidity of loser
                 </p>
               </>
@@ -400,7 +395,7 @@ export function Tagline() {
                   </div>
                 </div>
                 {/* Prize description */}
-                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#c084fc', textShadow: '0 0 15px rgba(192, 132, 252, 0.6)' }}>
+                <p className="text-center mt-4 text-lg lg:text-xl font-bold" style={{ color: '#38bdf8', textShadow: '0 0 15px rgba(56, 189, 248, 0.6)' }}>
                   Winner gets listed on DEX + 50% liquidity of loser
                 </p>
               </>
@@ -480,8 +475,8 @@ export function Tagline() {
               </div>
             </div>
 
-            {/* Purple text below slides */}
-            <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#a855f7', textShadow: '0 0 15px rgba(168, 85, 247, 0.5)' }}>
+            {/* Blue text below slides */}
+            <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#38bdf8', textShadow: '0 0 15px rgba(56, 189, 248, 0.5)' }}>
               BATTLECOIN MARKET IS WHERE COMMUNITIES TURN IN TO ARMIES
             </p>
           </div>

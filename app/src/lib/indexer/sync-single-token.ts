@@ -6,8 +6,8 @@
 
 import { Connection, PublicKey } from '@solana/web3.js';
 import { createClient } from '@supabase/supabase-js';
-import { getBattleStatePDA } from '@/lib/solana/pdas';
-import { RPC_ENDPOINT } from '@/config/solana';
+import { NETWORK_CONFIGS } from '@/config/network';
+import { PDA_SEEDS } from '@/lib/solana/constants';
 
 // ⭐ Use service role to bypass RLS
 const supabase = createClient(
@@ -33,6 +33,16 @@ export interface SyncOptions {
 }
 
 /**
+ * Derive BattleStatePDA with specific program ID (for network-aware sync)
+ */
+function getBattleStatePDAForNetwork(mint: PublicKey, programId: PublicKey): [PublicKey, number] {
+    return PublicKey.findProgramAddressSync(
+        [PDA_SEEDS.BATTLE_STATE, mint.toBuffer()],
+        programId
+    );
+}
+
+/**
  * Sync a single token from on-chain data
  * @param mint - Token mint address
  * @param options - Optional network and RPC endpoint override
@@ -44,16 +54,20 @@ export async function syncSingleToken(
     // Use provided network or fall back to env var
     const networkDb: NetworkType = options?.network ||
         (process.env.NEXT_PUBLIC_SOLANA_NETWORK === 'devnet' ? 'devnet' : 'mainnet');
-    const rpcEndpoint = options?.rpcEndpoint || RPC_ENDPOINT;
+    // ⭐ Use correct RPC endpoint based on network
+    const rpcEndpoint = options?.rpcEndpoint || NETWORK_CONFIGS[networkDb].rpcEndpoint;
 
-    console.log(`🔄 Syncing token: ${mint.slice(0, 8)}... (network: ${networkDb})`);
+    // ⭐ Get correct program ID for the network
+    const programId = new PublicKey(NETWORK_CONFIGS[networkDb].programId);
+
+    console.log(`🔄 Syncing token: ${mint.slice(0, 8)}... (network: ${networkDb}, programId: ${programId.toString().slice(0, 8)}...)`);
 
     try {
         const connection = new Connection(rpcEndpoint, 'confirmed');
         const mintPubkey = new PublicKey(mint);
 
-        // 1. Get Battle State PDA
-        const [battleStatePDA] = getBattleStatePDA(mintPubkey);
+        // 1. Get Battle State PDA (using correct program ID for network)
+        const [battleStatePDA] = getBattleStatePDAForNetwork(mintPubkey, programId);
 
         // 2. Fetch account info
         const accountInfo = await connection.getAccountInfo(battleStatePDA);
@@ -269,13 +283,6 @@ export async function syncSingleToken(
         // Import from constants or hardcode based on deployment
         const tier = 1; // 1 = Production (era 0 = Test)
 
-        // Check if token already exists to preserve created_at
-        const { data: existingToken } = await supabase
-            .from('tokens')
-            .select('created_at')
-            .eq('mint', mint)
-            .single();
-
         const tokenData = {
             mint: mint,
             name: name || null,
@@ -304,8 +311,6 @@ export async function syncSingleToken(
             listing_timestamp: listingTimestamp || null,
             bump: bump,
             updated_at: new Date().toISOString(),
-            // Set created_at only for new tokens
-            ...(existingToken ? {} : { created_at: new Date().toISOString() })
         };
 
         const { error } = await supabase

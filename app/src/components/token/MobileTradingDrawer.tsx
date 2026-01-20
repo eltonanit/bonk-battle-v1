@@ -166,7 +166,7 @@ export function MobileTradingDrawer({ mint, tokenState, onSuccess }: MobileTradi
 
     setLoading(true);
     try {
-      await buyToken(publicKey, mint, solAmount, signTransaction, 0, tokenState?.battleStatus);
+      await buyToken(publicKey, mint, solAmount, signTransaction, 0, tokenState?.battleStatus, connection);
 
       addPointsForBuyToken(publicKey.toString(), mint.toString(), tokenState?.symbol, tokenState?.image).catch(console.error);
       setTimeout(() => refetchBalance(), 2000);

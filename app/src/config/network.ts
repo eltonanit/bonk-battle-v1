@@ -35,9 +35,10 @@ export const NETWORK_CONFIGS: Record<Network, NetworkConfig> = {
   devnet: {
     name: 'Devnet',
     rpcEndpoint: process.env.NEXT_PUBLIC_DEVNET_RPC_URL || 'https://devnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
-    programId: process.env.NEXT_PUBLIC_DEVNET_PROGRAM_ID || 'DEVNET_PROGRAM_ID_PLACEHOLDER',
-    treasuryWallet: process.env.NEXT_PUBLIC_DEVNET_TREASURY || 'DEVNET_TREASURY_PLACEHOLDER',
-    keeperWallet: process.env.NEXT_PUBLIC_DEVNET_KEEPER || 'DEVNET_KEEPER_PLACEHOLDER',
+    // ⭐ Same program ID as mainnet (deployed to both networks)
+    programId: process.env.NEXT_PUBLIC_DEVNET_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq',
+    treasuryWallet: process.env.NEXT_PUBLIC_DEVNET_TREASURY || '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf',
+    keeperWallet: process.env.NEXT_PUBLIC_DEVNET_KEEPER || '65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea',
     explorerUrl: 'https://solscan.io?cluster=devnet',
     cluster: 'devnet',
   },

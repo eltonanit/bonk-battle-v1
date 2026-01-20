@@ -213,7 +213,8 @@ export function BattleMobileTradingDrawer({
         solAmount,
         signTransaction,
         0,
-        currentToken.battleStatus
+        currentToken.battleStatus,
+        connection  // ⭐ Use wallet adapter connection for consistent balance
       );
 
       addPointsForBuyToken(

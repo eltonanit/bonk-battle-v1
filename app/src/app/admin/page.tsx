@@ -119,6 +119,18 @@ export default function AdminPage() {
                             <span>Create Token</span>
                         </Link>
 
+                        {/* Battle Card Editor */}
+                        <Link
+                            href="/admin/battle-card"
+                            className="flex items-center gap-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold px-6 py-4 rounded-lg hover:from-blue-400 hover:to-purple-400 transition-all"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
+                                <rect x="3" y="3" width="18" height="18" rx="2" />
+                                <path d="M9 12h6M12 9v6" />
+                            </svg>
+                            <span>Battle Card Editor</span>
+                        </Link>
+
                         {/* Back to Home */}
                         <Link
                             href="/"

@@ -53,7 +53,7 @@ export function LiveRankingsHome() {
   // Loading state
   if (loading && !data) {
     return (
-      <div className="px-5 lg:px-6 mb-6 lg:flex lg:justify-center">
+      <div className="mb-6 lg:flex lg:justify-center">
         <div className="w-full lg:w-[480px]">
           <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl overflow-hidden">
             <div className="p-6 text-center">
@@ -71,7 +71,7 @@ export function LiveRankingsHome() {
   if (!data?.tokens || data.tokens.length === 0) return null;
 
   return (
-    <div className="px-5 lg:px-6 mb-6">
+    <div className="mb-6">
       <div className="w-full">
         <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl overflow-hidden">
           {/* Header with Tabs */}
@@ -184,7 +184,7 @@ function TokenRow({
       `}
     >
       {/* Rank */}
-      <td className="py-3 px-4">
+      <td className="py-4 px-4">
         <div className="flex items-center gap-1">
           <span className={`
             text-sm font-semibold tabular-nums
@@ -204,7 +204,7 @@ function TokenRow({
       </td>
 
       {/* Token Name */}
-      <td className="py-3 px-4">
+      <td className="py-4 px-4">
         <Link
           href={`/token/${token.mint}`}
           className="flex items-center gap-3 group"
@@ -237,14 +237,14 @@ function TokenRow({
       </td>
 
       {/* Price */}
-      <td className="py-3 px-4 text-right">
+      <td className="py-4 px-4 text-right">
         <span className="text-white text-sm font-medium">
           {formatPrice(token.priceUsd)}
         </span>
       </td>
 
       {/* 1h Change */}
-      <td className="py-3 px-4 text-right">
+      <td className="py-4 px-4 text-right">
         <span className={`text-sm font-medium ${
           token.change1h > 0 ? 'text-green-400' :
           token.change1h < 0 ? 'text-red-400' :
@@ -255,7 +255,7 @@ function TokenRow({
       </td>
 
       {/* 24h Change */}
-      <td className="py-3 px-4 text-right hidden sm:table-cell">
+      <td className="py-4 px-4 text-right hidden sm:table-cell">
         <span className={`text-sm font-medium ${
           token.change24h > 0 ? 'text-green-400' :
           token.change24h < 0 ? 'text-red-400' :
@@ -266,7 +266,7 @@ function TokenRow({
       </td>
 
       {/* 7d Change */}
-      <td className="py-3 px-4 text-right hidden md:table-cell">
+      <td className="py-4 px-4 text-right hidden md:table-cell">
         <span className={`text-sm font-medium ${
           token.change7d > 0 ? 'text-green-400' :
           token.change7d < 0 ? 'text-red-400' :
@@ -277,14 +277,14 @@ function TokenRow({
       </td>
 
       {/* Market Cap */}
-      <td className="py-3 px-4 text-right">
+      <td className="py-4 px-4 text-right">
         <span className="text-white text-sm font-semibold">
           {formatMarketCap(token.marketCapUsd)}
         </span>
       </td>
 
       {/* Holders */}
-      <td className="py-3 px-4 text-right hidden lg:table-cell">
+      <td className="py-4 px-4 text-right hidden lg:table-cell">
         <span className="text-white text-sm">
           {formatHolders(token.holders)}
         </span>

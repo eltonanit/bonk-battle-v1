@@ -371,7 +371,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         solAmount,
         signTransaction,
         0,
-        tokenState?.battleStatus
+        tokenState?.battleStatus,
+        connection  // ⭐ Use wallet adapter connection for consistent balance
       );
 
       console.log('✅ Buy successful:', result);
@@ -433,7 +434,8 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
         exactAmount,
         signTransaction,
         0,
-        tokenState?.battleStatus
+        tokenState?.battleStatus,
+        connection  // ⭐ Use wallet adapter connection for consistent balance
       );
 
       console.log('✅ Graduation buy successful:', result);
