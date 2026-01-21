@@ -44,6 +44,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
       const { data: cachedTokens, error: supabaseError } = await supabase
         .from('tokens')
         .select('*')
+        .eq('network', 'mainnet')
         .order('updated_at', { ascending: false });
 
       if (!supabaseError && cachedTokens && cachedTokens.length > 0) {
@@ -415,6 +416,7 @@ export async function fetchTokensFromSupabase(): Promise<ParsedTokenBattleState[
     const { data: tokens, error } = await supabase
       .from('tokens')
       .select('*')
+      .eq('network', 'mainnet')
       .order('creation_timestamp', { ascending: false });
 
     if (error || !tokens) {

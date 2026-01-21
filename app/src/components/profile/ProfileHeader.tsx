@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import Image from 'next/image';
 import { useFollowers } from '@/hooks/useFollowers';
 import { useProfile } from '@/hooks/useProfile';
 import { EditProfileModal } from '@/components/modals/EditProfileModal';
+import { LargeGradientAvatar } from '@/components/ui/GradientAvatar';
 import { FEATURES } from '@/config/features';
 
 interface ProfileHeaderProps {
@@ -41,22 +41,13 @@ export function ProfileHeader({ createdCoinsCount }: ProfileHeaderProps) {
       <div className="mb-8">
         {/* Layout stile Instagram */}
         <div className="flex items-start gap-6 mb-4">
-          {/* Profile Image */}
-          <div className="relative w-20 h-20 lg:w-24 lg:h-24 rounded-full overflow-hidden border-2 border-white/20 flex-shrink-0">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Image
-                src="/profilo.png"
-                alt="Profile"
-                fill
-                className="object-cover"
-              />
-            )}
+          {/* Profile Image - Gradient Avatar */}
+          <div className="flex-shrink-0">
+            <LargeGradientAvatar
+              walletAddress={publicKey.toBase58()}
+              avatarUrl={profile?.avatar_url}
+              showBorder={true}
+            />
           </div>
 
           {/* Info a destra */}

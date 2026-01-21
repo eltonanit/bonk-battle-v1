@@ -88,7 +88,8 @@ async function logActivity(params: {
             token_image: params.tokenImage || null,
             opponent_mint: params.opponentMint || null,
             opponent_symbol: params.opponentSymbol || null,
-            metadata: params.metadata || null
+            metadata: params.metadata || null,
+            created_at: new Date().toISOString()
         });
 
         if (error && error.code !== '23505') {

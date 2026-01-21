@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { ActivityEvent } from '@/hooks/useActivityFeed';
+import { SmallGradientAvatar, GradientAvatar } from '@/components/ui/GradientAvatar';
 
 interface ActivityItemProps {
   event: ActivityEvent;
@@ -32,18 +33,16 @@ export function ActivityItem({ event, showToken = true, compact = false }: Activ
   // Content component (shared between Link and div versions)
   const content = (
     <div className={`flex items-center ${compact ? 'gap-2' : 'gap-3'}`}>
-      {/* User Avatar */}
+      {/* User Avatar - Gradient fallback */}
       <div className="relative flex-shrink-0">
-        <div className={`${compact ? 'w-8 h-8' : 'w-10 h-10'} rounded-full overflow-hidden bg-gray-700 border-2 border-[#2a3544] group-hover:border-[#3a4554] transition-colors`}>
-          <Image
-            src={event.avatarUrl || '/profilo.png'}
-            alt={event.username || event.walletShort}
-            width={compact ? 32 : 40}
-            height={compact ? 32 : 40}
-            className="w-full h-full object-cover"
-            unoptimized
-          />
-        </div>
+        <GradientAvatar
+          walletAddress={event.walletAddress}
+          avatarUrl={event.avatarUrl}
+          size={compact ? 32 : 40}
+          showBorder={true}
+          borderColor="border-[#2a3544] group-hover:border-[#3a4554]"
+          className="transition-colors"
+        />
         {/* Whale indicator */}
         {event.isWhale && (
           <div className={`absolute -top-1 -right-1 ${compact ? 'text-xs' : 'text-sm'}`} title="Whale (>$500)">

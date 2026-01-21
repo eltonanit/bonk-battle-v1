@@ -60,7 +60,30 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
         }
 
         if (data) {
-            const mapped = data.map((n: any) => ({
+            // Get list of mainnet token mints to filter notifications
+            const tokenMints = data
+                .map((n: any) => n.data?.token_mint)
+                .filter((mint: string | null) => mint);
+
+            let mainnetMints = new Set<string>();
+            if (tokenMints.length > 0) {
+                const { data: mainnetTokens } = await supabase
+                    .from('tokens')
+                    .select('mint')
+                    .in('mint', tokenMints)
+                    .eq('network', 'mainnet');
+
+                mainnetMints = new Set((mainnetTokens || []).map((t: any) => t.mint));
+            }
+
+            // Filter notifications: keep only those without token_mint OR with mainnet token_mint
+            const filtered = data.filter((n: any) => {
+                const tokenMint = n.data?.token_mint;
+                // Keep notification if no token_mint or if token is mainnet
+                return !tokenMint || mainnetMints.has(tokenMint);
+            });
+
+            const mapped = filtered.map((n: any) => ({
                 ...n,
                 token_launch_id: n.data?.token_mint || n.data?.token_launch_id || null
             }));

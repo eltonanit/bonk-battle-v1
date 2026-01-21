@@ -16,6 +16,10 @@ export default {
       '2xl': '1536px',
     },
     extend: {
+      fontFamily: {
+        sans: ['var(--font-roboto)', 'Roboto', 'sans-serif'],
+        mono: ['var(--font-roboto-mono)', 'Roboto Mono', 'monospace'],
+      },
       colors: {
         'bonk-dark': '#0C1426',       // Background principale
         'bonk-card': '#1E2330',       // Cards e panels

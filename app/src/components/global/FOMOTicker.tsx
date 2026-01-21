@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
+import { TinyGradientAvatar } from '@/components/ui/GradientAvatar';
 
 interface RealTradeEvent {
   id: string;
@@ -65,7 +66,7 @@ export function FOMOTicker() {
           console.error('Error fetching trades:', tradesError);
         }
 
-        // 2. Fetch token info for each unique mint
+        // 2. Fetch token info for each unique mint (ONLY MAINNET)
         const mintSet = new Set<string>();
         trades?.forEach(t => mintSet.add(t.token_mint));
         const mints = Array.from(mintSet);
@@ -73,7 +74,8 @@ export function FOMOTicker() {
         const { data: tokens, error: tokensError } = await supabase
           .from('tokens')
           .select('mint, name, symbol, image, battle_status, opponent_mint')
-          .in('mint', mints);
+          .in('mint', mints)
+          .eq('network', 'mainnet');
 
         if (tokensError) {
           console.error('Error fetching tokens:', tokensError);
@@ -110,8 +112,10 @@ export function FOMOTicker() {
           });
         });
 
-        // 3. Convert trades to events
-        const tradeEvents: RealTradeEvent[] = (trades || []).map(trade => {
+        // 3. Convert trades to events (only for mainnet tokens)
+        const tradeEvents: RealTradeEvent[] = (trades || [])
+          .filter(trade => tokenMap.has(trade.token_mint)) // Only mainnet tokens
+          .map(trade => {
           const tokenInfo = tokenMap.get(trade.token_mint);
           const userInfo = userMap.get(trade.wallet_address);
 
@@ -142,10 +146,11 @@ export function FOMOTicker() {
           };
         });
 
-        // 4. Fetch recently created tokens
+        // 4. Fetch recently created tokens (ONLY MAINNET)
         const { data: recentTokens, error: recentError } = await supabase
           .from('tokens')
           .select('*')
+          .eq('network', 'mainnet')
           .order('creation_timestamp', { ascending: false })
           .limit(10);
 
@@ -167,11 +172,12 @@ export function FOMOTicker() {
           timestamp: (token.creation_timestamp || 0) * 1000,
         }));
 
-        // 5. Fetch battle events (tokens currently in battle)
+        // 5. Fetch battle events (tokens currently in battle - ONLY MAINNET)
         const { data: battlingTokens, error: battleError } = await supabase
           .from('tokens')
           .select('*')
           .eq('battle_status', 2) // InBattle
+          .eq('network', 'mainnet')
           .not('opponent_mint', 'is', null)
           .limit(10);
 
@@ -301,12 +307,16 @@ export function FOMOTicker() {
         async (payload) => {
           const trade = payload.new as any;
 
-          // Fetch token info
+          // Fetch token info (only mainnet)
           const { data: tokenInfo } = await supabase
             .from('tokens')
-            .select('name, symbol, image')
+            .select('name, symbol, image, network')
             .eq('mint', trade.token_mint)
+            .eq('network', 'mainnet')
             .single();
+
+          // Skip if token is not mainnet
+          if (!tokenInfo) return;
 
           // Fetch user info (avatar + username)
           const { data: userInfo } = await supabase
@@ -490,17 +500,12 @@ export function FOMOTicker() {
               </>
             ) : (
               <>
-                {/* BUY/SELL: User Avatar - FIRST */}
-                <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
-                  <Image
-                    src={currentEvent.userAvatar || '/profilo.png'}
-                    alt={currentEvent.walletShort}
-                    width={24}
-                    height={24}
-                    className="w-full h-full object-cover"
-                    unoptimized
-                  />
-                </div>
+                {/* BUY/SELL: User Avatar - Gradient fallback */}
+                <TinyGradientAvatar
+                  walletAddress={currentEvent.walletFull}
+                  avatarUrl={currentEvent.userAvatar}
+                  className="flex-shrink-0 border border-black/30"
+                />
 
                 {/* Username o Wallet - BOLD + UNDERLINED */}
                 <span className="whitespace-nowrap font-bold uppercase text-base lg:text-sm underline">

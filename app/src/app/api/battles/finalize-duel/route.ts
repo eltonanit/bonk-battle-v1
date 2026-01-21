@@ -177,7 +177,8 @@ async function finalizeDuelForToken(
             token_symbol: winnerSymbol,
             opponent_mint: loserMint.toString(),
             opponent_symbol: loserSymbol,
-            metadata: { signature }
+            metadata: { signature },
+            created_at: new Date().toISOString()
         });
 
         return { success: true, signature };

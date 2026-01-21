@@ -235,7 +235,8 @@ async function updateDatabaseWithPool(
             action_type: 'pool_created',
             token_mint: tokenMint,
             token_symbol: tokenSymbol,
-            metadata: { pool_id: poolId, raydium_url: raydiumUrl }
+            metadata: { pool_id: poolId, raydium_url: raydiumUrl },
+            created_at: new Date().toISOString()
         });
         console.log(`   ✅ Activity logged`);
 

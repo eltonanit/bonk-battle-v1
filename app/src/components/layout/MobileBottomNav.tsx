@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect } from 'react';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { FEATURES } from '@/config/features';
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -61,7 +60,7 @@ export function MobileBottomNav() {
           <Link
             href="/"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/') && pathname === '/'
-                ? 'text-orange-400 bg-orange-500/20'
+                ? 'text-sky-400 bg-sky-500/20'
                 : 'text-white/60'
               }`}
           >
@@ -74,45 +73,11 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Home</span>
           </Link>
 
-          {/* CREATE - HIDDEN in Season 1 */}
-          {FEATURES.SHOW_CREATE_COIN && (
-            <Link
-              href="/create"
-              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
-                  ? 'text-orange-400 bg-orange-500/20'
-                  : 'text-white/60'
-                }`}
-            >
-              <span className="w-6 h-6">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8" />
-                  <path d="M12 18V6" />
-                </svg>
-              </span>
-              <span className="text-[11px] font-semibold">Create</span>
-            </Link>
-          )}
-
-          {/* BATTLE - CENTRALE IN ARANCIONE */}
-          <Link
-            href="/battlestart"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/battlestart')
-                ? 'text-[#FFA019] bg-[#FFA019]/10'
-                : 'text-[#FFA019]'
-              }`}
-          >
-            <span className="w-8 h-8" style={{ filter: 'brightness(0) saturate(100%) invert(57%) sepia(81%) saturate(1562%) hue-rotate(358deg) brightness(102%) contrast(101%)' }}>
-              <img src="/icons8-battaglia-100.png" alt="Battle" className="w-full h-full object-contain" />
-            </span>
-            <span className="text-[11px] font-bold">Top Fight</span>
-          </Link>
-
-          {/* PROFILE - Shows balance instead of icon */}
+          {/* PROFILE - Shows balance */}
           <Link
             href="/profile"
             className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
-                ? 'text-orange-400 bg-orange-500/20'
+                ? 'text-sky-400 bg-sky-500/20'
                 : 'text-white/60'
               }`}
           >
@@ -122,41 +87,58 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Profile</span>
           </Link>
 
-          {/* HOLDERS / POTENTIAL */}
-          {FEATURES.SHOW_POTENTIAL && (
-            <Link
-              href="/holders"
-              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/holders')
-                  ? 'text-purple-400 bg-purple-500/20'
-                  : 'text-purple-400'
-                }`}
-            >
-              <span className="w-6 h-6">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-              </span>
-              <span className="text-[11px] font-semibold">Holders</span>
-            </Link>
-          )}
+          {/* 1000x */}
+          <Link
+            href="/holders"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/holders')
+                ? 'text-green-400 bg-green-500/20'
+                : 'text-green-400'
+              }`}
+          >
+            <span className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </span>
+            <span className="text-[11px] font-semibold">1000x</span>
+          </Link>
 
-          {/* ARMY - HIDDEN in Season 1 */}
-          {FEATURES.SHOW_ARMIES && (
-            <Link
-              href="/armies"
-              className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/armies')
-                  ? 'text-green-400 bg-green-500/20'
-                  : 'text-green-400'
-                }`}
-            >
-              <span className="w-6 h-6">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </span>
-              <span className="text-[11px] font-semibold">Army</span>
-            </Link>
-          )}
+          {/* NOW - Orange/Fire */}
+          <Link
+            href="/now"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/now')
+                ? 'text-orange-400 bg-orange-500/20'
+                : 'text-orange-400'
+              }`}
+          >
+            <span className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+              </svg>
+            </span>
+            <span className="text-[11px] font-semibold">Now</span>
+          </Link>
+
+          {/* TOP - Gold/Trophy */}
+          <Link
+            href="/top"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/top')
+                ? 'text-yellow-400 bg-yellow-500/20'
+                : 'text-yellow-400'
+              }`}
+          >
+            <span className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+              </svg>
+            </span>
+            <span className="text-[11px] font-semibold">Top</span>
+          </Link>
 
         </div>
       </nav>

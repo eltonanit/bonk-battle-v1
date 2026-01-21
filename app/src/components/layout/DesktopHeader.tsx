@@ -15,6 +15,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 import { useNetwork } from '@/providers/NetworkProvider';
 import { PointsIcon } from '@/components/icons/PointsIcon';
+import { HeaderGradientAvatar } from '@/components/ui/GradientAvatar';
 import { FEATURES } from '@/config/features';
 
 export function DesktopHeader() {
@@ -191,19 +192,13 @@ export function DesktopHeader() {
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center gap-3 bg-bonk-card border-2 border-bonk-orange-brand px-3 py-2 rounded-lg hover:bg-bonk-card/80 transition-colors"
                 >
-                  {/* ⭐ Profile Image dinamica */}
-                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={profile?.avatar_url || '/profilo.png'}
-                      alt="Profile"
-                      width={28}
-                      height={28}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
+                  {/* Profile Image - Gradient Avatar */}
+                  <HeaderGradientAvatar
+                    walletAddress={publicKey?.toBase58() || ''}
+                    avatarUrl={profile?.avatar_url}
+                  />
 
-                  {/* ⭐ Username o Address */}
+                  {/* Username o Address */}
                   <span className="text-white text-sm font-semibold">
                     {profile?.username || (publicKey && formatAddress(publicKey.toString()))}
                   </span>

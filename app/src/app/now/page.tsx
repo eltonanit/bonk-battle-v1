@@ -1,7 +1,7 @@
 // =================================================================
 // FILE: app/src/app/now/page.tsx
-// NOW PAGE - "Dove posso entrare prima degli altri?"
-// Anti-FOMO: token meno comprati, meno hype, prezzo più basso
+// NOW PAGE - "Where can I get in before everyone else?"
+// Anti-FOMO: least bought tokens, less hype, lower price
 // =================================================================
 
 'use client';
@@ -90,7 +90,7 @@ export default function NowPage() {
               NOW
             </h1>
             <p className="text-xl text-gray-400 max-w-xl mx-auto">
-              Dove posso entrare <span className="text-orange-400 font-bold">prima degli altri</span>?
+              Where can I get in <span className="text-orange-400 font-bold">before everyone else</span>?
             </p>
           </div>
 
@@ -98,12 +98,12 @@ export default function NowPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-4xl mx-auto">
             <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl p-4 text-center">
               <div className="text-2xl mb-2">🎯</div>
-              <div className="text-sm font-semibold text-white">Meno Comprati</div>
+              <div className="text-sm font-semibold text-white">Least Bought</div>
               <div className="text-xs text-gray-500">Low trading activity</div>
             </div>
             <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl p-4 text-center">
               <div className="text-2xl mb-2">💎</div>
-              <div className="text-sm font-semibold text-white">MC Basso</div>
+              <div className="text-sm font-semibold text-white">Low MC</div>
               <div className="text-xs text-gray-500">Early entry point</div>
             </div>
             <div className="bg-[#0a1628] border border-[#1e3a5a] rounded-xl p-4 text-center">
@@ -243,7 +243,7 @@ export default function NowPage() {
 
           {/* Bottom CTA */}
           <div className="text-center mt-8 text-gray-500 text-sm">
-            <p>La classifica cambia in tempo reale con ogni acquisto</p>
+            <p>Rankings change in real-time with every purchase</p>
             <p className="text-orange-400 font-semibold mt-1">Timing is everything ⚡</p>
           </div>
 

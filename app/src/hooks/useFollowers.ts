@@ -281,19 +281,46 @@ export function formatTimeAgo(timestamp: string | null | undefined): string {
 
   try {
     const now = new Date();
-    const then = new Date(timestamp.endsWith('Z') ? timestamp : timestamp + 'Z');
+
+    // Try multiple formats
+    let then: Date;
+
+    // If it's already a valid ISO string with timezone
+    if (timestamp.includes('T') || timestamp.includes('Z')) {
+      then = new Date(timestamp.endsWith('Z') ? timestamp : timestamp + 'Z');
+    } else if (timestamp.includes('-') && timestamp.length >= 10) {
+      // Format like "2025-01-15" or "2025-01-15 14:30:00"
+      then = new Date(timestamp.replace(' ', 'T') + 'Z');
+    } else {
+      // Try as-is
+      then = new Date(timestamp);
+    }
 
     // Check if date is valid
-    if (isNaN(then.getTime())) return 'just now';
+    if (isNaN(then.getTime())) {
+      console.warn('Invalid timestamp:', timestamp);
+      return 'just now';
+    }
 
     const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+
+    // Handle future dates (clock sync issues)
+    if (seconds < 0) return 'just now';
 
     if (seconds < 60) return 'just now';
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
     if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-    return then.toLocaleDateString();
-  } catch {
+
+    // More than a week - show actual date
+    const options: Intl.DateTimeFormatOptions = {
+      day: 'numeric',
+      month: 'short',
+      year: now.getFullYear() !== then.getFullYear() ? 'numeric' : undefined
+    };
+    return then.toLocaleDateString('en-US', options);
+  } catch (err) {
+    console.warn('Error parsing timestamp:', timestamp, err);
     return 'just now';
   }
 }

@@ -186,9 +186,9 @@ export default function HoldersPage() {
         <div className="max-w-[900px] mx-auto px-5 py-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-purple-400 flex items-center gap-3">
-              <span className="text-4xl">$</span>
-              See Potential
+            <h1 className="text-3xl font-bold text-green-400 flex items-center gap-3">
+              <span className="text-4xl">🚀</span>
+              1000x Potential
             </h1>
             <p className="text-gray-400 mt-2">
               What warriors COULD earn if their side wins and reaches {formatUsd(TARGET_MC_USD)}
@@ -196,21 +196,21 @@ export default function HoldersPage() {
           </div>
 
           {/* Explanation Box */}
-          <div className="mb-6 bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-xl p-6">
+          <div className="mb-6 bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30 rounded-xl p-6">
             <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
               <span>How it works</span>
             </h3>
             <div className="space-y-2 text-sm text-gray-300">
               <p>
                 This page shows EVERY wallet that has bought into a battle, and what their
-                <span className="text-purple-400 font-bold"> POTENTIAL GAIN </span>
+                <span className="text-green-400 font-bold"> POTENTIAL GAIN </span>
                 would be IF their side wins and reaches {formatUsd(TARGET_MC_USD)} market cap.
               </p>
               <p>
                 <span className="text-yellow-400 font-bold">Example:</span> If you bought $50 at $2.4B market cap,
                 and your side reaches $10B, your $50 becomes <span className="text-green-400 font-bold">$208,000</span>!
               </p>
-              <p className="text-purple-400 font-semibold mt-3">
+              <p className="text-green-400 font-semibold mt-3">
                 These are REAL wallets with REAL potential gains. What&apos;s YOUR potential?
               </p>
             </div>
@@ -222,7 +222,7 @@ export default function HoldersPage() {
               onClick={() => setSelectedBattle('all')}
               className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
                 selectedBattle === 'all'
-                  ? 'bg-purple-500 text-white'
+                  ? 'bg-green-500 text-white'
                   : 'bg-[#1a1f2e] text-gray-400 hover:bg-[#252a3a]'
               }`}
             >
@@ -234,7 +234,7 @@ export default function HoldersPage() {
                 onClick={() => setSelectedBattle(battle.mint)}
                 className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2 ${
                   selectedBattle === battle.mint
-                    ? 'bg-purple-500 text-white'
+                    ? 'bg-green-500 text-white'
                     : 'bg-[#1a1f2e] text-gray-400 hover:bg-[#252a3a]'
                 }`}
               >
@@ -281,7 +281,7 @@ export default function HoldersPage() {
                 </p>
                 <Link
                   href="/"
-                  className="inline-block mt-4 px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg transition-colors"
+                  className="inline-block mt-4 px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors"
                 >
                   View Battles
                 </Link>
@@ -293,15 +293,15 @@ export default function HoldersPage() {
               <div
                 key={`${holder.wallet}-${holder.tokenMint}-${index}`}
                 className={`grid grid-cols-4 gap-4 p-4 items-center border-b border-[#2a3544] last:border-b-0 ${
-                  index < 3 ? 'bg-purple-500/5' : ''
+                  index < 3 ? 'bg-green-500/5' : ''
                 }`}
               >
                 {/* Wallet */}
                 <div className="flex items-center gap-2">
                   {index < 3 && (
-                    <span className="text-purple-400 font-bold text-sm">#{index + 1}</span>
+                    <span className="text-green-400 font-bold text-sm">#{index + 1}</span>
                   )}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center text-white font-bold text-xs">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold text-xs">
                     {holder.wallet.slice(0, 2).toUpperCase()}
                   </div>
                   <span className="text-white font-medium text-sm">
@@ -345,7 +345,7 @@ export default function HoldersPage() {
                   <span className={`font-bold text-sm ${
                     holder.potentialValueUsd >= 1_000_000 ? 'text-yellow-400' :
                     holder.potentialValueUsd >= 100_000 ? 'text-green-400' :
-                    'text-purple-400'
+                    'text-green-400'
                   }`}>
                     {formatUsd(holder.potentialValueUsd)}
                   </span>
@@ -360,7 +360,7 @@ export default function HoldersPage() {
           </div>
 
           {/* Calculator Section */}
-          <div className="mt-8 bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-xl p-6">
+          <div className="mt-8 bg-gradient-to-r from-green-900/30 to-emerald-900/30 border border-green-500/30 rounded-xl p-6">
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
               <span>$</span> Calculate YOUR Potential
             </h3>
@@ -372,7 +372,7 @@ export default function HoldersPage() {
                 <input
                   type="number"
                   placeholder="Enter SOL amount..."
-                  className="w-full px-4 py-3 bg-[#1a1f2e] border border-[#2a3544] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  className="w-full px-4 py-3 bg-[#1a1f2e] border border-[#2a3544] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
                   id="calc-input"
                   onChange={(e) => {
                     const amount = parseFloat(e.target.value) || 0;
@@ -401,7 +401,7 @@ export default function HoldersPage() {
             </div>
             <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-4 text-center">
               <div className="text-gray-400 text-sm">Total Invested</div>
-              <div className="text-2xl font-bold text-purple-400">
+              <div className="text-2xl font-bold text-green-400">
                 {formatUsd(filteredHolders.reduce((acc, h) => acc + h.boughtSol * (solPriceUsd || 150), 0))}
               </div>
             </div>

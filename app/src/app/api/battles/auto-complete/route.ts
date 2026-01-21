@@ -829,7 +829,8 @@ async function executeFullPipeline(
       winner_image: winnerData?.image || null,
       spoils_sol: spoilsSol,
       platform_fee_sol: platformFeeSol,
-    }
+    },
+    created_at: new Date().toISOString()
   });
 
   console.log('\n🎉 AUTO-COMPLETE PIPELINE V6 SUCCESS!');

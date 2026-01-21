@@ -53,7 +53,7 @@ export function Sidebar() {
     return pathname.startsWith(path);
   };
 
-  // Nav items with feature flags for Season 1 hiding
+  // Nav items - SIMPLIFIED: Home, Profile, 1000x, Now, Top
   const allNavItems = useMemo(() => [
     {
       href: '/',
@@ -63,53 +63,6 @@ export function Sidebar() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
           <polyline points="9 22 9 12 15 12 15 22" />
-        </svg>
-      )
-    },
-    // ⭐ NEW: Activity Feed Link
-    {
-      href: '/activity',
-      label: 'Activity',
-      hidden: false,
-      isLive: true, // Special styling for LIVE indicator
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-        </svg>
-      )
-    },
-    // ⭐ NEW: Now Page
-    {
-      href: '/now',
-      label: 'Now',
-      hidden: false,
-      isNow: true, // Special orange/fire styling
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
-        </svg>
-      )
-    },
-    {
-      href: '/armies',
-      label: 'Armies',
-      isGreen: true,
-      hidden: !FEATURES.SHOW_ARMIES, // HIDDEN in Season 1
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-      )
-    },
-    {
-      href: '/create',
-      label: 'Create Coin',
-      hidden: !FEATURES.SHOW_CREATE_COIN, // HIDDEN in Season 1 (moved to Admin)
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <circle cx="12" cy="12" r="10" />
-          <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 0 1 0 4H8" />
-          <path d="M12 18V6" />
         </svg>
       )
     },
@@ -126,21 +79,49 @@ export function Sidebar() {
       )
     },
     {
-      href: '/battlestart',
-      label: 'Battles',
-      hidden: !FEATURES.SHOW_BATTLES, // HIDDEN in Season 1
+      href: '/holders',
+      label: '1000x',
+      hidden: false,
+      isGreen: true, // Green for potential profit
       icon: (
-        <img
-          src="/icons8-battaglia-100.png"
-          alt="Battles"
-          className="w-6 h-6 brightness-0 invert"
-        />
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
       )
     },
+    {
+      href: '/now',
+      label: 'Now',
+      hidden: false,
+      isNow: true, // Special orange/fire styling
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+        </svg>
+      )
+    },
+    {
+      href: '/top',
+      label: 'Top',
+      hidden: false,
+      isGold: true, // Gold for victory stories
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      )
+    },
+    // Divider items below
     {
       href: '/notifications',
       label: 'Notifications',
       hidden: false,
+      belowDivider: true,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -150,9 +131,22 @@ export function Sidebar() {
       badge: totalUnreadCount
     },
     {
+      href: '/activity',
+      label: 'Activity',
+      hidden: false,
+      belowDivider: true,
+      isLive: true,
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+      )
+    },
+    {
       href: '/leaderboard',
       label: 'Leaderboard',
       hidden: false,
+      belowDivider: true,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
@@ -165,33 +159,13 @@ export function Sidebar() {
       )
     },
     {
-      href: '/holders',
-      label: 'Holders',
-      hidden: !FEATURES.SHOW_POTENTIAL,
-      isPurple: true,
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-      )
-    },
-    {
       href: '/support',
       label: 'Support',
       hidden: false,
+      belowDivider: true,
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-      )
-    },
-    {
-      href: '/burned',
-      label: 'Burned',
-      hidden: !FEATURES.SHOW_BURNED, // HIDDEN in Season 1
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
-          <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
         </svg>
       )
     },
@@ -224,11 +198,11 @@ export function Sidebar() {
         : `${baseClasses} text-green-400 hover:text-green-300 hover:bg-green-500/10`;
     }
 
-    // Holders - white text, light blue when active
-    if (item.isPurple) {
+    // Top - Gold styling for victory stories
+    if (item.isGold) {
       return active
-        ? `${baseClasses} bg-sky-500/20 text-sky-400`
-        : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
+        ? `${baseClasses} bg-yellow-500/20 text-yellow-400`
+        : `${baseClasses} text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10`;
     }
 
     // Leaderboard - white text, light blue when active
@@ -280,8 +254,8 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-        {/* Nav Items */}
-        {navItems.map((item) => (
+        {/* Main Nav Items (Home, Profile, 1000x, Now, Top) */}
+        {navItems.filter(item => !item.belowDivider).map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -292,20 +266,37 @@ export function Sidebar() {
             </span>
             <span className="flex-1">{item.label}</span>
 
-            {/* ⭐ LIVE indicator for Activity (green pulsing dot) */}
+            {/* Balance per Profile */}
+            {item.showBalance && connected && balanceUsd && (
+              <span className="text-green-400 font-bold text-sm">
+                ${balanceUsd}
+              </span>
+            )}
+          </Link>
+        ))}
+
+        {/* Divider */}
+        <div className="border-t border-bonk-border my-4" />
+
+        {/* Secondary Nav Items */}
+        {navItems.filter(item => item.belowDivider).map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={getLinkClasses(item, isActive(item.href))}
+          >
+            <span className="flex-shrink-0">
+              {item.icon}
+            </span>
+            <span className="flex-1">{item.label}</span>
+
+            {/* LIVE indicator for Activity */}
             {item.isLive && (
               <span className="flex items-center gap-1">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
-              </span>
-            )}
-
-            {/* Balance per Profile */}
-            {item.showBalance && connected && balanceUsd && (
-              <span className="text-green-400 font-bold text-sm">
-                ${balanceUsd}
               </span>
             )}
 

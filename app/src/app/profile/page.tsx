@@ -23,16 +23,16 @@ function ProfileContent() {
   const searchParams = useSearchParams();
   const { points, loading: pointsLoading } = useUserPoints();
 
-  // Tab: balances, activity, coins, army, points
-  const initialTab = (searchParams.get('tab') as 'balances' | 'activity' | 'coins' | 'army' | 'points') || 'balances';
+  // Tab: balances, activity, daily, coins, army, points
+  const initialTab = (searchParams.get('tab') as 'balances' | 'activity' | 'daily' | 'coins' | 'army' | 'points') || 'balances';
 
-  const [activeTab, setActiveTab] = useState<'balances' | 'activity' | 'coins' | 'army' | 'points'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'balances' | 'activity' | 'daily' | 'coins' | 'army' | 'points'>(initialTab);
   const [createdCoinsCount, setCreatedCoinsCount] = useState(0);
 
   // Update tab quando cambia URL
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab === 'balances' || tab === 'activity' || tab === 'coins' || tab === 'army' || tab === 'points') {
+    if (tab === 'balances' || tab === 'activity' || tab === 'daily' || tab === 'coins' || tab === 'army' || tab === 'points') {
       setActiveTab(tab);
     }
   }, [searchParams]);
@@ -88,6 +88,15 @@ function ProfileContent() {
             >
               Activity
             </button>
+            <button
+              onClick={() => setActiveTab('daily')}
+              className={`pb-4 px-2 font-semibold transition-colors border-b-2 ${activeTab === 'daily'
+                ? 'text-white border-yellow-500'
+                : 'text-gray-400 border-transparent hover:text-gray-300'
+                }`}
+            >
+              Daily
+            </button>
             {/* Coins Tab - HIDDEN in Season 1 */}
             {FEATURES.SHOW_PROFILE_COINS_TAB && (
               <button
@@ -128,6 +137,69 @@ function ProfileContent() {
         <div>
           {activeTab === 'balances' && <BalancesTab />}
           {activeTab === 'activity' && <ActivityTab />}
+          {activeTab === 'daily' && (
+            <div className="space-y-6">
+              {/* Daily Rewards */}
+              <div className="bg-[#1a1f2e] border border-[#2a3544] rounded-xl p-6">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-2xl">🎁</span>
+                  Daily Rewards
+                </h3>
+
+                {/* Streak Counter */}
+                <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-xl p-4 mb-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-gray-400 text-sm">Current Streak</span>
+                      <div className="text-3xl font-bold text-yellow-400">0 days</div>
+                    </div>
+                    <div className="text-5xl">🔥</div>
+                  </div>
+                </div>
+
+                {/* Daily Tasks */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between bg-black/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">💰</span>
+                      <div>
+                        <span className="text-white font-medium block">Make a Trade</span>
+                        <span className="text-gray-500 text-sm">Buy or sell any token</span>
+                      </div>
+                    </div>
+                    <span className="text-gray-500 text-sm">+10 pts</span>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-black/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">👀</span>
+                      <div>
+                        <span className="text-white font-medium block">Visit 3 Token Pages</span>
+                        <span className="text-gray-500 text-sm">Explore different tokens</span>
+                      </div>
+                    </div>
+                    <span className="text-gray-500 text-sm">+5 pts</span>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-black/20 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🐦</span>
+                      <div>
+                        <span className="text-white font-medium block">Share on X</span>
+                        <span className="text-gray-500 text-sm">Share a token or battle</span>
+                      </div>
+                    </div>
+                    <span className="text-gray-500 text-sm">+15 pts</span>
+                  </div>
+                </div>
+
+                {/* Coming Soon Notice */}
+                <div className="mt-6 text-center">
+                  <span className="text-gray-500 text-sm">Daily rewards coming soon!</span>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === 'coins' && FEATURES.SHOW_PROFILE_COINS_TAB && <CoinsTab />}
           {activeTab === 'army' && FEATURES.SHOW_PROFILE_ARMY_TAB && <YourArmyTab />}
           {activeTab === 'points' && (

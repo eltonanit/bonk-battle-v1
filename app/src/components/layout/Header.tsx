@@ -12,6 +12,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useVictory } from '@/components/victory/VictoryProvider';
 import { JoinArmyButton } from '@/components/shared/JoinArmyButton';
 import { PointsIcon } from '@/components/icons/PointsIcon';
+import { HeaderGradientAvatar } from '@/components/ui/GradientAvatar';
 import { FEATURES } from '@/config/features';
 import { useNetwork } from '@/providers/NetworkProvider';
 
@@ -204,16 +205,10 @@ export function Header() {
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center gap-1 bg-transparent hover:bg-white/5 p-1 rounded-lg transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={profile?.avatar_url || '/profilo.png'}
-                      alt="Profile"
-                      width={28}
-                      height={28}
-                      className="w-full h-full object-cover"
-                      unoptimized
-                    />
-                  </div>
+                  <HeaderGradientAvatar
+                    walletAddress={publicKey?.toBase58() || ''}
+                    avatarUrl={profile?.avatar_url}
+                  />
                   <svg
                     className={`w-3 h-3 transition-transform flex-shrink-0 ${showDropdown ? 'rotate-180' : ''}`}
                     fill="#FF8A5B"

@@ -139,7 +139,8 @@ async function checkVictoryForToken(
                 action_type: 'victory_detected',
                 token_mint: mint.toString(),
                 token_symbol: tokenSymbol,
-                metadata: { signature, volume_threshold: VOLUME_THRESHOLD / 1e9 }
+                metadata: { signature, volume_threshold: VOLUME_THRESHOLD / 1e9 },
+                created_at: new Date().toISOString()
             });
         }
 

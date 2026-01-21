@@ -12,10 +12,7 @@ import {
   useRankings,
   formatPrice,
   formatMarketCap,
-  formatVolume,
-  formatTimeAgo,
   formatChange,
-  formatHolders,
   type RankedToken
 } from '@/hooks/useRankings';
 
@@ -133,7 +130,7 @@ export function LiveRankingsHome() {
                   <th className="text-right py-3 px-4 font-medium hidden sm:table-cell">24h %</th>
                   <th className="text-right py-3 px-4 font-medium hidden md:table-cell">7d %</th>
                   <th className="text-right py-3 px-4 font-medium">Market Cap</th>
-                  <th className="text-right py-3 px-4 font-medium hidden lg:table-cell">Holders</th>
+                  <th className="text-right py-3 px-4 font-medium hidden lg:table-cell">1000x</th>
                 </tr>
               </thead>
 
@@ -283,10 +280,12 @@ function TokenRow({
         </span>
       </td>
 
-      {/* Holders */}
+      {/* 1000x */}
       <td className="py-4 px-4 text-right hidden lg:table-cell">
-        <span className="text-white text-sm">
-          {formatHolders(token.holders)}
+        <span className="text-green-400 text-sm font-semibold">
+          {token.marketCapUsd > 0
+            ? `${Math.floor(10_000_000_000 / token.marketCapUsd).toLocaleString()}x`
+            : '∞'}
         </span>
       </td>
     </tr>

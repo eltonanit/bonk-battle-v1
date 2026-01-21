@@ -5,6 +5,7 @@ import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
+import { TinyGradientAvatar } from '@/components/ui/GradientAvatar';
 import { FEATURES } from '@/config/features';
 
 interface CreatedEvent {
@@ -199,17 +200,12 @@ export function CreatedTicker() {
               borderRadius: 0,
             }}
           >
-            {/* User Avatar FIRST */}
-            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-white/20 border border-black/30">
-              <Image
-                src={currentEvent.userAvatar || '/profilo.png'}
-                alt={currentEvent.user}
-                width={24}
-                height={24}
-                className="w-full h-full object-cover"
-                unoptimized
-              />
-            </div>
+            {/* User Avatar - Gradient fallback */}
+            <TinyGradientAvatar
+              walletAddress={currentEvent.userFull}
+              avatarUrl={currentEvent.userAvatar}
+              className="flex-shrink-0 border border-black/30"
+            />
 
             {/* Address - BOLD + UNDERLINED */}
             <span className="whitespace-nowrap font-bold uppercase text-base lg:text-sm underline">

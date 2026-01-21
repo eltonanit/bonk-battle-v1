@@ -16,13 +16,14 @@ import { calculateMarketCapUsd as calcMcUsd } from '@/config/tier-config';
 // Battle Card Config from admin
 interface BattleCardConfig {
   question: string;
+  question_image_url: string | null;
   target_text: string;
   context_text: string;
-  token_a_mint: string | null;
-  token_b_mint: string | null;
-  token_a_link: string | null;
-  token_b_link: string | null;
+  selected_battle_id: string | null;
+  token_a_buy_link: string | null;
+  token_b_buy_link: string | null;
   is_active: boolean;
+  network: string;
 }
 
 // ⭐ TIER TARGETS - Must match smart contract!
@@ -344,8 +345,8 @@ export function Tagline() {
                         question: '', // Question shown above, not in card
                         target_text: battleCardConfig?.target_text || 'First to $10B wins.',
                         context_text: battleCardConfig?.context_text || '',
-                        token_a_link: battleCardConfig?.token_a_link || null,
-                        token_b_link: battleCardConfig?.token_b_link || null,
+                        token_a_link: battleCardConfig?.token_a_buy_link || null,
+                        token_b_link: battleCardConfig?.token_b_buy_link || null,
                       }}
                     />
                   </div>

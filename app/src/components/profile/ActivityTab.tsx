@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from '@/lib/supabase';
+import { useNetwork } from '@/providers/NetworkProvider';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -22,6 +23,7 @@ interface TradeActivity {
 
 export function ActivityTab() {
   const { publicKey } = useWallet();
+  const { network } = useNetwork();
   const [activities, setActivities] = useState<TradeActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,13 +33,15 @@ export function ActivityTab() {
       return;
     }
 
+    const walletAddress = publicKey.toString();
+
     async function fetchActivity() {
       try {
         // Fetch user's trades
         const { data: trades, error: tradesError } = await supabase
           .from('user_trades')
           .select('*')
-          .eq('wallet_address', publicKey.toString())
+          .eq('wallet_address', walletAddress)
           .order('block_time', { ascending: false })
           .limit(50);
 
@@ -56,11 +60,15 @@ export function ActivityTab() {
         // Get unique token mints
         const mints = [...new Set(trades.map(t => t.token_mint))];
 
-        // Fetch token info
+        // Fetch token info - FILTER BY NETWORK
         const { data: tokens } = await supabase
           .from('tokens')
           .select('mint, name, symbol, image')
-          .in('mint', mints);
+          .in('mint', mints)
+          .eq('network', network);
+
+        // Create a set of valid mints for this network
+        const validMints = new Set(tokens?.map(t => t.mint) || []);
 
         const tokenMap = new Map<string, { name: string; symbol: string; image?: string }>();
         tokens?.forEach(t => {
@@ -71,23 +79,25 @@ export function ActivityTab() {
           });
         });
 
-        // Combine trades with token info
-        const activitiesWithTokens = trades.map(trade => {
-          const tokenInfo = tokenMap.get(trade.token_mint);
-          let solAmount = Number(trade.sol_amount) || 0;
-          // Convert from lamports if needed
-          if (solAmount > 1000) {
-            solAmount = solAmount / 1e9;
-          }
+        // Combine trades with token info - ONLY INCLUDE TOKENS FROM CURRENT NETWORK
+        const activitiesWithTokens = trades
+          .filter(trade => validMints.has(trade.token_mint))
+          .map(trade => {
+            const tokenInfo = tokenMap.get(trade.token_mint);
+            let solAmount = Number(trade.sol_amount) || 0;
+            // Convert from lamports if needed
+            if (solAmount > 1000) {
+              solAmount = solAmount / 1e9;
+            }
 
-          return {
-            ...trade,
-            sol_amount: solAmount,
-            token_name: tokenInfo?.name,
-            token_symbol: tokenInfo?.symbol,
-            token_image: tokenInfo?.image,
-          };
-        });
+            return {
+              ...trade,
+              sol_amount: solAmount,
+              token_name: tokenInfo?.name,
+              token_symbol: tokenInfo?.symbol,
+              token_image: tokenInfo?.image,
+            };
+          });
 
         setActivities(activitiesWithTokens);
       } catch (error) {
@@ -98,7 +108,7 @@ export function ActivityTab() {
     }
 
     fetchActivity();
-  }, [publicKey]);
+  }, [publicKey, network]);
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
