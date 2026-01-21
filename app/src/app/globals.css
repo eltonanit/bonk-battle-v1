@@ -154,6 +154,19 @@
   backface-visibility: hidden;
 }
 
+/* ⭐ OVERRIDE SOLANA WALLET ADAPTER Z-INDEX - Must be above tickers (z-60) */
+.wallet-adapter-modal-wrapper {
+  z-index: 9999 !important;
+}
+
+.wallet-adapter-modal-overlay {
+  z-index: 9998 !important;
+}
+
+.wallet-adapter-modal {
+  z-index: 9999 !important;
+}
+
 /* ⭐ OVERRIDE SOLANA WALLET ADAPTER PURPLE STYLES */
 .wallet-adapter-button {
   background-color: #14D99E !important;

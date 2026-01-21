@@ -26,15 +26,17 @@ interface BattleCardConfig {
   network: string;
 }
 
-// ⭐ TIER TARGETS - Must match smart contract!
+// ⭐ TIER TARGETS - Must match smart contract & constants.ts!
+// Contract: PROD_TARGET_SOL = 14_586_338_000_000_000 lamports (~$2.07B @ $142/SOL)
+// Contract: PROD_VICTORY_VOLUME_SOL = 16_044_972_000_000_000 lamports
 const TIER_TARGETS = {
   [BattleTier.Test]: {
     TARGET_SOL: 6,
     VICTORY_VOLUME_SOL: 6.6,
   },
   [BattleTier.Production]: {
-    TARGET_SOL: 37.7,
-    VICTORY_VOLUME_SOL: 41.5,
+    TARGET_SOL: 14_586_338,      // ~$2.07B to fill curve
+    VICTORY_VOLUME_SOL: 16_044_972, // Volume needed for victory
   },
 } as const;
 

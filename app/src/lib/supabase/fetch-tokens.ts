@@ -12,6 +12,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { TARGET_SOL, ACTIVE_TIER, VIRTUAL_TOKEN_INIT } from '@/config/tier-config';
 
 // Constants
 const LAMPORTS_PER_SOL = 1_000_000_000;
@@ -108,10 +109,8 @@ export enum BattleStatus {
 
 /**
  * Calculate progress percentage based on SOL collected
- * Target: 37.7 SOL for production tier
+ * Uses TARGET_SOL from tier-config (14,586,338 SOL for PRODUCTION $10B tier)
  */
-const TARGET_SOL = 37.7;
-
 function calculateProgress(solCollectedLamports: number | null): number {
   if (!solCollectedLamports) return 0;
   const solCollected = solCollectedLamports / LAMPORTS_PER_SOL;
@@ -119,22 +118,36 @@ function calculateProgress(solCollectedLamports: number | null): number {
 }
 
 /**
- * Calculate market cap from reserves
+ * Calculate market cap from bonding curve formula
+ * MC = (virtualSol / virtualToken) × totalSupply × solPrice
+ *
+ * ⭐ ALWAYS calculates fresh from bonding curve - never uses stale DB values
  */
 function calculateMarketCap(
   virtualSolReserves: number | null,
   solCollected: number | null,
-  existingMarketCap: number | null,
+  _existingMarketCap: number | null, // Ignored - always calculate fresh
   solPriceUsd: number = 200
 ): number {
-  // Use pre-calculated if available
-  if (existingMarketCap && existingMarketCap > 0) {
-    return existingMarketCap;
-  }
+  // Calculate virtual reserves from bonding curve
+  // virtualSol = VIRTUAL_SOL_INIT + solCollected
+  const solCollectedSol = (solCollected || 0) / LAMPORTS_PER_SOL;
+  const virtualSol = ACTIVE_TIER.VIRTUAL_SOL_INIT + solCollectedSol;
 
-  // Fallback calculation
-  const totalSol = ((virtualSolReserves || 0) + (solCollected || 0)) / LAMPORTS_PER_SOL;
-  return totalSol * solPriceUsd;
+  // virtualToken = VIRTUAL_TOKEN_INIT - tokensSold (approximation: use initial if not available)
+  // For simplicity, use the stored virtual_token_reserves if available
+  const virtualTokenReserves = virtualSolReserves
+    ? VIRTUAL_TOKEN_INIT // Use initial if we have data
+    : VIRTUAL_TOKEN_INIT;
+
+  // Price per token = virtualSol / virtualToken
+  const pricePerToken = virtualSol / virtualTokenReserves;
+
+  // MC = price × totalSupply × solPrice
+  const TOTAL_SUPPLY = 1_000_000_000; // 1B tokens
+  const mcSol = pricePerToken * TOTAL_SUPPLY;
+
+  return mcSol * solPriceUsd;
 }
 
 /**

@@ -19,14 +19,15 @@
 
 import { Connection, PublicKey, Commitment, ConnectionConfig } from '@solana/web3.js';
 
-export const SOLANA_NETWORK = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'devnet') as 'devnet' | 'mainnet-beta';
+export const SOLANA_NETWORK = (process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta') as 'devnet' | 'mainnet-beta';
 
-// ✅ FIX CRITICO: Usa sempre Helius invece di clusterApiUrl
-export const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://devnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
+// ✅ FIX CRITICO: Usa sempre Helius MAINNET invece di clusterApiUrl
+export const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846';
 
 // ✅ FIX: Program ID corretto per BONK BATTLE MAINNET
+// MUST MATCH: constants.ts BONK_BATTLE_PROGRAM_ID
 export const PROGRAM_ID = new PublicKey(
-  process.env.NEXT_PUBLIC_PROGRAM_ID || 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD'
+  process.env.NEXT_PUBLIC_PROGRAM_ID || '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
 );
 
 /**

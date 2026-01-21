@@ -58,24 +58,31 @@ export const BONDING_CURVE = {
 
 // =================================================================
 // TIER CONFIGURATION - ALL VALUES IN SOL (price-independent!)
+// ⚠️ MUST MATCH: anchor/programs/bonk_battle/src/lib.rs
 // =================================================================
 
-export const USE_TEST_TIER = false; // Set to false for mainnet PRODUCTION
+export const USE_TEST_TIER = false; // Contract: const USE_TEST_TIER: bool = false;
 
 export const TIER_CONFIG = {
+  // Contract: TEST_TARGET_SOL = 6_000_000_000 (6 SOL)
+  // Contract: TEST_VICTORY_VOLUME_SOL = 6_600_000_000 (6.6 SOL)
+  // Contract: TEST_QUALIFICATION_SOL = 1 (1 lamport)
   TEST: {
-    TARGET_SOL: 6,              // 6 SOL to fill curve
-    VICTORY_VOLUME_SOL: 6.6,    // 6.6 SOL volume (110%)
-    QUALIFICATION_SOL: 0.000000001, // Any buy qualifies (1 lamport)
-    MATCHMAKING_TOLERANCE_SOL: 3,
-    ESTIMATED_MC_FINAL_USD: 820, // @ $137/SOL
+    TARGET_SOL: 6,                    // Contract: 6_000_000_000 lamports
+    VICTORY_VOLUME_SOL: 6.6,          // Contract: 6_600_000_000 lamports
+    QUALIFICATION_SOL: 0.000000001,   // Contract: 1 lamport
+    MATCHMAKING_TOLERANCE_SOL: 3,     // Contract: 3_000_000_000 lamports
+    ESTIMATED_MC_FINAL_USD: 820,      // @ $137/SOL
   },
+  // Contract: PROD_TARGET_SOL = 14_586_338_000_000_000 (14,586,338 SOL ~$2.07B)
+  // Contract: PROD_VICTORY_VOLUME_SOL = 16_044_972_000_000_000 (16,044,972 SOL)
+  // Contract: PROD_QUALIFICATION_SOL = 1 (1 lamport)
   PRODUCTION: {
-    TARGET_SOL: 37.7,           // 37.7 SOL to fill curve
-    VICTORY_VOLUME_SOL: 41.5,   // 41.5 SOL volume (110%)
-    QUALIFICATION_SOL: 0.000000001, // Any buy qualifies (1 lamport)
-    MATCHMAKING_TOLERANCE_SOL: 18.85,
-    ESTIMATED_MC_FINAL_USD: 25000, // @ $137/SOL
+    TARGET_SOL: 14_586_338,           // Contract: 14_586_338_000_000_000 lamports
+    VICTORY_VOLUME_SOL: 16_044_972,   // Contract: 16_044_972_000_000_000 lamports
+    QUALIFICATION_SOL: 0.000000001,   // Contract: 1 lamport
+    MATCHMAKING_TOLERANCE_SOL: 18.85, // Contract: 18_850_000_000 lamports (⚠️ outdated in contract)
+    ESTIMATED_MC_FINAL_USD: 10_000_000_000, // $10B target
   }
 } as const;
 

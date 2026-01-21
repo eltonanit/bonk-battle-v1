@@ -8,6 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { usePathname } from 'next/navigation';
 import { FOMOTicker } from '@/components/global/FOMOTicker';
+import { NowMomentTicker } from '@/components/global/NowMomentTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { useNotifications } from '@/providers/NotificationsProvider';
 import { useFollowers } from '@/hooks/useFollowers';
@@ -90,9 +91,10 @@ export function DesktopHeader() {
       <div className="flex flex-col">
         {/* Top Row - FOMO Ticker + Created Ticker + Buttons */}
         <div className="h-16 flex items-center justify-between px-6">
-          {/* Both Tickers - Left side */}
+          {/* All Tickers - Left side */}
           <div className="flex items-center gap-3">
             <FOMOTicker />
+            <NowMomentTicker />
             <CreatedTicker />
           </div>
 

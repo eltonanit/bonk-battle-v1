@@ -1,20 +1,23 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER: Get tier-specific targets from token's tier value
+// ⚠️ MUST MATCH: anchor/programs/bonk_battle/src/lib.rs
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { BattleTier } from '@/types/bonk';
 
 // Tier configurations (must match smart contract!)
 export const TIER_TARGETS = {
+  // Contract: TEST_TARGET_SOL = 6_000_000_000, TEST_QUALIFICATION_SOL = 1
   [BattleTier.Test]: {
     TARGET_SOL: 6,
     VICTORY_VOLUME_SOL: 6.6,
-    QUALIFICATION_SOL: 0.12,
+    QUALIFICATION_SOL: 0.000000001, // Contract: 1 lamport = any buy
   },
+  // Contract: PROD_TARGET_SOL = 14_586_338_000_000_000, PROD_QUALIFICATION_SOL = 1
   [BattleTier.Production]: {
-    TARGET_SOL: 37.7,
-    VICTORY_VOLUME_SOL: 41.5,
-    QUALIFICATION_SOL: 0.75,
+    TARGET_SOL: 14_586_338,
+    VICTORY_VOLUME_SOL: 16_044_972,
+    QUALIFICATION_SOL: 0.000000001, // Contract: 1 lamport = any buy
   },
 } as const;
 

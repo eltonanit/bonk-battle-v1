@@ -1,9 +1,9 @@
 // ========================================================================
 // BONK BATTLE - TIER CONFIGURATION
 // ========================================================================
-// This file must match the smart contract values EXACTLY!
-// Smart contract location: contracts/programs/contracts/src/lib.rs
-// 
+// ⚠️ THIS FILE MUST MATCH THE SMART CONTRACT VALUES EXACTLY!
+// Smart contract location: anchor/programs/bonk_battle/src/lib.rs
+//
 // Formula: Constant Product (xy = k) - Same as Pump.fun
 // MC = (virtualSol / virtualToken) × totalSupply × solPrice
 // ========================================================================
@@ -11,13 +11,18 @@
 /**
  * ⚠️ IMPORTANTE: Cambia questa variabile per switchare tra TEST e PRODUCTION
  * Deve corrispondere al valore USE_TEST_TIER nello smart contract!
+ *
+ * Contract: const USE_TEST_TIER: bool = false;
  */
 export const USE_TEST_TIER = false; // ⭐ CAMBIA QUI: true = TEST, false = PRODUCTION
 
 // ========================================================================
-// BONDING CURVE CONSTANTS (same for all tiers)
+// BONDING CURVE CONSTANTS (from smart contract)
 // ========================================================================
-export const TOTAL_SUPPLY = 1_000_000_000;           // 1B tokens
+// Contract: const TOTAL_SUPPLY: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
+// Contract: const BONDING_CURVE_SUPPLY: u64 = 793_100_000_000_000_000; // 79.31%
+// Contract: const RAYDIUM_RESERVED_SUPPLY: u64 = 206_900_000_000_000_000; // 20.69%
+export const TOTAL_SUPPLY = 1_000_000_000;           // 1B tokens (without decimals for display)
 export const BONDING_CURVE_TOKENS = 793_100_000;     // 79.31% for bonding curve
 export const RAYDIUM_RESERVE_TOKENS = 206_900_000;   // 20.69% for Raydium
 export const VIRTUAL_TOKEN_INIT = 1_073_000_000;     // Initial virtual tokens
@@ -25,68 +30,81 @@ export const VIRTUAL_TOKEN_FINAL = 279_900_000;      // Final virtual tokens
 export const MULTIPLIER = 14.68;                      // MC multiplier (always!)
 
 // ========================================================================
-// TIER DEFINITIONS (from smart contract)
+// TIER DEFINITIONS (from smart contract lib.rs)
 // ========================================================================
 
 export const TIER_CONFIG = {
+  // ============ TEST TIER ============
+  // Contract: const TEST_TARGET_SOL: u64 = 6_000_000_000; // 6 SOL
+  // Contract: const TEST_VICTORY_VOLUME_SOL: u64 = 6_600_000_000; // 6.6 SOL
+  // Contract: const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport
   TEST: {
     name: 'Test Tier',
     description: 'Perfect for devnet testing',
     icon: '🧪',
 
-    // Bonding Curve Values (SOL)
-    VIRTUAL_SOL_INIT: 2.05,       // Initial virtual SOL
-    VIRTUAL_SOL_FINAL: 7.86,      // Final virtual SOL (init + target)
+    // Bonding Curve Values (SOL) - calculated for 14.68x multiplier
+    // V = TARGET / 2.831 to achieve sqrt(14.68) ratio
+    VIRTUAL_SOL_INIT: 2.12,       // 6 / 2.831 = Initial virtual SOL
+    VIRTUAL_SOL_FINAL: 8.12,      // 2.12 + 6 = Final virtual SOL
 
-    // Victory conditions (in SOL)
-    TARGET_SOL: 5.8,              // SOL to fill bonding curve
-    VICTORY_VOLUME_SOL: 6.4,      // 110% of TARGET_SOL
-    QUALIFICATION_SOL: 0.12,      // ~$15 @ $126/SOL
+    // Victory conditions (in SOL) - FROM CONTRACT
+    TARGET_SOL: 6,                // Contract: TEST_TARGET_SOL = 6_000_000_000
+    VICTORY_VOLUME_SOL: 6.6,      // Contract: TEST_VICTORY_VOLUME_SOL = 6_600_000_000
+    QUALIFICATION_SOL: 0.000000001, // Contract: 1 lamport = any buy qualifies
 
     // In lamports (for smart contract comparison)
-    TARGET_SOL_LAMPORTS: 5_800_000_000,
-    VICTORY_VOLUME_LAMPORTS: 6_400_000_000,
-    QUALIFICATION_LAMPORTS: 120_000_000,
-    VIRTUAL_SOL_INIT_LAMPORTS: 2_050_000_000,
+    TARGET_SOL_LAMPORTS: 6_000_000_000,
+    VICTORY_VOLUME_LAMPORTS: 6_600_000_000,
+    QUALIFICATION_LAMPORTS: 1,    // Contract: 1 lamport
+    VIRTUAL_SOL_INIT_LAMPORTS: 2_120_000_000,
 
-    // Matchmaking tolerance (50% of target)
-    MATCHMAKING_TOLERANCE_SOL: 2.9,
+    // Matchmaking tolerance - FROM CONTRACT
+    // Contract: MATCHMAKING_TOLERANCE_SOL = 3_000_000_000 (3 SOL for test)
+    MATCHMAKING_TOLERANCE_SOL: 3,
 
     // Market Cap in SOL terms (from bonding curve formula)
     // MC_SOL = (virtualSol / virtualToken) × totalSupply
-    MC_INIT_SOL: 1.91,            // (2.05 / 1,073,000,000) × 1,000,000,000
-    MC_FINAL_SOL: 28.08,          // (7.86 / 279,900,000) × 1,000,000,000
+    MC_INIT_SOL: 1.98,            // (2.12 / 1,073,000,000) × 1,000,000,000
+    MC_FINAL_SOL: 29.01,          // MC_INIT * 14.68
 
     MULTIPLIER: 14.68,
   },
 
+  // ============ PRODUCTION TIER ($10B Market Cap) ============
+  // Contract: const PROD_TARGET_SOL: u64 = 14_586_338_000_000_000; // 14,586,338 SOL (~$2.07B)
+  // Contract: const PROD_VICTORY_VOLUME_SOL: u64 = 16_044_972_000_000_000; // 16,044,972 SOL
+  // Contract: const PROD_QUALIFICATION_SOL: u64 = 1; // 1 lamport
   PRODUCTION: {
-    name: 'Production Tier',
-    description: 'For mainnet battles',
+    name: 'Battlecoin Market ($10B)',
+    description: 'For mainnet battles - $10B Market Cap target',
     icon: '🚀',
 
-    // Bonding Curve Values (SOL)
-    VIRTUAL_SOL_INIT: 13.3,       // Initial virtual SOL
-    VIRTUAL_SOL_FINAL: 51,        // Final virtual SOL (13.3 + 37.7)
+    // Bonding Curve Values (SOL) - calculated for 14.68x multiplier
+    // V = TARGET / 2.831 to achieve sqrt(14.68) ratio
+    VIRTUAL_SOL_INIT: 5_152_186,      // 14,586,338 / 2.831 = Initial virtual SOL
+    VIRTUAL_SOL_FINAL: 19_738_524,    // 5,152,186 + 14,586,338 = Final virtual SOL
 
-    // Victory conditions (in SOL)
-    TARGET_SOL: 37.7,             // SOL to fill bonding curve
-    VICTORY_VOLUME_SOL: 41.5,     // 110% of TARGET_SOL
-    QUALIFICATION_SOL: 0.75,      // ~$95 @ $126/SOL
+    // Victory conditions (in SOL) - FROM CONTRACT
+    TARGET_SOL: 14_586_338,           // Contract: PROD_TARGET_SOL = 14_586_338_000_000_000
+    VICTORY_VOLUME_SOL: 16_044_972,   // Contract: PROD_VICTORY_VOLUME_SOL = 16_044_972_000_000_000
+    QUALIFICATION_SOL: 0.000000001,   // Contract: 1 lamport = any buy qualifies
 
     // In lamports (for smart contract comparison)
-    TARGET_SOL_LAMPORTS: 37_700_000_000,
-    VICTORY_VOLUME_LAMPORTS: 41_500_000_000,
-    QUALIFICATION_LAMPORTS: 750_000_000,
-    VIRTUAL_SOL_INIT_LAMPORTS: 13_300_000_000,
+    TARGET_SOL_LAMPORTS: 14_586_338_000_000_000,
+    VICTORY_VOLUME_LAMPORTS: 16_044_972_000_000_000,
+    QUALIFICATION_LAMPORTS: 1,        // Contract: 1 lamport
+    VIRTUAL_SOL_INIT_LAMPORTS: 5_152_186_000_000_000,
 
-    // Matchmaking tolerance (50% of target)
+    // Matchmaking tolerance - FROM CONTRACT (note: comment says "50% of 37.7" but value is 18.85 SOL)
+    // Contract: MATCHMAKING_TOLERANCE_SOL = 18_850_000_000 (18.85 SOL)
+    // ⚠️ This seems outdated in contract - should be ~7.3M SOL for 50% of new target
     MATCHMAKING_TOLERANCE_SOL: 18.85,
 
     // Market Cap in SOL terms (from bonding curve formula)
     // MC_SOL = (virtualSol / virtualToken) × totalSupply
-    MC_INIT_SOL: 12.4,            // (13.3 / 1,073,000,000) × 1,000,000,000
-    MC_FINAL_SOL: 182.2,          // (51 / 279,900,000) × 1,000,000,000
+    MC_INIT_SOL: 4_801_661,           // (5,152,186 / 1,073,000,000) × 1,000,000,000
+    MC_FINAL_SOL: 70_488_384,         // MC_INIT * 14.68
 
     MULTIPLIER: 14.68,
   },

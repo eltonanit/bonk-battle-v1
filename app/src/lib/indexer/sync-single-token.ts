@@ -227,15 +227,21 @@ export async function syncSingleToken(
         // CALCULATE VIRTUAL RESERVES (for MC calculation)
         // ═══════════════════════════════════════════════════════════════════════
         // The deployed contract doesn't store virtual reserves, so we calculate them
-        // using the bonding curve formula:
+        // using the bonding curve formula (Constant Product AMM: xy = k):
         //   virtual_sol = VIRTUAL_SOL_INIT + sol_collected
-        //   virtual_tokens = BONDING_CURVE_SUPPLY - tokens_sold
+        //   virtual_tokens = VIRTUAL_TOKEN_INIT - tokens_sold
+        //
+        // ⚠️ MUST MATCH: tier-config.ts values
+        // Contract PRODUCTION tier ($10B Market Cap):
+        //   VIRTUAL_SOL_INIT = 5,152,186 SOL (for 14.68x multiplier)
+        //   VIRTUAL_TOKEN_INIT = 1,073,000,000 tokens (initial virtual tokens)
+        //   MC = (virtualSol / virtualToken) × totalSupply × solPrice
 
-        const VIRTUAL_SOL_INIT = 2_050_000_000; // 2.05 SOL in lamports
-        const BONDING_CURVE_SUPPLY = BigInt("800000000000000000"); // 800M * 10^9
+        const VIRTUAL_SOL_INIT = 5_152_186_000_000_000; // 5,152,186 SOL in lamports (PRODUCTION $10B tier)
+        const VIRTUAL_TOKEN_INIT = BigInt("1073000000000000000"); // 1.073B * 10^9 (initial virtual tokens for MC calculation)
 
         const calculatedVirtualSol = VIRTUAL_SOL_INIT + solCollected;
-        const calculatedVirtualTokens = BONDING_CURVE_SUPPLY - BigInt(tokensSold);
+        const calculatedVirtualTokens = VIRTUAL_TOKEN_INIT - BigInt(tokensSold);
 
         // ═══════════════════════════════════════════════════════════════════════
         // EXTRACT IMAGE FROM URI
