@@ -198,7 +198,7 @@ function detectEventType(event: HeliusWebhookEvent): {
     };
 
     // Check if this involves our program
-    const involvesProgram = event.instructions?.some(ix => ix.programId === PROGRAM_ID) ||
+    const involvesProgram = event.instructions?.some(ix => ix.programId === MAINNET_PROGRAM_ID || ix.programId === DEVNET_PROGRAM_ID) ||
         event.accountData?.some(ad => ad.tokenBalanceChanges?.length > 0);
 
     if (!involvesProgram && !event.tokenTransfers?.length) {
@@ -210,6 +210,20 @@ function detectEventType(event: HeliusWebhookEvent): {
     if (tokenTransfer) {
         result.tokenMint = tokenTransfer.mint;
         result.tokenAmount = Math.floor(tokenTransfer.tokenAmount * 1e9); // Convert to base units
+    }
+
+    // ⭐ FIRST: Check if this is a CREATE transaction (before buy/sell detection)
+    // Token creation has specific indicators in description
+    const desc = event.description?.toLowerCase() || '';
+    const isCreateTransaction = desc.includes('create') ||
+                                desc.includes('initialize') ||
+                                desc.includes('init_token') ||
+                                desc.includes('launch');
+
+    if (isCreateTransaction && tokenTransfer) {
+        result.type = 'create';
+        console.log(`🔍 Detected CREATE: ${result.tokenMint?.slice(0, 8)}... (desc: ${desc.slice(0, 50)})`);
+        return result; // Early return - don't process as buy/sell
     }
 
     // Get SOL transfer info
@@ -252,24 +266,14 @@ function detectEventType(event: HeliusWebhookEvent): {
         result.type = 'sell';
         result.solAmount = solTransferIn.amount;
         console.log(`🔍 Detected SELL: ${feePayer.slice(0, 6)}... received ${(solTransferIn.amount / 1e9).toFixed(4)} SOL`);
-    } else if (tokenTransfer && !solTransferOut && !solTransferIn) {
-        // Token transfer without SOL = might be create (minting)
-        const desc = event.description?.toLowerCase() || '';
-        if (desc.includes('create') || desc.includes('initialize') || desc.includes('mint')) {
-            result.type = 'create';
-            console.log(`🔍 Detected CREATE: ${result.tokenMint?.slice(0, 8)}...`);
-        }
     }
 
-    // Fallback: check description
+    // Fallback: check description for buy/sell
     if (result.type === 'unknown') {
-        const desc = event.description?.toLowerCase() || '';
         if (desc.includes('buy') || desc.includes('purchase')) {
             result.type = 'buy';
         } else if (desc.includes('sell')) {
             result.type = 'sell';
-        } else if (desc.includes('create') || desc.includes('initialize')) {
-            result.type = 'create';
         }
     }
 
@@ -532,7 +536,7 @@ export async function GET() {
     return NextResponse.json({
         status: 'healthy',
         endpoint: 'helius-webhook-v2',
-        program: PROGRAM_ID,
+        programs: { mainnet: MAINNET_PROGRAM_ID, devnet: DEVNET_PROGRAM_ID },
         features: ['token-sync', 'trade-tracking', 'activity-feed'],
         timestamp: new Date().toISOString()
     });

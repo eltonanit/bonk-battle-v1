@@ -54,17 +54,18 @@ export function TokenCardBonk({ tokenState, solPriceUsd }: TokenCardBonkProps) {
   const mintAddress = state.mint.toString();
 
   // ⭐ CORRECT MC CALCULATION using bonding curve formula
-  // MC = (virtualSolReserves × TOTAL_SUPPLY) / virtualTokenReserves × SOL_PRICE
+  // Price per token = virtualSol / (virtualToken / 1e9) in lamports
+  // Market Cap = Price per token × TOTAL_SUPPLY × SOL_PRICE
   const calculateMarketCapUsd = (): number => {
     const virtualSol = state.virtualSolReserves ?? 0;
     const virtualToken = state.virtualTokenReserves ?? 0;
 
     if (virtualToken === 0) return 0;
 
-    // MC in SOL = (virtualSol / 1e9) × (TOTAL_SUPPLY × 1e9) / virtualToken
-    // Semplificato: MC in SOL = virtualSol × TOTAL_SUPPLY / virtualToken
-    const mcInSol = (virtualSol * TOTAL_SUPPLY) / virtualToken;
-    const mcInUsd = (mcInSol / 1e9) * effectiveSolPrice;
+    // virtualToken needs to be converted from smallest units to tokens (divide by 1e9)
+    // mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9)
+    const mcInLamports = (virtualSol * TOTAL_SUPPLY) / (virtualToken / 1e9);
+    const mcInUsd = (mcInLamports / 1e9) * effectiveSolPrice;
 
     return mcInUsd;
   };

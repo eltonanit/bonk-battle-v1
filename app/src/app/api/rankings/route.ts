@@ -303,7 +303,11 @@ export async function GET(request: Request) {
       const virtualToken = (token.virtual_token_reserves || 0) / 1e9;
 
       const priceUsd = virtualToken > 0 ? (virtualSol / virtualToken) * solPrice : 0;
-      const marketCapUsd = token.market_cap_usd || (priceUsd * TOTAL_SUPPLY);
+
+      // ⭐ ALWAYS calculate market cap from bonding curve formula (never use stored value)
+      // Market Cap = (virtualSol * TOTAL_SUPPLY / virtualToken) * solPrice
+      // This is equivalent to: priceUsd * TOTAL_SUPPLY
+      const marketCapUsd = priceUsd * TOTAL_SUPPLY;
       const change1h = marketCapUsd > 0 ? (stats.netFlow1h / marketCapUsd) * 100 : 0;
       const change24h = marketCapUsd > 0 ? (stats.netFlow24h / marketCapUsd) * 100 : 0;
       const change7d = marketCapUsd > 0 ? (stats.netFlow7d / marketCapUsd) * 100 : 0;
