@@ -470,17 +470,31 @@ export default function BattleArenaPage() {
 
   const handleFindOpponent = useCallback(async (tokenMint: string): Promise<boolean> => {
     try {
+      // Get current network for API call
+      const network = typeof window !== 'undefined'
+        ? (localStorage.getItem('bonk-network') || 'mainnet')
+        : 'mainnet';
+
       const response = await fetch('/api/battles/find-match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tokenMint }),
+        body: JSON.stringify({ tokenMint, network }),
       });
 
       const data = await response.json();
+      console.log('🔍 Find match response:', data);
 
       if (!response.ok) {
         console.error('Find match error:', data.error);
         return false;
+      }
+
+      // Log failure reasons for debugging
+      if (data.failureReasons && data.failureReasons.length > 0) {
+        console.log('❌ Match failure reasons:');
+        data.failureReasons.forEach((f: { mint: string; symbol: string; reason: string }) => {
+          console.log(`   - ${f.symbol}: ${f.reason}`);
+        });
       }
 
       if (data.found && data.battle) {

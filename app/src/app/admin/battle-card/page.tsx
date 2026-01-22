@@ -8,7 +8,105 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+
+// Admin Sidebar Component
+function AdminSidebar() {
+  const pathname = usePathname();
+  const [network, setNetwork] = useState('mainnet');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setNetwork(localStorage.getItem('bonk-network') || 'mainnet');
+    }
+  }, []);
+
+  const navItems = [
+    { href: '/admin', label: 'Dashboard', icon: '📊' },
+    { href: '/sale/admin.html', label: 'Token Dashboard', icon: '🪙', external: true },
+    { href: '/sale/users.html', label: 'Users', icon: '👥', external: true },
+    { href: '/admin/battle-card', label: 'Battle Card Editor', icon: '⚔️' },
+    { href: '/create', label: 'Create Token', icon: '➕' },
+    { href: '/sale/my-battles.html', label: 'Battle List', icon: '🗡️', external: true },
+    { href: '/', label: 'Public Site', icon: '🌐', external: true },
+  ];
+
+  return (
+    <aside className="fixed left-0 top-0 w-64 h-screen bg-[#12121a] border-r border-[#2a2a3a] p-6 flex flex-col overflow-y-auto">
+      {/* Logo */}
+      <Link href="/admin" className="flex items-center gap-2 mb-6 text-[#00ff88] font-mono font-bold">
+        <span className="w-8 h-8 bg-gradient-to-br from-[#00ff88] to-[#8b5cf6] rounded-lg flex items-center justify-center text-sm">
+          ⚔️
+        </span>
+        <span>BATTLECOIN</span>
+      </Link>
+
+      {/* Network Badge */}
+      <div className="flex items-center gap-2 px-3 py-2 mb-4">
+        <Link
+          href="/sale/network.html"
+          className="bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs"
+        >
+          NET
+        </Link>
+        <span className={`px-2 py-1 rounded text-[9px] font-bold transform rotate-12 ${
+          network === 'devnet' ? 'bg-purple-400 text-black' : 'bg-emerald-400 text-black'
+        }`}>
+          {network.toUpperCase()}
+        </span>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1">
+        <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          Navigation
+        </div>
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          return item.external ? (
+            <a
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 text-sm transition-all ${
+                isActive
+                  ? 'bg-[#00ff88]/10 text-[#00ff88]'
+                  : 'text-gray-400 hover:bg-[#1a1a24] hover:text-white'
+              }`}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </a>
+          ) : (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 text-sm transition-all ${
+                isActive
+                  ? 'bg-[#00ff88]/10 text-[#00ff88]'
+                  : 'text-gray-400 hover:bg-[#1a1a24] hover:text-white'
+              }`}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="pt-4 border-t border-[#2a2a3a]">
+        <Link
+          href="/"
+          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-red-400 transition-all"
+        >
+          <span>🚪</span>
+          <span>Exit Admin</span>
+        </Link>
+      </div>
+    </aside>
+  );
+}
 
 interface BattleCardConfig {
   id: string;
@@ -170,28 +268,36 @@ export default function BattleCardAdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+        <AdminSidebar />
+        <div className="ml-64 flex-1 flex items-center justify-center">
+          <div className="animate-spin w-8 h-8 border-2 border-[#00ff88] border-t-transparent rounded-full" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">Battle Card Editor</h1>
-            <p className="text-gray-400 mt-1">Configure the homepage battle card</p>
+    <div className="min-h-screen bg-[#0a0a0f] text-white">
+      {/* Sidebar */}
+      <AdminSidebar />
+
+      {/* Main Content */}
+      <main className="ml-64 p-8">
+        <div className="max-w-4xl">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold">⚔️ Battle Card Editor</h1>
+              <p className="text-gray-400 mt-1">Configure the homepage battle card</p>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-[#1a1a24] border border-[#2a2a3a] rounded-lg hover:border-[#00ff88] hover:text-[#00ff88] transition flex items-center gap-2"
+            >
+              🔄 Refresh
+            </button>
           </div>
-          <Link
-            href="/admin"
-            className="px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition"
-          >
-            Back to Admin
-          </Link>
-        </div>
 
         {/* Choose Battle - Yellow Section */}
         <div className="mb-8 p-4 bg-yellow-500/20 border-2 border-yellow-500 rounded-xl">
@@ -432,7 +538,8 @@ export default function BattleCardAdminPage() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

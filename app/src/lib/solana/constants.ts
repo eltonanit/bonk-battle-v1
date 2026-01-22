@@ -1,12 +1,17 @@
 import { PublicKey } from '@solana/web3.js';
 
+// Get current network from localStorage (client-side only)
+function getCurrentNetwork(): 'mainnet' | 'devnet' {
+  if (typeof window === 'undefined') return 'mainnet'; // SSR fallback
+  return (localStorage.getItem('bonk-network') as 'mainnet' | 'devnet') || 'mainnet';
+}
+
 /**
  * BONK BATTLE Program ID
- *
- * This is the deployed program address for the BONK BATTLE smart contract on Solana Devnet.
+ * V4 xy=k bonding curve - Same program ID for mainnet and devnet
  */
 export const BONK_BATTLE_PROGRAM_ID = new PublicKey(
-  '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq'
+  'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD'
 );
 
 /**
@@ -57,32 +62,35 @@ export const BONDING_CURVE = {
 } as const;
 
 // =================================================================
-// TIER CONFIGURATION - ALL VALUES IN SOL (price-independent!)
+// TIER CONFIGURATION - V4 xy=k BONDING CURVE (1B Multiplier)
 // ⚠️ MUST MATCH: anchor/programs/bonk_battle/src/lib.rs
 // =================================================================
 
-export const USE_TEST_TIER = false; // Contract: const USE_TEST_TIER: bool = false;
+// Dynamic: Use TEST tier on devnet, PROD on mainnet
+export const USE_TEST_TIER = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet';
 
 export const TIER_CONFIG = {
-  // Contract: TEST_TARGET_SOL = 6_000_000_000 (6 SOL)
-  // Contract: TEST_VICTORY_VOLUME_SOL = 6_600_000_000 (6.6 SOL)
+  // V4 TEST TIER - For devnet testing (~€13 target)
+  // Contract: TEST_TARGET_SOL = 103_276_434 (~0.103 SOL)
+  // Contract: TEST_VICTORY_VOLUME_SOL = 113_604_077 (~0.114 SOL)
   // Contract: TEST_QUALIFICATION_SOL = 1 (1 lamport)
   TEST: {
-    TARGET_SOL: 6,                    // Contract: 6_000_000_000 lamports
-    VICTORY_VOLUME_SOL: 6.6,          // Contract: 6_600_000_000 lamports
+    TARGET_SOL: 0.103,                // Contract: 103_276_434 lamports
+    VICTORY_VOLUME_SOL: 0.114,        // Contract: 113_604_077 lamports (110%)
     QUALIFICATION_SOL: 0.000000001,   // Contract: 1 lamport
-    MATCHMAKING_TOLERANCE_SOL: 3,     // Contract: 3_000_000_000 lamports
-    ESTIMATED_MC_FINAL_USD: 820,      // @ $137/SOL
+    MATCHMAKING_TOLERANCE_SOL: 0.05,  // 50% tolerance for test
+    ESTIMATED_MC_FINAL_USD: 10_000_000_000, // $10B (1B multiplier)
   },
-  // Contract: PROD_TARGET_SOL = 14_586_338_000_000_000 (14,586,338 SOL ~$2.07B)
-  // Contract: PROD_VICTORY_VOLUME_SOL = 16_044_972_000_000_000 (16,044,972 SOL)
-  // Contract: PROD_QUALIFICATION_SOL = 1 (1 lamport)
+  // V4 PROD TIER - For mainnet (~€1B target)
+  // Contract: PROD_TARGET_SOL = 8_000_759_000_000_000 (~8M SOL)
+  // Contract: PROD_VICTORY_VOLUME_SOL = 8_800_835_000_000_000 (~8.8M SOL)
+  // Contract: PROD_QUALIFICATION_SOL = 100_000_000 (0.1 SOL)
   PRODUCTION: {
-    TARGET_SOL: 14_586_338,           // Contract: 14_586_338_000_000_000 lamports
-    VICTORY_VOLUME_SOL: 16_044_972,   // Contract: 16_044_972_000_000_000 lamports
-    QUALIFICATION_SOL: 0.000000001,   // Contract: 1 lamport
-    MATCHMAKING_TOLERANCE_SOL: 18.85, // Contract: 18_850_000_000 lamports (⚠️ outdated in contract)
-    ESTIMATED_MC_FINAL_USD: 10_000_000_000, // $10B target
+    TARGET_SOL: 8_000_759,            // Contract: ~8M SOL (~€1B)
+    VICTORY_VOLUME_SOL: 8_800_835,    // Contract: ~8.8M SOL (110%)
+    QUALIFICATION_SOL: 0.1,           // Contract: 100_000_000 lamports
+    MATCHMAKING_TOLERANCE_SOL: 1000,  // 1000 SOL tolerance
+    ESTIMATED_MC_FINAL_USD: 10_000_000_000_000, // $10T (1B multiplier from $10)
   }
 } as const;
 
@@ -114,11 +122,17 @@ export const KEEPER_AUTHORITY = new PublicKey(
 );
 
 /**
- * Network Configuration
+ * Network Configuration - Dynamic based on localStorage
  */
-export const NETWORK = 'mainnet-beta' as const;
-// RPC Helius Mainnet
-export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || 'https://mainnet.helius-rpc.com/?api-key=01b6f8ea-2179-42c8-aac8-b3b6eb2a1d5f';
+const NETWORK_RPC = {
+  mainnet: 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+  devnet: 'https://devnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+};
+
+export const NETWORK = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet' ? 'devnet' : 'mainnet-beta';
+export const RPC_ENDPOINT = typeof window !== 'undefined'
+  ? NETWORK_RPC[getCurrentNetwork()]
+  : NETWORK_RPC.mainnet;
 
 /**
  * Transaction Limits
@@ -185,5 +199,6 @@ export function formatUsd(usd: number): string {
  */
 export function getSolscanUrl(type: 'tx' | 'token' | 'account', address: string): string {
   const base = `https://solscan.io/${type}/${address}`;
-  return NETWORK === 'mainnet-beta' ? base : `${base}?cluster=${NETWORK}`;
+  const network = getCurrentNetwork();
+  return network === 'mainnet' ? base : `${base}?cluster=devnet`;
 }

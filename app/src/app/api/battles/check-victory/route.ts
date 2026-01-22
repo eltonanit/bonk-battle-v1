@@ -23,17 +23,26 @@ import { createClient } from '@supabase/supabase-js';
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════
 
-const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
 const PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
+
+// Network-aware RPC endpoints
+const RPC_ENDPOINTS = {
+    mainnet: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+    devnet: 'https://devnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+};
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// Victory thresholds (TEST tier) - VOLUME ONLY since sol_collected is broken
-const VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL in lamports
-const VOLUME_THRESHOLD = Math.floor(VICTORY_VOLUME_SOL * 995 / 1000); // 99.5% = 6.567 SOL
+// Victory thresholds by network (must match contract constants)
+const VICTORY_THRESHOLDS = {
+    // TEST tier (devnet): 0.114 SOL
+    devnet: 113_604_077, // TEST_VICTORY_VOLUME_SOL from contract
+    // PROD tier (mainnet): ~8.8M SOL
+    mainnet: 8_800_835_000_000_000, // PROD_VICTORY_VOLUME_SOL from contract
+};
 
 // Battle status enum
 const BattleStatus = {
@@ -88,7 +97,8 @@ async function checkVictoryForToken(
     connection: Connection,
     keeper: Keypair,
     mint: PublicKey,
-    tokenSymbol: string
+    tokenSymbol: string,
+    victoryThreshold: number
 ): Promise<{ success: boolean; victory: boolean; signature?: string; error?: string }> {
 
     const [battleStatePDA] = getBattleStatePDA(mint);
@@ -139,7 +149,7 @@ async function checkVictoryForToken(
                 action_type: 'victory_detected',
                 token_mint: mint.toString(),
                 token_symbol: tokenSymbol,
-                metadata: { signature, volume_threshold: VOLUME_THRESHOLD / 1e9 },
+                metadata: { signature, volume_threshold: victoryThreshold / 1e9 },
                 created_at: new Date().toISOString()
             });
         }
@@ -156,22 +166,31 @@ async function checkVictoryForToken(
 // API HANDLER
 // ═══════════════════════════════════════════════════════════════════════════
 
-export async function GET() {
+export async function GET(request: Request) {
     const startTime = Date.now();
+
+    // Get network from query param or default to mainnet
+    const url = new URL(request.url);
+    const network = (url.searchParams.get('network') as 'mainnet' | 'devnet') || 'mainnet';
+    const rpcEndpoint = RPC_ENDPOINTS[network];
+    const victoryThreshold = VICTORY_THRESHOLDS[network];
+
     console.log('\n🏆 ═══════════════════════════════════════════════════════');
     console.log('CRON 1: CHECK VICTORY CONDITIONS');
-    console.log(`Threshold: Volume >= ${VOLUME_THRESHOLD / 1e9} SOL (99.5% of 6.6)`);
+    console.log(`Network: ${network}`);
+    console.log(`Threshold: Volume >= ${victoryThreshold / 1e9} SOL`);
     console.log('═══════════════════════════════════════════════════════\n');
 
     try {
-        const connection = new Connection(RPC_ENDPOINT, 'confirmed');
+        const connection = new Connection(rpcEndpoint, 'confirmed');
         const keeper = getKeeperKeypair();
 
-        // Get all InBattle tokens from database
+        // Get all InBattle tokens from database (filtered by network)
         const { data: inBattleTokens, error } = await supabase
             .from('tokens')
-            .select('mint, symbol')
-            .eq('battle_status', BattleStatus.InBattle);
+            .select('mint, symbol, network')
+            .eq('battle_status', BattleStatus.InBattle)
+            .eq('network', network);
 
         if (error || !inBattleTokens?.length) {
             console.log('📭 No InBattle tokens found');
@@ -216,12 +235,12 @@ export async function GET() {
 
                 const totalVolume = Number(account.data.readBigUInt64LE(V1_OFFSET_TOTAL_VOLUME));
                 const volumeSol = totalVolume / 1e9;
-                const meetsThreshold = totalVolume >= VOLUME_THRESHOLD;
+                const meetsThreshold = totalVolume >= victoryThreshold;
 
-                console.log(`📊 ${token.symbol}: ${volumeSol.toFixed(4)} SOL (${meetsThreshold ? '✅ READY' : '⏳ ' + ((totalVolume / VOLUME_THRESHOLD) * 100).toFixed(1) + '%'})`);
+                console.log(`📊 ${token.symbol}: ${volumeSol.toFixed(4)} SOL (${meetsThreshold ? '✅ READY' : '⏳ ' + ((totalVolume / victoryThreshold) * 100).toFixed(1) + '%'})`);
 
                 if (meetsThreshold) {
-                    const result = await checkVictoryForToken(connection, keeper, mint, token.symbol);
+                    const result = await checkVictoryForToken(connection, keeper, mint, token.symbol, victoryThreshold);
                     results.push({
                         mint: token.mint,
                         symbol: token.symbol,
@@ -257,7 +276,8 @@ export async function GET() {
             message: victories > 0 ? `${victories} victory detected!` : 'No victories yet',
             checked: inBattleTokens.length,
             victories,
-            threshold: VOLUME_THRESHOLD / 1e9,
+            threshold: victoryThreshold / 1e9,
+            network,
             results,
             duration
         });

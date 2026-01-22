@@ -34,9 +34,17 @@ function parseMetadataField(value: string, field: 'name' | 'symbol' | 'image' | 
 /**
  * Fetches all TokenBattleState accounts from the BONK BATTLE program
  * Returns array of parsed battle states with full on-chain data
+ * Filters by current network (devnet/mainnet) from localStorage
  */
 export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
   try {
+    // Get current network from localStorage (client-side only)
+    const currentNetwork = typeof window !== 'undefined'
+      ? (localStorage.getItem('bonk-network') || 'mainnet')
+      : 'mainnet';
+
+    console.log(`🌐 fetchAllBonkTokens: network=${currentNetwork.toUpperCase()}`);
+
     // 1. Get tokens from Supabase (cached old tokens)
     const supabaseTokens: ParsedTokenBattleState[] = [];
 
@@ -44,7 +52,7 @@ export async function fetchAllBonkTokens(): Promise<ParsedTokenBattleState[]> {
       const { data: cachedTokens, error: supabaseError } = await supabase
         .from('tokens')
         .select('*')
-        .eq('network', 'mainnet')
+        .eq('network', currentNetwork)
         .order('updated_at', { ascending: false });
 
       if (!supabaseError && cachedTokens && cachedTokens.length > 0) {
@@ -410,13 +418,21 @@ export async function fetchQualifiedTokens(): Promise<ParsedTokenBattleState[]> 
 /**
  * ⭐ NEW: Fetches tokens ONLY from Supabase (no blockchain merge)
  * Use this for UI components that need clean, validated data
+ * Filters by current network (devnet/mainnet) from localStorage
  */
 export async function fetchTokensFromSupabase(): Promise<ParsedTokenBattleState[]> {
   try {
+    // Get current network from localStorage (client-side only)
+    const currentNetwork = typeof window !== 'undefined'
+      ? (localStorage.getItem('bonk-network') || 'mainnet')
+      : 'mainnet';
+
+    console.log(`🌐 Fetching tokens for network: ${currentNetwork.toUpperCase()}`);
+
     const { data: tokens, error } = await supabase
       .from('tokens')
       .select('*')
-      .eq('network', 'mainnet')
+      .eq('network', currentNetwork)
       .order('creation_timestamp', { ascending: false });
 
     if (error || !tokens) {

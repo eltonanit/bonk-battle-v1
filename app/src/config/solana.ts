@@ -2,12 +2,44 @@
 // BONK BATTLE - SOLANA CONFIGURATION
 // ========================================================================
 
-// ✅ VERIFICATO: Program ID dal smart contract (MAINNET)
-export const PROGRAM_ID = '6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq';
-export const NETWORK = 'mainnet-beta';
+// Network Configuration - Dynamic based on localStorage
+const NETWORK_CONFIGS = {
+  mainnet: {
+    programId: 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD',
+    rpcEndpoint: process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+    network: 'mainnet-beta' as const,
+  },
+  devnet: {
+    programId: 'F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD',
+    rpcEndpoint: 'https://devnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846',
+    network: 'devnet' as const,
+  },
+};
 
-// ✅ FIX CRITICO: Usa variabile env corretta + Helius MAINNET come fallback
-export const RPC_ENDPOINT = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://mainnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846';
+// Get current network from localStorage (client-side only)
+function getCurrentNetwork(): 'mainnet' | 'devnet' {
+  if (typeof window === 'undefined') return 'mainnet'; // SSR fallback
+  return (localStorage.getItem('bonk-network') as 'mainnet' | 'devnet') || 'mainnet';
+}
+
+// Dynamic exports that check network at runtime
+export function getNetworkConfig() {
+  const network = getCurrentNetwork();
+  return NETWORK_CONFIGS[network];
+}
+
+// ✅ DYNAMIC: Program ID based on selected network
+export const PROGRAM_ID = NETWORK_CONFIGS.mainnet.programId; // Same for both networks
+
+// ✅ DYNAMIC: Get current network string
+export const NETWORK = typeof window !== 'undefined'
+  ? (localStorage.getItem('bonk-network') === 'devnet' ? 'devnet' : 'mainnet-beta')
+  : 'mainnet-beta';
+
+// ✅ DYNAMIC: RPC Endpoint based on selected network
+export const RPC_ENDPOINT = typeof window !== 'undefined'
+  ? NETWORK_CONFIGS[getCurrentNetwork()].rpcEndpoint
+  : NETWORK_CONFIGS.mainnet.rpcEndpoint;
 
 // ✅ FIX CRITICO: Treasury address dal smart contract (riga 21)
 export const TREASURY = '5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf';
@@ -40,5 +72,6 @@ export const CREATION_FEE = 0.01; // SOL
  */
 export function getSolscanUrl(type: 'tx' | 'token' | 'account', address: string): string {
   const base = `https://solscan.io/${type}/${address}`;
-  return NETWORK === 'mainnet-beta' ? base : `${base}?cluster=${NETWORK}`;
+  const currentNetwork = getCurrentNetwork();
+  return currentNetwork === 'mainnet' ? base : `${base}?cluster=devnet`;
 }

@@ -13,11 +13,9 @@ import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
 import { supabase } from '@/lib/supabase';
 import { addPointsForBuyToken, addPointsForSellToken } from '@/lib/points';
 
-// ⭐ IMPORT CENTRALIZED TIER CONFIG
+// ⭐ IMPORT CENTRALIZED TIER CONFIG (uses dynamic getActiveTier for network awareness)
 import {
-  TARGET_SOL,
-  VICTORY_VOLUME_SOL,
-  ACTIVE_TIER,
+  getActiveTier,
   calculateSolProgress,
   calculateVolumeProgress,
   getSolRemaining,
@@ -73,6 +71,9 @@ function GraduationPopup({
   loading
 }: GraduationPopupProps) {
   if (!show) return null;
+
+  // Get tier config dynamically
+  const ACTIVE_TIER = getActiveTier();
 
   const progressPercent = (solCollected / targetSol) * 100;
   const isAtLimit = solRemaining < 0.01;
@@ -229,6 +230,11 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
   const [showGraduationPopup, setShowGraduationPopup] = useState(false);
   const [graduationLoading, setGraduationLoading] = useState(false);
   const [showBattleReady, setShowBattleReady] = useState(false);
+
+  // Get tier config dynamically (changes based on network)
+  const ACTIVE_TIER = getActiveTier();
+  const TARGET_SOL = ACTIVE_TIER.TARGET_SOL;
+  const VICTORY_VOLUME_SOL = ACTIVE_TIER.VICTORY_VOLUME_SOL;
 
   // Fetch SOL balance
   useEffect(() => {

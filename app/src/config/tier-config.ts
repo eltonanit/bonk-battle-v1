@@ -9,12 +9,20 @@
 // ========================================================================
 
 /**
- * ⚠️ IMPORTANTE: Cambia questa variabile per switchare tra TEST e PRODUCTION
- * Deve corrispondere al valore USE_TEST_TIER nello smart contract!
- *
- * Contract: const USE_TEST_TIER: bool = false;
+ * Get current network from localStorage (client-side only)
+ * Used to determine which tier to use
  */
-export const USE_TEST_TIER = false; // ⭐ CAMBIA QUI: true = TEST, false = PRODUCTION
+function getCurrentNetwork(): 'mainnet' | 'devnet' {
+  if (typeof window === 'undefined') return 'mainnet'; // SSR fallback
+  return (localStorage.getItem('bonk-network') as 'mainnet' | 'devnet') || 'mainnet';
+}
+
+/**
+ * ⭐ DYNAMIC: USE_TEST_TIER is now based on selected network
+ * - devnet = TEST tier (small values for testing)
+ * - mainnet = PRODUCTION tier (real values)
+ */
+export const USE_TEST_TIER = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet';
 
 // ========================================================================
 // BONDING CURVE CONSTANTS (from smart contract)
@@ -34,39 +42,36 @@ export const MULTIPLIER = 14.68;                      // MC multiplier (always!)
 // ========================================================================
 
 export const TIER_CONFIG = {
-  // ============ TEST TIER ============
-  // Contract: const TEST_TARGET_SOL: u64 = 6_000_000_000; // 6 SOL
-  // Contract: const TEST_VICTORY_VOLUME_SOL: u64 = 6_600_000_000; // 6.6 SOL
+  // ============ TEST TIER (V4 xy=k) ============
+  // Contract: const TEST_TARGET_SOL: u64 = 103_276_434; // ~0.103 SOL
+  // Contract: const TEST_VICTORY_VOLUME_SOL: u64 = 113_604_077; // ~0.114 SOL (110%)
   // Contract: const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport
   TEST: {
-    name: 'Test Tier',
-    description: 'Perfect for devnet testing',
+    name: 'Test Tier (Devnet)',
+    description: 'Perfect for devnet testing - ~0.1 SOL target',
     icon: '🧪',
 
-    // Bonding Curve Values (SOL) - calculated for 14.68x multiplier
-    // V = TARGET / 2.831 to achieve sqrt(14.68) ratio
-    VIRTUAL_SOL_INIT: 2.12,       // 6 / 2.831 = Initial virtual SOL
-    VIRTUAL_SOL_FINAL: 8.12,      // 2.12 + 6 = Final virtual SOL
+    // Bonding Curve Values (SOL) - V4 xy=k with 1B multiplier
+    VIRTUAL_SOL_INIT: 0.0365,     // Initial virtual SOL (V4)
+    VIRTUAL_SOL_FINAL: 0.1395,    // 0.0365 + 0.103 = Final virtual SOL
 
-    // Victory conditions (in SOL) - FROM CONTRACT
-    TARGET_SOL: 6,                // Contract: TEST_TARGET_SOL = 6_000_000_000
-    VICTORY_VOLUME_SOL: 6.6,      // Contract: TEST_VICTORY_VOLUME_SOL = 6_600_000_000
+    // Victory conditions (in SOL) - V4 CONTRACT VALUES
+    TARGET_SOL: 0.103,            // Contract: TEST_TARGET_SOL = 103_276_434 (~0.103 SOL)
+    VICTORY_VOLUME_SOL: 0.114,    // Contract: TEST_VICTORY_VOLUME_SOL = 113_604_077 (~0.114 SOL)
     QUALIFICATION_SOL: 0.000000001, // Contract: 1 lamport = any buy qualifies
 
     // In lamports (for smart contract comparison)
-    TARGET_SOL_LAMPORTS: 6_000_000_000,
-    VICTORY_VOLUME_LAMPORTS: 6_600_000_000,
+    TARGET_SOL_LAMPORTS: 103_276_434,
+    VICTORY_VOLUME_LAMPORTS: 113_604_077,
     QUALIFICATION_LAMPORTS: 1,    // Contract: 1 lamport
-    VIRTUAL_SOL_INIT_LAMPORTS: 2_120_000_000,
+    VIRTUAL_SOL_INIT_LAMPORTS: 36_500_000,
 
     // Matchmaking tolerance - FROM CONTRACT
-    // Contract: MATCHMAKING_TOLERANCE_SOL = 3_000_000_000 (3 SOL for test)
-    MATCHMAKING_TOLERANCE_SOL: 3,
+    MATCHMAKING_TOLERANCE_SOL: 0.05, // 50% tolerance for test
 
-    // Market Cap in SOL terms (from bonding curve formula)
-    // MC_SOL = (virtualSol / virtualToken) × totalSupply
-    MC_INIT_SOL: 1.98,            // (2.12 / 1,073,000,000) × 1,000,000,000
-    MC_FINAL_SOL: 29.01,          // MC_INIT * 14.68
+    // Market Cap in SOL terms (V4 with 1B multiplier)
+    MC_INIT_SOL: 34,              // Initial MC in SOL
+    MC_FINAL_SOL: 499,            // Final MC in SOL (14.68x)
 
     MULTIPLIER: 14.68,
   },
@@ -111,32 +116,39 @@ export const TIER_CONFIG = {
 } as const;
 
 // ========================================================================
-// ACTIVE TIER (based on USE_TEST_TIER flag)
+// ACTIVE TIER (based on network - dynamic at runtime)
 // ========================================================================
 
+/**
+ * Get the active tier based on current network selection
+ * This function checks localStorage every time to ensure correct tier after network switch
+ */
 export function getActiveTier() {
-  return USE_TEST_TIER ? TIER_CONFIG.TEST : TIER_CONFIG.PRODUCTION;
+  const isDevnet = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet';
+  return isDevnet ? TIER_CONFIG.TEST : TIER_CONFIG.PRODUCTION;
 }
 
+// For backward compatibility - but prefer using getActiveTier() for runtime accuracy
 export const ACTIVE_TIER = getActiveTier();
 
 // ========================================================================
-// CONVENIENCE EXPORTS
+// CONVENIENCE EXPORTS (Dynamic getters)
 // ========================================================================
 
-export const TARGET_SOL = ACTIVE_TIER.TARGET_SOL;
-export const VICTORY_VOLUME_SOL = ACTIVE_TIER.VICTORY_VOLUME_SOL;
-export const QUALIFICATION_SOL = ACTIVE_TIER.QUALIFICATION_SOL;
-export const MATCHMAKING_TOLERANCE_SOL = ACTIVE_TIER.MATCHMAKING_TOLERANCE_SOL;
-export const VIRTUAL_SOL_INIT = ACTIVE_TIER.VIRTUAL_SOL_INIT;
-export const VIRTUAL_SOL_FINAL = ACTIVE_TIER.VIRTUAL_SOL_FINAL;
-export const MC_INIT_SOL = ACTIVE_TIER.MC_INIT_SOL;
-export const MC_FINAL_SOL = ACTIVE_TIER.MC_FINAL_SOL;
+// These getters ensure correct values even after network switch
+export const TARGET_SOL = (() => getActiveTier().TARGET_SOL)();
+export const VICTORY_VOLUME_SOL = (() => getActiveTier().VICTORY_VOLUME_SOL)();
+export const QUALIFICATION_SOL = (() => getActiveTier().QUALIFICATION_SOL)();
+export const MATCHMAKING_TOLERANCE_SOL = (() => getActiveTier().MATCHMAKING_TOLERANCE_SOL)();
+export const VIRTUAL_SOL_INIT = (() => getActiveTier().VIRTUAL_SOL_INIT)();
+export const VIRTUAL_SOL_FINAL = (() => getActiveTier().VIRTUAL_SOL_FINAL)();
+export const MC_INIT_SOL = (() => getActiveTier().MC_INIT_SOL)();
+export const MC_FINAL_SOL = (() => getActiveTier().MC_FINAL_SOL)();
 
 // Lamport versions
-export const TARGET_SOL_LAMPORTS = ACTIVE_TIER.TARGET_SOL_LAMPORTS;
-export const VICTORY_VOLUME_LAMPORTS = ACTIVE_TIER.VICTORY_VOLUME_LAMPORTS;
-export const QUALIFICATION_LAMPORTS = ACTIVE_TIER.QUALIFICATION_LAMPORTS;
+export const TARGET_SOL_LAMPORTS = (() => getActiveTier().TARGET_SOL_LAMPORTS)();
+export const VICTORY_VOLUME_LAMPORTS = (() => getActiveTier().VICTORY_VOLUME_LAMPORTS)();
+export const QUALIFICATION_LAMPORTS = (() => getActiveTier().QUALIFICATION_LAMPORTS)();
 
 // ========================================================================
 // MARKET CAP CALCULATION (Constant Product Formula xy=k)
@@ -145,18 +157,20 @@ export const QUALIFICATION_LAMPORTS = ACTIVE_TIER.QUALIFICATION_LAMPORTS;
 /**
  * Calculate Market Cap in SOL based on bonding curve progress
  * Formula: MC = (currentVirtualSol / currentVirtualToken) × totalSupply
- * 
+ *
  * This is the CORRECT Pump.fun formula!
- * 
+ *
  * @param solCollected - SOL collected so far (in SOL, not lamports)
  * @returns Market cap in SOL terms
  */
 export function calculateMarketCapSol(solCollected: number): number {
+  const tier = getActiveTier();
+
   // Current virtual SOL = initial + collected
-  const currentVirtualSol = ACTIVE_TIER.VIRTUAL_SOL_INIT + solCollected;
+  const currentVirtualSol = tier.VIRTUAL_SOL_INIT + solCollected;
 
   // Calculate k constant (xy = k)
-  const k = ACTIVE_TIER.VIRTUAL_SOL_INIT * VIRTUAL_TOKEN_INIT;
+  const k = tier.VIRTUAL_SOL_INIT * VIRTUAL_TOKEN_INIT;
 
   // Current virtual tokens = k / currentVirtualSol
   const currentVirtualToken = k / currentVirtualSol;
@@ -169,7 +183,7 @@ export function calculateMarketCapSol(solCollected: number): number {
 
 /**
  * Calculate Market Cap in USD
- * 
+ *
  * @param solCollected - SOL collected so far
  * @param solPriceUsd - Current SOL price from oracle
  * @returns Market cap in USD
@@ -185,28 +199,32 @@ export function calculateMarketCapUsd(solCollected: number, solPriceUsd: number)
  * Get initial market cap in USD (when solCollected = 0)
  */
 export function getInitialMarketCapUsd(solPriceUsd: number): number {
-  return ACTIVE_TIER.MC_INIT_SOL * solPriceUsd;
+  const tier = getActiveTier();
+  return tier.MC_INIT_SOL * solPriceUsd;
 }
 
 /**
  * Get final market cap in USD (when bonding curve is full)
  */
 export function getFinalMarketCapUsd(solPriceUsd: number): number {
-  return ACTIVE_TIER.MC_FINAL_SOL * solPriceUsd;
+  const tier = getActiveTier();
+  return tier.MC_FINAL_SOL * solPriceUsd;
 }
 
 // ========================================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (All use getActiveTier() for dynamic network support)
 // ========================================================================
 
 export function calculateSolProgress(solCollectedLamports: number): number {
+  const tier = getActiveTier();
   const solCollected = solCollectedLamports / 1e9;
-  return Math.min((solCollected / TARGET_SOL) * 100, 100);
+  return Math.min((solCollected / tier.TARGET_SOL) * 100, 100);
 }
 
 export function calculateVolumeProgress(volumeLamports: number): number {
+  const tier = getActiveTier();
   const volumeSol = volumeLamports / 1e9;
-  return Math.min((volumeSol / VICTORY_VOLUME_SOL) * 100, 100);
+  return Math.min((volumeSol / tier.VICTORY_VOLUME_SOL) * 100, 100);
 }
 
 export function hasMetGraduationConditions(
@@ -219,36 +237,45 @@ export function hasMetGraduationConditions(
 }
 
 export function isQualifiedForBattle(solCollectedLamports: number): boolean {
-  return solCollectedLamports >= QUALIFICATION_LAMPORTS;
+  const tier = getActiveTier();
+  return solCollectedLamports >= tier.QUALIFICATION_LAMPORTS;
 }
 
 export function getSolRemaining(solCollectedLamports: number): number {
+  const tier = getActiveTier();
   const solCollected = solCollectedLamports / 1e9;
-  return Math.max(0, TARGET_SOL - solCollected);
+  return Math.max(0, tier.TARGET_SOL - solCollected);
 }
 
 export function getTierDisplayInfo() {
+  const tier = getActiveTier();
+  const isDevnet = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet';
   return {
-    isTestTier: USE_TEST_TIER,
-    tierName: ACTIVE_TIER.name,
-    tierIcon: ACTIVE_TIER.icon,
-    targetSol: TARGET_SOL,
-    victoryVolumeSol: VICTORY_VOLUME_SOL,
-    qualificationSol: QUALIFICATION_SOL,
-    mcInitSol: ACTIVE_TIER.MC_INIT_SOL,
-    mcFinalSol: ACTIVE_TIER.MC_FINAL_SOL,
-    multiplier: ACTIVE_TIER.MULTIPLIER,
+    isTestTier: isDevnet,
+    tierName: tier.name,
+    tierIcon: tier.icon,
+    targetSol: tier.TARGET_SOL,
+    victoryVolumeSol: tier.VICTORY_VOLUME_SOL,
+    qualificationSol: tier.QUALIFICATION_SOL,
+    mcInitSol: tier.MC_INIT_SOL,
+    mcFinalSol: tier.MC_FINAL_SOL,
+    multiplier: tier.MULTIPLIER,
   };
 }
 
 // ========================================================================
-// DEBUG
+// DEBUG (logs active tier on page load)
 // ========================================================================
 if (typeof window !== 'undefined') {
-  console.log(`🎮 BONK BATTLE - Active Tier: ${ACTIVE_TIER.name}`);
-  console.log(`   Target SOL: ${TARGET_SOL}`);
-  console.log(`   Victory Volume: ${VICTORY_VOLUME_SOL} SOL`);
-  console.log(`   MC Init: ${ACTIVE_TIER.MC_INIT_SOL} SOL`);
-  console.log(`   MC Final: ${ACTIVE_TIER.MC_FINAL_SOL} SOL`);
-  console.log(`   Multiplier: ${ACTIVE_TIER.MULTIPLIER}x`);
+  // Use setTimeout to ensure localStorage is ready
+  setTimeout(() => {
+    const tier = getActiveTier();
+    const network = getCurrentNetwork();
+    console.log(`🎮 BONK BATTLE - Network: ${network} | Active Tier: ${tier.name}`);
+    console.log(`   Target SOL: ${tier.TARGET_SOL}`);
+    console.log(`   Victory Volume: ${tier.VICTORY_VOLUME_SOL} SOL`);
+    console.log(`   MC Init: ${tier.MC_INIT_SOL} SOL`);
+    console.log(`   MC Final: ${tier.MC_FINAL_SOL} SOL`);
+    console.log(`   Multiplier: ${tier.MULTIPLIER}x`);
+  }, 100);
 }
