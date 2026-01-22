@@ -445,6 +445,12 @@ pub mod bonk_battle {
         let seeds = &[b"battle_state", mint_key.as_ref(), &[bump]];
         let signer_seeds = &[&seeds[..]];
 
+        // 🛡️ SECURITY: Verify vault has sufficient tokens before transfer
+        require!(
+            tokens_to_give <= ctx.accounts.contract_token_account.amount,
+            BonkError::InsufficientLiquidity
+        );
+
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.to_account_info(),
