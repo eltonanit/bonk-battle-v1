@@ -30,6 +30,16 @@ interface TokenOption {
   image: string | null;
 }
 
+interface Battle {
+  id: string;
+  token_a_mint: string;
+  token_b_mint: string;
+  status: string;
+  started_at: string;
+  token_a?: TokenOption;
+  token_b?: TokenOption;
+}
+
 export default function BattleCardAdminPage() {
   const [config, setConfig] = useState<BattleCardConfig>({
     id: 'main',
@@ -45,6 +55,8 @@ export default function BattleCardAdminPage() {
   });
 
   const [tokens, setTokens] = useState<TokenOption[]>([]);
+  const [battles, setBattles] = useState<Battle[]>([]);
+  const [selectedBattleId, setSelectedBattleId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -55,7 +67,7 @@ export default function BattleCardAdminPage() {
     return localStorage.getItem('bonk-network') || 'devnet';
   };
 
-  // Load config and tokens
+  // Load config, tokens, and battles
   useEffect(() => {
     async function loadData() {
       try {
@@ -78,6 +90,23 @@ export default function BattleCardAdminPage() {
         if (tokensData) {
           setTokens(tokensData);
         }
+
+        // Load active battles
+        const { data: battlesData } = await supabase
+          .from('battles')
+          .select('id, token_a_mint, token_b_mint, status, started_at')
+          .eq('status', 'active')
+          .order('started_at', { ascending: false });
+
+        if (battlesData && tokensData) {
+          // Enrich battles with token info
+          const enrichedBattles = battlesData.map(battle => ({
+            ...battle,
+            token_a: tokensData.find(t => t.mint === battle.token_a_mint),
+            token_b: tokensData.find(t => t.mint === battle.token_b_mint),
+          }));
+          setBattles(enrichedBattles);
+        }
       } catch (err) {
         console.error('Error loading data:', err);
       } finally {
@@ -87,6 +116,23 @@ export default function BattleCardAdminPage() {
 
     loadData();
   }, []);
+
+  // Handle battle selection
+  const handleBattleSelect = (battleId: string) => {
+    setSelectedBattleId(battleId);
+
+    if (!battleId) return;
+
+    const battle = battles.find(b => b.id === battleId);
+    if (battle) {
+      setConfig(prev => ({
+        ...prev,
+        token_a_mint: battle.token_a_mint,
+        token_b_mint: battle.token_b_mint,
+      }));
+      setMessage({ type: 'success', text: `Battle loaded: ${battle.token_a?.symbol || 'A'} vs ${battle.token_b?.symbol || 'B'}` });
+    }
+  };
 
   // Save config
   const handleSave = async () => {
@@ -145,6 +191,29 @@ export default function BattleCardAdminPage() {
           >
             Back to Admin
           </Link>
+        </div>
+
+        {/* Choose Battle - Yellow Section */}
+        <div className="mb-8 p-4 bg-yellow-500/20 border-2 border-yellow-500 rounded-xl">
+          <label className="block text-lg font-bold text-yellow-400 mb-3">
+            ⚔️ Choose Battle
+          </label>
+          <select
+            value={selectedBattleId}
+            onChange={(e) => handleBattleSelect(e.target.value)}
+            className="w-full bg-gray-800 border-2 border-yellow-500 rounded-lg px-4 py-3 text-white font-semibold focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+          >
+            <option value="">-- Select a Battle to Edit --</option>
+            {battles.map((battle) => (
+              <option key={battle.id} value={battle.id}>
+                {battle.token_a?.symbol || battle.token_a_mint.slice(0, 8)} vs {battle.token_b?.symbol || battle.token_b_mint.slice(0, 8)}
+                {' '}- {new Date(battle.started_at).toLocaleDateString()}
+              </option>
+            ))}
+          </select>
+          {battles.length === 0 && (
+            <p className="text-yellow-300 text-sm mt-2">No active battles found</p>
+          )}
         </div>
 
         {/* Message */}

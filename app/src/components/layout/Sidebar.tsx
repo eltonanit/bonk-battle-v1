@@ -159,6 +159,25 @@ export function Sidebar() {
       )
     },
     {
+      href: '/battles',
+      label: 'Battle List',
+      hidden: false,
+      belowDivider: true,
+      isBattles: true, // Red/orange styling for battles
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
+          <path d="M13 19l6-6" />
+          <path d="M16 16l4 4" />
+          <path d="M19 21l2-2" />
+          <path d="M14.5 6.5L21 3v3L9.5 17.5" />
+          <path d="M5 14l4-4" />
+          <path d="M7 17l-4 4" />
+          <path d="M3 19l2 2" />
+        </svg>
+      )
+    },
+    {
       href: '/support',
       label: 'Support',
       hidden: false,
@@ -166,6 +185,19 @@ export function Sidebar() {
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )
+    },
+    {
+      href: '/admin/battle-card',
+      label: 'Edit Battle Card',
+      hidden: false,
+      belowDivider: true,
+      isAdmin: true, // Special admin styling
+      icon: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
       )
     },
@@ -178,11 +210,25 @@ export function Sidebar() {
   const getLinkClasses = (item: typeof allNavItems[0], active: boolean) => {
     const baseClasses = 'flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-[15px] relative';
 
+    // ⭐ Admin items with cyan styling
+    if (item.isAdmin) {
+      return active
+        ? `${baseClasses} bg-cyan-500/20 text-cyan-400`
+        : `${baseClasses} text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10`;
+    }
+
     // ⭐ Activity with LIVE indicator (white text, light blue when active)
     if (item.isLive) {
       return active
         ? `${baseClasses} bg-sky-500/20 text-sky-400`
         : `${baseClasses} text-white hover:text-white hover:bg-sky-500/10`;
+    }
+
+    // ⭐ Battle List with red/orange styling
+    if (item.isBattles) {
+      return active
+        ? `${baseClasses} bg-red-500/20 text-red-400`
+        : `${baseClasses} text-red-400 hover:text-red-300 hover:bg-red-500/10`;
     }
 
     // ⭐ Now page with fire/orange styling

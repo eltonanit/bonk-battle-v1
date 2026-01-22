@@ -307,9 +307,9 @@ export function Tagline() {
         }
       `}</style>
 
-      {/* ⭐ MAIN QUESTION - Above everything */}
+      {/* ⭐ MAIN TAGLINE - Above everything */}
       <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white text-center mb-6">
-        {battleCardConfig?.question || 'Which coin deserves to reach a $10B market cap?'}
+        Who will reach $10.00B first?
       </h1>
 
       {/* ⭐ LAYOUT: Mobile stack, Desktop full width when ARMIES hidden */}
@@ -344,7 +344,7 @@ export function Tagline() {
                         solCollected: lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0),
                       }}
                       config={{
-                        question: '', // Question shown above, not in card
+                        question: battleCardConfig?.question || 'Which satisfies you most?',
                         target_text: battleCardConfig?.target_text || 'First to $10B wins.',
                         context_text: battleCardConfig?.context_text || '',
                         token_a_link: battleCardConfig?.token_a_buy_link || null,
