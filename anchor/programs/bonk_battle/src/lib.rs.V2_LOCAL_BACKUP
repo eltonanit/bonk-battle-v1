@@ -1,9 +1,9 @@
 // =================================================================
 // FILE: contracts/programs/contracts/src/lib.rs
-// BONK BATTLE V4 - xy=k BONDING CURVE + 1 BILLION MULTIPLIER
-// Formula: K = V_SOL × V_Token (costante invariante)
+// BONK BATTLE V2 - SOL-BASED BONDING CURVE + TIER SYSTEM
+// All victory conditions in SOL (price-independent!)
 // =================================================================
-// 🚀 V4 CORRECTED: Parametri matematicamente esatti per 1B multiplier
+// ⭐ FIX V3: Use tokens_sold directly in bonding curve calculations
 // =================================================================
 
 use anchor_lang::prelude::*;
@@ -24,117 +24,63 @@ const TREASURY_WALLET: &str = "5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf";
 const KEEPER_AUTHORITY: &str = "65UHQMfEmBjuAhN1Hg4bWC1jkdHC9eWMsaB1MC58Jgea";
 
 // =================================================================
-// TOKEN SUPPLY PARAMETERS - 1 BILLION MULTIPLIER (xy=k)
+// TOKEN SUPPLY PARAMETERS (SAME FOR ALL TIERS)
 // =================================================================
 
 const TOTAL_SUPPLY: u64 = 1_000_000_000_000_000_000; // 1B * 10^9 = 10^18
-const BONDING_CURVE_SUPPLY: u64 = 999_968_377_000_000_000; // 99.997% (999,968,377 * 10^9)
-const RAYDIUM_RESERVED_SUPPLY: u64 = 31_623_000_000_000; // 0.003% (31,623 * 10^9)
+const BONDING_CURVE_SUPPLY: u64 = 793_100_000_000_000_000; // 793.1M * 10^9 (79.31%)
+const RAYDIUM_RESERVED_SUPPLY: u64 = 206_900_000_000_000_000; // 206.9M * 10^9 (20.69%)
 
 // =================================================================
-// BONDING CURVE xy=k PARAMETERS - 1 BILLION MULTIPLIER
-// =================================================================
-// Formula: K = V_SOL × V_Token (costante invariante)
-// Multiplier = (V_Token_init / V_Token_final)² = 1,000,000,000x
+// TIER SYSTEM - ALL VALUES IN SOL (LAMPORTS) - PRICE INDEPENDENT!
 // =================================================================
 
 // Active tier selector (change this to switch tiers)
-// Set to true for TEST tier (devnet), false for PRODUCTION tier (mainnet)
-const USE_TEST_TIER: bool = true;
+// Set to true for TEST tier, false for PRODUCTION tier
+const USE_TEST_TIER: bool = false;
+
+// ============ TIER TEST ============
+// MC Iniziale: ~$280 | MC Finale: ~$820 (@ $137/SOL) | Multiplier: ~2.93x
+// Per testing rapido su devnet - battaglie in minuti
+
+/// Target SOL per graduation TIER TEST
+const TEST_TARGET_SOL: u64 = 6_000_000_000; // 6 SOL in lamports
+
+/// Volume target per vittoria TIER TEST (110% di TARGET_SOL)
+const TEST_VICTORY_VOLUME_SOL: u64 = 6_600_000_000; // 6.6 SOL in lamports
+
+/// Qualification threshold TIER TEST - Qualsiasi acquisto qualifica
+const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
+
+
+// ============ TIER BATTLECOIN MARKET ($10B) ============
+// Target: $10B Market Cap | Keeper-controlled battles for Season 1
+
+/// Target SOL per graduation TIER PROD
+const PROD_TARGET_SOL: u64 = 14_586_338_000_000_000; // 14,586,338 SOL (~$2.07B)
+
+/// Volume target per vittoria TIER PROD (110% di TARGET_SOL)
+const PROD_VICTORY_VOLUME_SOL: u64 = 16_044_972_000_000_000; // 16,044,972 SOL (110%)
+
+/// Qualification threshold TIER PROD - Qualsiasi acquisto qualifica
+const PROD_QUALIFICATION_SOL: u64 = 1; // 1 lamport = qualsiasi buy
+
 
 // =================================================================
-// ============ TIER TEST (Devnet) - 1B MULTIPLIER ============
-// TARGET: ~€40 | Per testing rapido su devnet
+// COMPUTED TIER PARAMETERS (based on USE_TEST_TIER flag)
 // =================================================================
 
-/// Virtual SOL initial reserve (TEST)
-const TEST_VIRTUAL_SOL_INIT: u64 = 10_000; // 0.00001 SOL in lamports
-
-/// Virtual Token initial reserve (TEST) - matches TOTAL_SUPPLY
-const TEST_VIRTUAL_TOKEN_INIT: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
-
-/// Virtual Token final (what remains at graduation = Raydium reserve)
-const TEST_VIRTUAL_TOKEN_FINAL: u64 = 31_623_000_000_000; // 31,623 * 10^9
-
-/// Constant K = V_SOL_init * V_Token_init (invariante!)
-const TEST_CONSTANT_K: u128 = 10_000_000_000_000_000_000_000; // 10^22
-
-/// Target SOL to collect for graduation
-const TEST_TARGET_SOL: u64 = 316_000_000; // 0.316 SOL (~€40)
-
-/// Victory volume (110% of TARGET)
-const TEST_VICTORY_VOLUME_SOL: u64 = 348_000_000; // 0.348 SOL
-
-/// Qualification threshold (any buy qualifies)
-const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport
-
-// =================================================================
-// ============ TIER PROD (Mainnet) - 1B MULTIPLIER ============
-// TARGET: €1 BILLION | MC Finale: ~€10 TRILLION
-// =================================================================
-//
-// CALCOLO MATEMATICO ESATTO:
-// V_SOL_init = 253 SOL
-// V_Token_init = 1,000,000,000 token
-// K = 253 × 1,000,000,000 = 253,000,000,000
-// V_Token_final = 31,623 token (per Raydium)
-// V_SOL_final = K / V_Token_final = 253,000,000,000 / 31,623 = 8,001,012 SOL
-// TARGET_SOL = V_SOL_final - V_SOL_init = 8,001,012 - 253 = 8,000,759 SOL
-//
-// =================================================================
-
-/// Virtual SOL initial reserve (PROD)
-const PROD_VIRTUAL_SOL_INIT: u64 = 253_000_000_000; // 253 SOL (~€32,637)
-
-/// Virtual Token initial reserve (PROD) - matches TOTAL_SUPPLY
-const PROD_VIRTUAL_TOKEN_INIT: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
-
-/// Virtual Token final (what remains at graduation = Raydium reserve)
-const PROD_VIRTUAL_TOKEN_FINAL: u64 = 31_623_000_000_000; // 31,623 * 10^9
-
-/// Constant K = V_SOL_init * V_Token_init (invariante!)
-const PROD_CONSTANT_K: u128 = 253_000_000_000_000_000_000_000_000_000; // ~2.53 × 10^29
-
-/// Target SOL to collect for graduation
-/// CORRECTED: 8,000,759 SOL (era 7,750,000 SOL - SBAGLIATO!)
-/// Calcolo: V_SOL_final - V_SOL_init = 8,001,012 - 253 = 8,000,759 SOL
-const PROD_TARGET_SOL: u64 = 8_000_759_000_000_000; // 8,000,759 SOL (~€1.032B)
-
-/// Victory volume (110% of TARGET)
-/// CORRECTED: 8,800,835 SOL (era 8,525,000 SOL)
-const PROD_VICTORY_VOLUME_SOL: u64 = 8_800_835_000_000_000; // 8,800,835 SOL (~€1.135B)
-
-/// Qualification threshold (any buy qualifies)
-const PROD_QUALIFICATION_SOL: u64 = 1; // 1 lamport
-
-// =================================================================
-// TIER SELECTOR FUNCTIONS
-// =================================================================
-
-const fn get_virtual_sol_init() -> u64 {
-    if USE_TEST_TIER { TEST_VIRTUAL_SOL_INIT } else { PROD_VIRTUAL_SOL_INIT }
-}
-
-const fn get_virtual_token_init() -> u64 {
-    if USE_TEST_TIER { TEST_VIRTUAL_TOKEN_INIT } else { PROD_VIRTUAL_TOKEN_INIT }
-}
-
-const fn get_virtual_token_final() -> u64 {
-    if USE_TEST_TIER { TEST_VIRTUAL_TOKEN_FINAL } else { PROD_VIRTUAL_TOKEN_FINAL }
-}
-
-const fn get_constant_k() -> u128 {
-    if USE_TEST_TIER { TEST_CONSTANT_K } else { PROD_CONSTANT_K }
-}
-
+/// Get the target SOL for current tier
 const fn get_target_sol() -> u64 {
     if USE_TEST_TIER { TEST_TARGET_SOL } else { PROD_TARGET_SOL }
 }
 
+/// Get the victory volume for current tier  
 const fn get_victory_volume_sol() -> u64 {
     if USE_TEST_TIER { TEST_VICTORY_VOLUME_SOL } else { PROD_VICTORY_VOLUME_SOL }
 }
 
+/// Get the qualification threshold for current tier
 const fn get_qualification_sol() -> u64 {
     if USE_TEST_TIER { TEST_QUALIFICATION_SOL } else { PROD_QUALIFICATION_SOL }
 }
@@ -148,11 +94,12 @@ const QUALIFICATION_SOL: u64 = get_qualification_sol();
 // MATCHMAKING & BATTLE PARAMETERS
 // =================================================================
 
-/// Matchmaking tolerance - MINIMA per battaglie eque
-const MATCHMAKING_TOLERANCE_SOL: u64 = if USE_TEST_TIER {
-    10_000_000  // 0.01 SOL for test
-} else {
-    1_000_000_000 // 1 SOL for prod
+/// Matchmaking tolerance (quanto possono differire due token per fare match)
+/// 50% del target SOL
+const MATCHMAKING_TOLERANCE_SOL: u64 = if USE_TEST_TIER { 
+    3_000_000_000  // 3 SOL for test
+} else { 
+    18_850_000_000 // 18.85 SOL for prod (50% of 37.7)
 };
 
 // =================================================================
@@ -163,34 +110,17 @@ const TRADING_FEE_BPS: u64 = 200; // 2.00%
 const PLATFORM_FEE_BPS: u64 = 500; // 5.00%
 
 // =================================================================
-// SECURITY LIMITS - PERMETTI MICRO-TRANSAZIONI!
+// SECURITY LIMITS
 // =================================================================
 
-const MAX_SOL_PER_TX: u64 = 100_000_000_000_000; // 100,000 SOL max
-const MIN_SOL_PER_TX: u64 = 1; // 1 lamport = MINIMO ASSOLUTO SOLANA
+const MAX_SOL_PER_TX: u64 = 100_000_000_000; // 100 SOL max
+const MIN_SOL_PER_TX: u64 = 1_000_000; // 0.001 SOL min
 
 // =================================================================
 // ORACLE UPDATE INTERVAL
 // =================================================================
 
 const PRICE_UPDATE_INTERVAL: i64 = 86400; // 24 ore in secondi
-
-// =================================================================
-// VICTORY TOLERANCE - CORRECTED!
-// =================================================================
-//
-// PROBLEMA: Con 99.5% tolleranza, la vittoria scattava troppo presto
-// e rimanevano ~32,645 token invece di 31,623 per Raydium.
-//
-// SOLUZIONE: Tolleranza 99.99% per garantire che rimangano ~31,623 token
-//
-// Calcolo con 99.99%:
-// sol_threshold = 8,000,759 × 0.9999 = 7,999,959 SOL
-// V_SOL = 253 + 7,999,959 = 8,000,212 SOL
-// V_Token = K / V_SOL = 253B / 8,000,212 = 31,626 token (solo +3 rispetto a target!)
-//
-// =================================================================
-const VICTORY_TOLERANCE_BPS: u64 = 9999; // 99.99% (era 995 = 99.5%)
 
 #[program]
 pub mod bonk_battle {
@@ -199,52 +129,52 @@ pub mod bonk_battle {
     // =================================================================
     // ORACLE PRICE MANAGEMENT (for display purposes only!)
     // =================================================================
-
+    
     pub fn initialize_price_oracle(
         ctx: Context<InitializePriceOracle>,
         initial_sol_price: u64,
     ) -> Result<()> {
         let oracle = &mut ctx.accounts.price_oracle;
         let current_time = Clock::get()?.unix_timestamp;
-
+        
         oracle.sol_price_usd = initial_sol_price;
         oracle.last_update_timestamp = current_time;
         oracle.next_update_timestamp = current_time + PRICE_UPDATE_INTERVAL;
         oracle.keeper_authority = ctx.accounts.keeper_authority.key();
         oracle.update_count = 0;
-
-        msg!("📊 Oracle initialized: SOL price = ${}.{} USD",
-             initial_sol_price / 1_000_000,
+        
+        msg!("📊 Oracle initialized: SOL price = ${}.{} USD", 
+             initial_sol_price / 1_000_000, 
              (initial_sol_price % 1_000_000) / 10_000);
-
+        
         Ok(())
     }
-
+    
     pub fn update_sol_price(
         ctx: Context<UpdateSolPrice>,
         new_sol_price: u64,
     ) -> Result<()> {
         let oracle = &mut ctx.accounts.price_oracle;
         let current_time = Clock::get()?.unix_timestamp;
-
+        
         let previous_price = oracle.sol_price_usd;
-
+        
         oracle.sol_price_usd = new_sol_price;
         oracle.last_update_timestamp = current_time;
         oracle.next_update_timestamp = current_time + PRICE_UPDATE_INTERVAL;
         oracle.update_count = oracle.update_count.saturating_add(1);
-
+        
         emit!(PriceUpdated {
             previous_price,
             new_price: new_sol_price,
             timestamp: current_time,
             update_number: oracle.update_count,
         });
-
-        msg!("💹 SOL price updated: ${}.{} → ${}.{} USD",
+        
+        msg!("💹 SOL price updated: ${}.{} → ${}.{} USD", 
              previous_price / 1_000_000, (previous_price % 1_000_000) / 10_000,
              new_sol_price / 1_000_000, (new_sol_price % 1_000_000) / 10_000);
-
+        
         Ok(())
     }
 
@@ -269,13 +199,14 @@ pub mod bonk_battle {
         require!(uri.len() <= 200, BonkError::InvalidTokenUri);
 
         msg!("🏛️ FORGING GLADIATOR: {} ({})", name, symbol);
-        msg!("⚙️ TIER: {} | Target: {} SOL | Multiplier: 1 BILLION",
+        msg!("⚙️ TIER: {} | Target: {} SOL | Volume: {} SOL",
              if USE_TEST_TIER { "TEST" } else { "PRODUCTION" },
-             TARGET_SOL / 1_000_000_000);
+             TARGET_SOL / 1_000_000_000,
+             VICTORY_VOLUME_SOL / 1_000_000_000);
 
         let battle_state_info = ctx.accounts.token_battle_state.to_account_info();
         let mint_key = ctx.accounts.mint.key();
-
+        
         let battle_state = &mut ctx.accounts.token_battle_state;
 
         battle_state.mint = mint_key;
@@ -291,6 +222,7 @@ pub mod bonk_battle {
         battle_state.victory_timestamp = 0;
         battle_state.listing_timestamp = 0;
         battle_state.bump = ctx.bumps.token_battle_state;
+        // ⭐ SALVA METADATA
         battle_state.name = name.clone();
         battle_state.symbol = symbol.clone();
         battle_state.uri = uri.clone();
@@ -327,15 +259,16 @@ pub mod bonk_battle {
         });
 
         msg!(
-            "✅ GLADIATOR FORGED! Target: {} SOL | Initial MC: ~${} USD | Multiplier: 1B",
+            "✅ GLADIATOR FORGED! Target: {} SOL | Volume: {} SOL | Initial MC: ~${} USD",
             TARGET_SOL / 1_000_000_000,
+            VICTORY_VOLUME_SOL / 1_000_000_000,
             initial_mc_usd
         );
         Ok(())
     }
 
     // =================================================================
-    // PHASE 2: BONDING CURVE TRADING (xy=k)
+    // PHASE 2: BONDING CURVE TRADING
     // =================================================================
 
     pub fn buy_token(ctx: Context<BuyToken>, sol_amount: u64) -> Result<()> {
@@ -346,7 +279,7 @@ pub mod bonk_battle {
             BonkError::TradingInactive
         );
 
-        // Calculate fee first to use NET amount for graduation check
+        // ⭐ FIX: Calculate fee first to use NET amount for graduation check
         let fee_for_check = sol_amount
             .checked_mul(TRADING_FEE_BPS)
             .ok_or(BonkError::MathOverflow)?
@@ -361,7 +294,7 @@ pub mod bonk_battle {
             .checked_add(net_amount_for_check)
             .ok_or(BonkError::MathOverflow)?;
 
-        // AUTO-CAP LOGIC - Instead of rejecting, cap the amount
+        // ⭐ AUTO-CAP LOGIC - Instead of rejecting, cap the amount
         let mut actual_sol_amount = sol_amount;
         let mut was_capped = false;
 
@@ -375,6 +308,7 @@ pub mod bonk_battle {
             }
 
             // Convert net remaining to gross amount needed
+            // net = gross * (1 - fee), so gross = net * 10000 / (10000 - fee_bps)
             actual_sol_amount = remaining_capacity
                 .checked_mul(10000)
                 .ok_or(BonkError::MathOverflow)?
@@ -399,11 +333,11 @@ pub mod bonk_battle {
         // Use the (possibly capped) amount for rest of transaction
         let sol_amount = actual_sol_amount;
 
-        // 🚀 xy=k BONDING CURVE CALCULATION
+        // ⭐ FIX V3: Pass tokens_sold directly instead of deriving from sol_collected
         let tokens_to_give = calculate_buy_amount_optimized(
             sol_amount,
             ctx.accounts.token_battle_state.sol_collected,
-            ctx.accounts.token_battle_state.tokens_sold,
+            ctx.accounts.token_battle_state.tokens_sold,  // ⭐ NEW: Pass actual tokens_sold
         )?;
 
         require!(tokens_to_give > 0, BonkError::InsufficientOutput);
@@ -471,11 +405,11 @@ pub mod bonk_battle {
         battle_state.tokens_sold = battle_state.tokens_sold.checked_add(tokens_to_give).unwrap();
         battle_state.total_trade_volume = battle_state
             .total_trade_volume
-            .checked_add(sol_amount)
+            .checked_add(sol_amount) // Volume includes full amount (before fee)
             .unwrap();
         battle_state.last_trade_timestamp = Clock::get()?.unix_timestamp;
 
-        // SOL-BASED QUALIFICATION CHECK
+        // ⭐ SOL-BASED QUALIFICATION CHECK
         if battle_state.sol_collected >= QUALIFICATION_SOL && old_status == BattleStatus::Created {
             battle_state.battle_status = BattleStatus::Qualified;
 
@@ -521,23 +455,27 @@ pub mod bonk_battle {
 
         if was_capped {
             msg!(
-                "💰 BUY (AUTO-CAPPED): {} tokens for {} SOL | Progress: {}%",
+                "💰 BUY (AUTO-CAPPED): {} tokens for {} SOL | Progress: {}% ({}/{} SOL)",
                 tokens_to_give / 1_000_000_000,
                 sol_amount / 1_000_000_000,
-                progress_percent
+                progress_percent,
+                battle_state.sol_collected / 1_000_000_000,
+                TARGET_SOL / 1_000_000_000
             );
         } else {
             msg!(
-                "💰 BUY: {} tokens for {} lamports | Progress: {}% | MC: ${} USD",
+                "💰 BUY: {} tokens for {} SOL | Progress: {}% ({}/{} SOL) | Status: {:?}",
                 tokens_to_give / 1_000_000_000,
-                sol_amount,
+                sol_amount / 1_000_000_000,
                 progress_percent,
-                current_mc_usd
+                battle_state.sol_collected / 1_000_000_000,
+                TARGET_SOL / 1_000_000_000,
+                battle_state.battle_status
             );
         }
         Ok(())
     }
-
+    
     pub fn sell_token(ctx: Context<SellToken>, token_amount: u64) -> Result<()> {
         require!(token_amount > 0, BonkError::AmountTooSmall);
         require!(
@@ -545,11 +483,11 @@ pub mod bonk_battle {
             BonkError::TradingInactive
         );
 
-        // 🚀 xy=k BONDING CURVE CALCULATION
+        // ⭐ FIX V3: Pass tokens_sold directly instead of deriving from sol_collected
         let sol_to_return = calculate_sell_amount_optimized(
             token_amount,
             ctx.accounts.token_battle_state.sol_collected,
-            ctx.accounts.token_battle_state.tokens_sold,
+            ctx.accounts.token_battle_state.tokens_sold,  // ⭐ NEW: Pass actual tokens_sold
         )?;
         require!(sol_to_return > 0, BonkError::InsufficientOutput);
         require!(
@@ -557,7 +495,10 @@ pub mod bonk_battle {
             BonkError::InsufficientLiquidity
         );
 
-        // Transfer tokens BACK to contract pool
+        // ⭐ FIX: Transfer tokens BACK to contract pool (instead of burning)
+        // This preserves the tokens for:
+        // 1. Future buys by other users
+        // 2. Final Raydium liquidity (206.9M reserved)
         anchor_spl::token_interface::transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
@@ -569,7 +510,7 @@ pub mod bonk_battle {
                 },
             ),
             token_amount,
-            9,
+            9, // decimals
         )?;
 
         // Calculate fees
@@ -585,10 +526,10 @@ pub mod bonk_battle {
 
         **battle_state_account_info.try_borrow_mut_lamports()? -= amount_to_user;
         **ctx.accounts.user.to_account_info().try_borrow_mut_lamports()? += amount_to_user;
-
+        
         **battle_state_account_info.try_borrow_mut_lamports()? -= fee;
         **ctx.accounts.treasury_wallet.to_account_info().try_borrow_mut_lamports()? += fee;
-
+        
         // Update state
         let battle_state = &mut ctx.accounts.token_battle_state;
         battle_state.sol_collected = battle_state
@@ -599,12 +540,13 @@ pub mod bonk_battle {
             .tokens_sold
             .checked_sub(token_amount)
             .unwrap();
+        // ⭐ SELL ADDS TO VOLUME TOO!
         battle_state.total_trade_volume = battle_state
             .total_trade_volume
             .checked_add(sol_to_return)
             .unwrap();
         battle_state.last_trade_timestamp = Clock::get()?.unix_timestamp;
-
+        
         let sol_price = ctx.accounts.price_oracle.sol_price_usd;
         let new_mc_usd = calculate_market_cap_usd_from_sol(battle_state.sol_collected, sol_price)?;
 
@@ -620,10 +562,10 @@ pub mod bonk_battle {
         });
 
         msg!(
-            "💸 SELL: {} tokens for {} lamports | MC: ${} USD",
+            "💸 SELL: {} tokens for {} SOL | Volume: {} SOL",
             token_amount / 1_000_000_000,
-            sol_to_return,
-            new_mc_usd
+            sol_to_return / 1_000_000_000,
+            battle_state.total_trade_volume / 1_000_000_000
         );
         Ok(())
     }
@@ -634,7 +576,7 @@ pub mod bonk_battle {
 
     pub fn start_battle(ctx: Context<StartBattle>) -> Result<()> {
         msg!("⚔️ BATTLE COMMENCES!");
-
+        
         let token_a = &mut ctx.accounts.token_a_state;
         let token_b = &mut ctx.accounts.token_b_state;
 
@@ -643,24 +585,24 @@ pub mod bonk_battle {
         require!(token_a.mint != token_b.mint, BonkError::SelfBattle);
         require!(token_a.is_active && token_b.is_active, BonkError::TradingInactive);
 
-        // SOL-BASED MATCHMAKING
+        // ⭐ SOL-BASED MATCHMAKING
         let sol_a = token_a.sol_collected;
         let sol_b = token_b.sol_collected;
-
-        let sol_diff = if sol_a > sol_b {
-            sol_a - sol_b
-        } else {
-            sol_b - sol_a
+        
+        let sol_diff = if sol_a > sol_b { 
+            sol_a - sol_b 
+        } else { 
+            sol_b - sol_a 
         };
-
+        
         require!(sol_diff <= MATCHMAKING_TOLERANCE_SOL, BonkError::UnfairMatch);
 
         let battle_timestamp = Clock::get()?.unix_timestamp;
-
+        
         token_a.battle_status = BattleStatus::InBattle;
         token_a.opponent_mint = token_b.mint;
         token_a.battle_start_timestamp = battle_timestamp;
-
+        
         token_b.battle_status = BattleStatus::InBattle;
         token_b.opponent_mint = token_a.mint;
         token_b.battle_start_timestamp = battle_timestamp;
@@ -675,37 +617,33 @@ pub mod bonk_battle {
             timestamp: battle_timestamp,
         });
 
-        msg!("🏟️ BATTLE STARTED! {} vs {} | SOL: {} vs {}",
-             token_a.mint, token_b.mint,
+        msg!("🏟️ BATTLE STARTED! {} vs {} | SOL: {} vs {}", 
+             token_a.mint, token_b.mint, 
              sol_a / 1_000_000_000, sol_b / 1_000_000_000);
         Ok(())
     }
 
     // =================================================================
-    // VICTORY CHECK - 100% SOL-BASED!
-    // CORRECTED: Tolleranza 99.99% per garantire ~31,623 token per Raydium
+    // ⭐ VICTORY CHECK - 100% SOL-BASED!
     // =================================================================
 
     pub fn check_victory_conditions(ctx: Context<CheckVictory>) -> Result<()> {
         let token_state = &mut ctx.accounts.token_battle_state;
         let oracle = &ctx.accounts.price_oracle;
-
+        
         require!(token_state.battle_status == BattleStatus::InBattle, BonkError::NotInBattle);
         require!(token_state.is_active, BonkError::TradingInactive);
 
+        // ⭐ ALL CHECKS ARE SOL-BASED (price independent!)
         let sol_collected = token_state.sol_collected;
         let total_volume = token_state.total_trade_volume;
 
-        // CORRECTED: 99.99% tolerance (era 99.5% - troppo bassa!)
-        // Questo garantisce che rimangano ~31,623 token per Raydium
-        let sol_threshold = TARGET_SOL
-            .checked_mul(VICTORY_TOLERANCE_BPS)
-            .unwrap()
-            .checked_div(10000)
-            .unwrap();
+        // ⭐ FIX: 99.5% tolerance for edge cases (fee rounding near graduation)
+        let sol_threshold = TARGET_SOL.checked_mul(995).unwrap().checked_div(1000).unwrap();
         let has_sol_victory = sol_collected >= sol_threshold;
         let has_volume_victory = total_volume >= VICTORY_VOLUME_SOL;
 
+        // Calculate USD values only for logging/events (display only!)
         let sol_price = oracle.sol_price_usd;
         let final_mc_usd = calculate_market_cap_usd_from_sol(sol_collected, sol_price)?;
         let final_volume_usd = lamports_to_usd(total_volume, sol_price)?;
@@ -713,7 +651,7 @@ pub mod bonk_battle {
         if has_sol_victory && has_volume_victory {
             token_state.battle_status = BattleStatus::VictoryPending;
             token_state.victory_timestamp = Clock::get()?.unix_timestamp;
-
+            
             emit!(VictoryAchieved {
                 winner_mint: token_state.mint,
                 sol_collected,
@@ -724,28 +662,28 @@ pub mod bonk_battle {
                 final_volume_usd,
                 victory_timestamp: token_state.victory_timestamp,
             });
-
+            
             msg!("🏆 VICTORY ACHIEVED!");
-            msg!("   SOL Collected: {}/{} ✅",
+            msg!("   SOL Collected: {}/{} (threshold: 99.5%) ✅", 
                  sol_collected / 1_000_000_000, TARGET_SOL / 1_000_000_000);
-            msg!("   Volume: {}/{} SOL ✅",
+            msg!("   Volume: {}/{} SOL ✅", 
                  total_volume / 1_000_000_000, VICTORY_VOLUME_SOL / 1_000_000_000);
-            msg!("   MC: ~${} USD", final_mc_usd);
+            msg!("   MC: ~${} USD | Volume: ~${} USD", final_mc_usd, final_volume_usd);
         } else {
             msg!("⚔️ Battle continues...");
-            msg!("   SOL: {}/{} ({}%)",
-                 sol_collected / 1_000_000_000,
+            msg!("   SOL: {}/{} ({}%)", 
+                 sol_collected / 1_000_000_000, 
                  TARGET_SOL / 1_000_000_000,
                  (sol_collected as u128 * 100 / TARGET_SOL as u128));
-            msg!("   Volume: {}/{} SOL ({}%)",
-                 total_volume / 1_000_000_000,
+            msg!("   Volume: {}/{} SOL ({}%)", 
+                 total_volume / 1_000_000_000, 
                  VICTORY_VOLUME_SOL / 1_000_000_000,
                  (total_volume as u128 * 100 / VICTORY_VOLUME_SOL as u128));
         }
 
         Ok(())
     }
-
+    
     pub fn finalize_duel(ctx: Context<FinalizeDuel>) -> Result<()> {
         msg!("👑 FINALIZING DUEL - WINNER TAKES ALL!");
 
@@ -757,61 +695,86 @@ pub mod bonk_battle {
         require!(winner_state.opponent_mint == loser_state.mint, BonkError::NotOpponents);
         require!(loser_state.opponent_mint == winner_state.mint, BonkError::NotOpponents);
 
+        // Stop trading for winner (preparing for DEX listing)
         winner_state.is_active = false;
 
+        // Calculate spoils (50% of loser's liquidity)
         let loser_liquidity = loser_state.sol_collected;
         let spoils_of_war = loser_liquidity.checked_div(2).unwrap();
 
+        // Calculate platform fee (5% of winner's total after plunder)
         let winner_current = winner_state.sol_collected;
         let total_after_plunder = winner_current.checked_add(spoils_of_war).unwrap();
         let platform_fee = total_after_plunder
             .checked_mul(PLATFORM_FEE_BPS).unwrap()
             .checked_div(10000).unwrap();
 
+        // Split platform fee: 80% keeper, 20% treasury
         let keeper_share = platform_fee.checked_mul(80).unwrap().checked_div(100).unwrap();
-        let treasury_share = platform_fee.checked_sub(keeper_share).unwrap();
+        let treasury_share = platform_fee.checked_sub(keeper_share).unwrap(); // Remainder to treasury
 
+        // ⭐ FIX: Calculate winner's final SOL
         let winner_final_sol = total_after_plunder.checked_sub(platform_fee).unwrap();
 
         msg!("📊 DUEL MATH:");
         msg!("   Winner current: {} SOL", winner_current / 1_000_000_000);
         msg!("   Loser liquidity: {} SOL", loser_liquidity / 1_000_000_000);
         msg!("   Spoils (50%): {} SOL", spoils_of_war / 1_000_000_000);
+        msg!("   Total after plunder: {} SOL", total_after_plunder / 1_000_000_000);
         msg!("   Platform fee (5%): {} SOL", platform_fee / 1_000_000_000);
         msg!("   Winner final: {} SOL", winner_final_sol / 1_000_000_000);
 
+        // ⭐ FIX: Handle lamport transfers correctly for both cases
         if spoils_of_war > 0 || platform_fee > 0 {
+            // Get mutable references to lamports
             let loser_account = loser_state.to_account_info();
             let winner_account = winner_state.to_account_info();
             let keeper_account = ctx.accounts.keeper_authority.to_account_info();
             let treasury_account = ctx.accounts.treasury_wallet.to_account_info();
 
             if spoils_of_war >= platform_fee {
+                // ✅ CASE 1: Spoils cover the fee (normal case)
+                // Winner receives: spoils - fee
                 let net_to_winner = spoils_of_war.checked_sub(platform_fee).unwrap();
 
+                msg!("   Case: Spoils >= Fee (winner gains {} SOL)", net_to_winner / 1_000_000_000);
+
+                // Transfers
                 **loser_account.try_borrow_mut_lamports()? -= spoils_of_war;
                 **winner_account.try_borrow_mut_lamports()? += net_to_winner;
                 **keeper_account.try_borrow_mut_lamports()? += keeper_share;
                 **treasury_account.try_borrow_mut_lamports()? += treasury_share;
+
             } else {
+                // ⭐ CASE 2: Fee > Spoils (winner must contribute from existing liquidity)
+                // Winner must pay: fee - spoils from their own funds
                 let winner_contribution = platform_fee.checked_sub(spoils_of_war).unwrap();
 
+                msg!("   Case: Fee > Spoils (winner contributes {} SOL)", winner_contribution / 1_000_000_000);
+
+                // Transfers:
+                // - Loser gives all spoils
+                // - Winner pays the difference (fee - spoils)
+                // - Keeper and treasury get full fee
                 **loser_account.try_borrow_mut_lamports()? -= spoils_of_war;
                 **winner_account.try_borrow_mut_lamports()? -= winner_contribution;
                 **keeper_account.try_borrow_mut_lamports()? += keeper_share;
                 **treasury_account.try_borrow_mut_lamports()? += treasury_share;
             }
 
+            // Update sol_collected for both states
             winner_state.sol_collected = winner_final_sol;
             loser_state.sol_collected = loser_state.sol_collected.checked_sub(spoils_of_war).unwrap();
         }
 
         let finalization_timestamp = Clock::get()?.unix_timestamp;
 
+        // Winner goes to listing
         winner_state.battle_status = BattleStatus::Listed;
         winner_state.listing_timestamp = finalization_timestamp;
         winner_state.opponent_mint = Pubkey::default();
 
+        // Loser can retry (goes back to Qualified)
         loser_state.battle_status = BattleStatus::Qualified;
         loser_state.is_active = true;
         loser_state.opponent_mint = Pubkey::default();
@@ -830,6 +793,7 @@ pub mod bonk_battle {
         msg!("🎉 DUEL FINALIZED!");
         msg!("   Winner final liquidity: {} SOL", winner_state.sol_collected / 1_000_000_000);
         msg!("   Loser remaining: {} SOL (can retry!)", loser_state.sol_collected / 1_000_000_000);
+        msg!("   Platform fee collected: {} SOL", platform_fee / 1_000_000_000);
 
         Ok(())
     }
@@ -840,6 +804,7 @@ pub mod bonk_battle {
             BonkError::NotReadyForListing
         );
 
+        // ⭐ FIX: Get all values FIRST, before any mutations
         let mint_key = ctx.accounts.mint.key();
         let bump = ctx.accounts.token_battle_state.bump;
         let tokens_amount = ctx.accounts.contract_token_account.amount;
@@ -851,9 +816,11 @@ pub mod bonk_battle {
 
         require!(available_lamports > 0, BonkError::NoLiquidityToWithdraw);
 
+        // ⭐ FIX: Update account DATA first (before lamport manipulation)
         let battle_state = &mut ctx.accounts.token_battle_state;
         battle_state.sol_collected = 0;
 
+        // ⭐ FIX: Now do token transfer (CPI)
         let seeds = &[b"battle_state", mint_key.as_ref(), &[bump]];
         let signer_seeds = &[&seeds[..]];
 
@@ -872,10 +839,11 @@ pub mod bonk_battle {
             9,
         )?;
 
+        // ⭐ FIX: SOL transfer LAST using raw account_info (after Anchor is done with the account)
         let battle_state_info = ctx.accounts.token_battle_state.to_account_info();
         let keeper_info = ctx.accounts.keeper_authority.to_account_info();
 
-        **battle_state_info.try_borrow_mut_lamports()? = rent;
+        **battle_state_info.try_borrow_mut_lamports()? = rent; // Leave only rent
         **keeper_info.try_borrow_mut_lamports()? = keeper_info
             .lamports()
             .checked_add(available_lamports)
@@ -901,153 +869,130 @@ pub mod bonk_battle {
 // HELPER FUNCTIONS
 // =================================================================
 
-/// Calculate market cap using xy=k formula
-/// MC = (V_SOL / V_Token) × TOTAL_SUPPLY × SOL_PRICE
+/// Calculate market cap in USD based on SOL collected and current SOL price
+/// MC grows linearly from initial to final as SOL is collected
 fn calculate_market_cap_usd_from_sol(sol_collected: u64, sol_price_usd: u64) -> Result<u64> {
-    let virtual_sol_init = get_virtual_sol_init();
-    let constant_k = get_constant_k();
-
-    // Current virtual SOL = V_SOL_init + sol_collected
-    let current_virtual_sol = (virtual_sol_init as u128)
-        .checked_add(sol_collected as u128)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // Current virtual Token = K / V_SOL
-    let current_virtual_token = constant_k
-        .checked_div(current_virtual_sol)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // MC (in lamports) = (V_SOL × TOTAL_SUPPLY) / V_Token
-    let mc_lamports = current_virtual_sol
-        .checked_mul(TOTAL_SUPPLY as u128)
-        .ok_or(BonkError::MathOverflow)?
-        .checked_div(current_virtual_token)
-        .ok_or(BonkError::MathOverflow)? as u64;
-
-    lamports_to_usd(mc_lamports, sol_price_usd)
+    // Simple formula: MC in USD = SOL collected * SOL price
+    // With bonding curve multiplier applied
+    
+    if sol_collected == 0 {
+        // Initial MC when nothing collected
+        // Approximately: (TARGET_SOL / 14.68) * SOL_PRICE
+        let initial_mc_lamports = (TARGET_SOL as u128)
+            .checked_mul(1_000_000).unwrap()
+            .checked_div(14_680_000).unwrap() as u64; // ~1/14.68
+        
+        return lamports_to_usd(initial_mc_lamports, sol_price_usd);
+    }
+    
+    // Progress through bonding curve
+    let progress = (sol_collected as u128)
+        .checked_mul(1_000_000).unwrap()
+        .checked_div(TARGET_SOL as u128).unwrap();
+    
+    // MC scales with progress (14.68x multiplier at completion)
+    // At 0%: ~1/14.68 of target
+    // At 100%: full target value
+    let base_mc_lamports = (TARGET_SOL as u128)
+        .checked_mul(1_000_000).unwrap()
+        .checked_div(14_680_000).unwrap(); // Initial MC in lamports
+    
+    let mc_range = TARGET_SOL as u128 - base_mc_lamports;
+    let additional_mc = mc_range
+        .checked_mul(progress).unwrap()
+        .checked_div(1_000_000).unwrap();
+    
+    let current_mc_lamports = (base_mc_lamports + additional_mc) as u64;
+    
+    lamports_to_usd(current_mc_lamports, sol_price_usd)
 }
 
 /// Convert lamports to USD using oracle price
 fn lamports_to_usd(lamports: u64, sol_price_usd: u64) -> Result<u64> {
+    // sol_price_usd is in millionths (e.g., 137_000_000 = $137)
+    // lamports is in billionths of SOL (1 SOL = 1_000_000_000 lamports)
+    
     let usd = (lamports as u128)
-        .checked_mul(sol_price_usd as u128)
-        .ok_or(BonkError::MathOverflow)?
-        .checked_div(1_000_000_000_u128)
-        .ok_or(BonkError::MathOverflow)?
-        .checked_div(1_000_000_u128)
-        .ok_or(BonkError::MathOverflow)? as u64;
-
+        .checked_mul(sol_price_usd as u128).unwrap()
+        .checked_div(1_000_000_000_u128).unwrap() // Convert lamports to SOL
+        .checked_div(1_000_000_u128).unwrap() as u64; // Convert price format to dollars
+    
     Ok(usd)
 }
 
 // =================================================================
-// BONDING CURVE xy=k CALCULATIONS - 1 BILLION MULTIPLIER
-// =================================================================
-// Formula: K = V_SOL × V_Token (costante invariante)
-// BUY:  new_V_Token = K / (V_SOL + sol_amount), tokens_out = V_Token - new_V_Token
-// SELL: new_V_SOL = K / (V_Token + token_amount), sol_out = V_SOL - new_V_SOL
+// ⭐ FIX V3: BONDING CURVE CALCULATIONS WITH DIRECT tokens_sold
 // =================================================================
 
-/// Calculate tokens to give for a SOL buy using xy=k formula
+/// Calculate tokens to give for a SOL buy
+/// ⭐ FIX: Now uses tokens_sold directly instead of deriving from sol_collected
 fn calculate_buy_amount_optimized(
-    sol_amount: u64,
+    sol_amount: u64, 
     sol_already_collected: u64,
-    _tokens_already_sold: u64,
+    tokens_already_sold: u64,  // ⭐ NEW: Use actual tokens_sold from state
 ) -> Result<u64> {
-    let virtual_sol_init = get_virtual_sol_init();
-    let constant_k = get_constant_k();
-    let virtual_token_final = get_virtual_token_final();
-
-    // Current virtual SOL = V_SOL_init + sol_collected
-    let current_virtual_sol = (virtual_sol_init as u128)
-        .checked_add(sol_already_collected as u128)
+    // ⭐ FIX: Use tokens_sold directly (not calculated from sol_collected)
+    // This prevents inconsistencies after multiple buy/sell operations
+    let tokens_remaining = BONDING_CURVE_SUPPLY
+        .checked_sub(tokens_already_sold)
         .ok_or(BonkError::MathOverflow)?;
-
-    // Current virtual Token = K / V_SOL
-    let current_virtual_token = constant_k
-        .checked_div(current_virtual_sol)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // Check if bonding curve is complete
-    if current_virtual_token <= virtual_token_final as u128 {
+    
+    if tokens_remaining == 0 {
         return Ok(0);
     }
-
-    // After buy: new_V_SOL = V_SOL_current + sol_amount
-    let new_virtual_sol = current_virtual_sol
-        .checked_add(sol_amount as u128)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // new_V_Token = K / new_V_SOL
-    let new_virtual_token = constant_k
-        .checked_div(new_virtual_sol)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // tokens_out = V_Token_current - new_V_Token
-    let tokens_out = current_virtual_token
-        .checked_sub(new_virtual_token)
-        .ok_or(BonkError::MathOverflow)?;
-
+    
+    let sol_remaining = TARGET_SOL
+        .saturating_sub(sol_already_collected);
+    
+    if sol_remaining == 0 {
+        return Ok(0);
+    }
+    
+    // Tokens out = (SOL in / SOL remaining) * Tokens remaining * 0.98 (2% slippage buffer)
+    let tokens_out = (sol_amount as u128)
+        .checked_mul(tokens_remaining as u128)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_div(sol_remaining as u128)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_mul(98)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_div(100)
+        .ok_or(BonkError::MathOverflow)? as u64;
+    
     // Cap at remaining tokens
-    let max_tokens = current_virtual_token
-        .checked_sub(virtual_token_final as u128)
-        .unwrap_or(0);
-
-    let final_tokens = if tokens_out > max_tokens {
-        max_tokens
-    } else {
-        tokens_out
-    };
-
-    Ok(final_tokens as u64)
+    if tokens_out > tokens_remaining {
+        return Ok(tokens_remaining.checked_mul(90).unwrap().checked_div(100).unwrap());
+    }
+    
+    Ok(tokens_out)
 }
 
-/// Calculate SOL to return for a token sell using xy=k formula
+/// Calculate SOL to return for a token sell
+/// ⭐ FIX: Now uses tokens_sold directly instead of deriving from sol_collected
 fn calculate_sell_amount_optimized(
-    token_amount: u64,
+    token_amount: u64, 
     sol_collected: u64,
-    tokens_sold: u64,
+    tokens_sold: u64,  // ⭐ NEW: Use actual tokens_sold from state
 ) -> Result<u64> {
+    // ⭐ FIX: Early return if either value is 0 (prevents division by zero)
     if sol_collected == 0 || tokens_sold == 0 {
         return Ok(0);
     }
-
-    let virtual_sol_init = get_virtual_sol_init();
-    let virtual_token_init = get_virtual_token_init();
-    let constant_k = get_constant_k();
-
-    // Current virtual SOL = V_SOL_init + sol_collected
-    let current_virtual_sol = (virtual_sol_init as u128)
-        .checked_add(sol_collected as u128)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // Current virtual Token = V_Token_init - tokens_sold
-    let current_virtual_token = (virtual_token_init as u128)
-        .checked_sub(tokens_sold as u128)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // After sell: new_V_Token = V_Token_current + token_amount
-    let new_virtual_token = current_virtual_token
-        .checked_add(token_amount as u128)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // new_V_SOL = K / new_V_Token
-    let new_virtual_sol = constant_k
-        .checked_div(new_virtual_token)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // sol_out = V_SOL_current - new_V_SOL
-    let sol_out = current_virtual_sol
-        .checked_sub(new_virtual_sol)
-        .ok_or(BonkError::MathOverflow)?;
-
-    // Cap at actually collected SOL
-    let sol_out_u64 = sol_out as u64;
-    if sol_out_u64 > sol_collected {
-        return Ok(sol_collected.checked_mul(98).unwrap().checked_div(100).unwrap());
+    
+    // SOL out = (Token amount / Tokens sold) * SOL collected
+    // This gives the proportional share of SOL for the tokens being sold
+    let sol_out = (token_amount as u128)
+        .checked_mul(sol_collected as u128)
+        .ok_or(BonkError::MathOverflow)?
+        .checked_div(tokens_sold as u128)
+        .ok_or(BonkError::MathOverflow)? as u64;
+    
+    // Cap at available SOL (90% max to leave buffer)
+    if sol_out > sol_collected {
+        return Ok(sol_collected.checked_mul(90).unwrap().checked_div(100).unwrap());
     }
-
-    Ok(sol_out_u64)
+    
+    Ok(sol_out)
 }
 
 // =================================================================
@@ -1056,7 +1001,7 @@ fn calculate_sell_amount_optimized(
 
 #[account]
 pub struct PriceOracle {
-    pub sol_price_usd: u64,
+    pub sol_price_usd: u64,      // Price in millionths (137_000_000 = $137)
     pub last_update_timestamp: i64,
     pub next_update_timestamp: i64,
     pub keeper_authority: Pubkey,
@@ -1066,9 +1011,9 @@ pub struct PriceOracle {
 #[account]
 pub struct TokenBattleState {
     pub mint: Pubkey,
-    pub sol_collected: u64,
-    pub tokens_sold: u64,
-    pub total_trade_volume: u64,
+    pub sol_collected: u64,       // SOL collected (in lamports)
+    pub tokens_sold: u64,         // Tokens sold from bonding curve
+    pub total_trade_volume: u64,  // Total trading volume (in lamports)
     pub is_active: bool,
     pub battle_status: BattleStatus,
     pub opponent_mint: Pubkey,
@@ -1085,12 +1030,12 @@ pub struct TokenBattleState {
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, Debug)]
 pub enum BattleStatus {
-    Created,
-    Qualified,
-    InBattle,
-    VictoryPending,
-    Listed,
-    Defeated,
+    Created,        // Token created, not yet qualified
+    Qualified,      // Met qualification threshold, ready for battle
+    InBattle,       // Currently in a battle
+    VictoryPending, // Won battle, awaiting finalization
+    Listed,         // Battle finalized, ready for DEX listing
+    Defeated,       // Lost battle (unused - losers go back to Qualified)
 }
 
 // =================================================================
@@ -1107,14 +1052,14 @@ pub struct InitializePriceOracle<'info> {
         bump
     )]
     pub price_oracle: Account<'info, PriceOracle>,
-
+    
     #[account(
         mut,
         signer,
         address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
     )]
     pub keeper_authority: Signer<'info>,
-
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -1126,7 +1071,7 @@ pub struct UpdateSolPrice<'info> {
         bump
     )]
     pub price_oracle: Account<'info, PriceOracle>,
-
+    
     #[account(
         signer,
         address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
@@ -1169,7 +1114,7 @@ pub struct CreateBattleToken<'info> {
 
     #[account(mut)]
     pub user: Signer<'info>,
-
+    
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -1216,7 +1161,7 @@ pub struct BuyToken<'info> {
 
     #[account(mut)]
     pub user: Signer<'info>,
-
+    
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -1234,6 +1179,7 @@ pub struct SellToken<'info> {
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
 
+    // ⭐ AGGIUNTO: Contract token account per ricevere i token venduti
     #[account(
         mut,
         associated_token::mint = mint,
@@ -1275,20 +1221,20 @@ pub struct StartBattle<'info> {
         bump = token_a_state.bump
     )]
     pub token_a_state: Account<'info, TokenBattleState>,
-
+    
     #[account(
         mut,
         seeds = [b"battle_state", token_b_state.mint.as_ref()],
         bump = token_b_state.bump
     )]
     pub token_b_state: Account<'info, TokenBattleState>,
-
+    
     #[account(
         signer,
         address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
     )]
     pub keeper_authority: Signer<'info>,
-
+    
     pub system_program: Program<'info, System>,
 }
 
@@ -1301,7 +1247,7 @@ pub struct CheckVictory<'info> {
         constraint = token_battle_state.battle_status == BattleStatus::InBattle @ BonkError::NotInBattle
     )]
     pub token_battle_state: Account<'info, TokenBattleState>,
-
+    
     #[account(seeds = [b"price_oracle"], bump)]
     pub price_oracle: Account<'info, PriceOracle>,
 }
@@ -1315,7 +1261,7 @@ pub struct FinalizeDuel<'info> {
         constraint = winner_state.battle_status == BattleStatus::VictoryPending @ BonkError::NoVictoryAchieved
     )]
     pub winner_state: Account<'info, TokenBattleState>,
-
+    
     #[account(
         mut,
         seeds = [b"battle_state", loser_state.mint.as_ref()],
@@ -1325,14 +1271,14 @@ pub struct FinalizeDuel<'info> {
         constraint = winner_state.mint == loser_state.opponent_mint @ BonkError::NotOpponents
     )]
     pub loser_state: Account<'info, TokenBattleState>,
-
+    
     #[account(
         mut,
         address = TREASURY_WALLET.parse::<Pubkey>().unwrap() @ BonkError::InvalidTreasury
     )]
     /// CHECK: Treasury wallet address is hardcoded and verified
     pub treasury_wallet: AccountInfo<'info>,
-
+    
     #[account(
         mut,
         address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
@@ -1351,10 +1297,10 @@ pub struct WithdrawForListing<'info> {
         constraint = token_battle_state.battle_status == BattleStatus::Listed @ BonkError::NotReadyForListing
     )]
     pub token_battle_state: Account<'info, TokenBattleState>,
-
+    
     #[account(mut)]
     pub mint: InterfaceAccount<'info, Mint>,
-
+    
     #[account(
         mut,
         associated_token::mint = mint,
@@ -1362,7 +1308,7 @@ pub struct WithdrawForListing<'info> {
         associated_token::token_program = token_program,
     )]
     pub contract_token_account: InterfaceAccount<'info, TokenAccount>,
-
+    
     #[account(
         mut,
         associated_token::mint = mint,
@@ -1370,7 +1316,7 @@ pub struct WithdrawForListing<'info> {
         associated_token::token_program = token_program,
     )]
     pub keeper_token_account: InterfaceAccount<'info, TokenAccount>,
-
+    
     #[account(
         mut,
         address = KEEPER_AUTHORITY.parse::<Pubkey>().unwrap() @ BonkError::Unauthorized
