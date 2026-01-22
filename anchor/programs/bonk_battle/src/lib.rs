@@ -44,11 +44,11 @@ const USE_TEST_TIER: bool = true;
 
 // =================================================================
 // ============ TIER TEST (Devnet) - 1B MULTIPLIER ============
-// TARGET: ~€40 | Per testing rapido su devnet
+// TARGET: ~€13 | Per testing rapido su devnet
 // =================================================================
 
 /// Virtual SOL initial reserve (TEST)
-const TEST_VIRTUAL_SOL_INIT: u64 = 10_000; // 0.00001 SOL in lamports
+const TEST_VIRTUAL_SOL_INIT: u64 = 3_266; // ~0.000003266 SOL in lamports
 
 /// Virtual Token initial reserve (TEST) - matches TOTAL_SUPPLY
 const TEST_VIRTUAL_TOKEN_INIT: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
@@ -57,13 +57,13 @@ const TEST_VIRTUAL_TOKEN_INIT: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
 const TEST_VIRTUAL_TOKEN_FINAL: u64 = 31_623_000_000_000; // 31,623 * 10^9
 
 /// Constant K = V_SOL_init * V_Token_init (invariante!)
-const TEST_CONSTANT_K: u128 = 10_000_000_000_000_000_000_000; // 10^22
+const TEST_CONSTANT_K: u128 = 3_266_000_000_000_000_000_000; // 3.266 × 10^21
 
 /// Target SOL to collect for graduation
-const TEST_TARGET_SOL: u64 = 316_000_000; // 0.316 SOL (~€40)
+const TEST_TARGET_SOL: u64 = 103_276_434; // ~0.103 SOL (~€13)
 
 /// Victory volume (110% of TARGET)
-const TEST_VICTORY_VOLUME_SOL: u64 = 348_000_000; // 0.348 SOL
+const TEST_VICTORY_VOLUME_SOL: u64 = 113_604_077; // ~0.114 SOL (110%)
 
 /// Qualification threshold (any buy qualifies)
 const TEST_QUALIFICATION_SOL: u64 = 1; // 1 lamport
