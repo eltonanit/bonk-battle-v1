@@ -292,24 +292,14 @@ export default function BattleDetailPage() {
     if (victoryProcessing) return;
     if (victoryData?.poolId) return; // Already has pool
 
-    // ⭐ FIX: Check battleStatus FIRST!
-    // If status is VictoryPending(3), Listed(4) or PoolCreated(5), victory already happened
-    const statusAWon = stateA.battleStatus >= 3; // VictoryPending, Listed, or PoolCreated
-    const statusBWon = stateB && stateB.battleStatus >= 3;
+    // ⭐ FIX V2: Victory detection ONLY from on-chain status
+    // Status 3+ means victory was confirmed by smart contract's check_victory_conditions
+    // DO NOT use progress-based detection - it can be out of sync with blockchain!
+    const tokenAWon = stateA.battleStatus >= 3; // VictoryPending, Listed, or PoolCreated
+    const tokenBWon = stateB && stateB.battleStatus >= 3;
 
-    // Original progress-based check (for live detection during battle)
-    const progressAWon = stateA && hasMetGraduationConditions(
-      stateA.realSolReserves,
-      stateA.totalTradeVolume
-    );
-    const progressBWon = stateB && hasMetGraduationConditions(
-      stateB.realSolReserves,
-      stateB.totalTradeVolume
-    );
-
-    // Combined: either status indicates victory OR progress indicates victory
-    const tokenAWon = statusAWon || progressAWon;
-    const tokenBWon = statusBWon || progressBWon;
+    // NOTE: progressAWon/progressBWon REMOVED - caused false positives when
+    // local database values didn't match on-chain state exactly
 
     if (!tokenAWon && !tokenBWon) return;
 

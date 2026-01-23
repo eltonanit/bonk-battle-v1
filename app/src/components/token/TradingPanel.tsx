@@ -288,7 +288,10 @@ export function TradingPanel({ mint, tokenState, solPriceUsd = 0, onSuccess }: T
     }
 
     const isNearGraduation = solProgress >= AUTO_DISABLE_THRESHOLD;
-    const isGraduationLocked = solProgress >= 100 || solRemaining <= 0.001;
+    // ⭐ FIX V2: Graduation locked ONLY when on-chain status confirms victory
+    // battleStatus >= 3 means VictoryPending, Listed, or PoolCreated
+    // This allows trading until smart contract confirms victory
+    const isGraduationLocked = tokenState?.battleStatus !== undefined && tokenState.battleStatus >= 3;
 
     console.log('📊 TradingPanel progressData:', {
       tier: ACTIVE_TIER.name,
