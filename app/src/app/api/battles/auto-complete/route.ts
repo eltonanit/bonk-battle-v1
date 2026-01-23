@@ -51,7 +51,14 @@ import { createClient } from '@supabase/supabase-js';
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════
 
-const RPC_ENDPOINT = process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!;
+// ⭐ NETWORK SELECTION: Must match USE_TEST_TIER below!
+const USE_DEVNET = true; // true = DEVNET (for testing), false = MAINNET (production)
+
+const RPC_ENDPOINT = USE_DEVNET
+  ? 'https://devnet.helius-rpc.com/?api-key=8c51da3b-f506-42bb-9000-1cf7724b3846'
+  : (process.env.NEXT_PUBLIC_RPC_ENDPOINT || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!);
+
+console.log(`🔗 Using RPC: ${USE_DEVNET ? 'DEVNET' : 'MAINNET'}`);
 const PROGRAM_ID = new PublicKey('F2iP4tpfg5fLnxNQ2pA2odf7V9kq4uS9pV3MpARJT5eD');
 const TREASURY_WALLET = new PublicKey('5t46DVegMLyVQ2nstgPPUNDn5WCEFwgQCXfbSx1nHrdf');
 
@@ -389,7 +396,7 @@ async function createRaydiumPool(
     const raydium = await Raydium.load({
       owner: keeper,
       connection: connection,
-      cluster: 'mainnet',
+      cluster: USE_DEVNET ? 'devnet' : 'mainnet',
       disableFeatureCheck: true,
       disableLoadToken: false,
     });
