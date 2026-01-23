@@ -14,7 +14,7 @@ bonk_battle = "6LdnckDuYxXn4UkyyD5YB7w9j2k49AsuZCNmQ3GhR2Eq"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Mainnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
