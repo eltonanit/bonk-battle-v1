@@ -38,7 +38,7 @@ export function BattleReadyPopup({
 
   const handleFindOpponent = () => {
     onClose();
-    router.push('/battlestart?tab=qualify');
+    router.push('/battles?tab=qualified');
   };
 
   return (

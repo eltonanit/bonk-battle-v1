@@ -90,26 +90,31 @@ function verifyAuth(request: NextRequest): boolean {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ⭐ VICTORY THRESHOLDS - MUST MATCH CONTRACT!
+// ⭐ VICTORY THRESHOLDS - V4 VALUES (MUST MATCH CONTRACT!)
 // ═══════════════════════════════════════════════════════════════════════════
-
+//
+// Contract uses 99.99% tolerance for SOL (VICTORY_TOLERANCE_BPS = 9999):
+// let sol_threshold = TARGET_SOL.checked_mul(9999).unwrap().checked_div(10000).unwrap();
+//
 // ⭐ Set this to match USE_TEST_TIER in smart contract!
-const USE_TEST_TIER = false; // false = PRODUCTION (37.7 SOL), true = TEST (6 SOL)
+const USE_TEST_TIER = true; // true = TEST/DEVNET (~0.103 SOL), false = PRODUCTION (~8M SOL)
 
-const TEST_TARGET_SOL = 6_000_000_000; // 6 SOL
-const TEST_VICTORY_VOLUME_SOL = 6_600_000_000; // 6.6 SOL
+// V4 TEST TIER (Devnet) - xy=k bonding curve with 1B multiplier
+const TEST_TARGET_SOL = 103_276_434;         // ~0.103 SOL
+const TEST_VICTORY_VOLUME_SOL = 113_604_077; // ~0.114 SOL (110%)
 
-const PROD_TARGET_SOL = 37_700_000_000; // 37.7 SOL
-const PROD_VICTORY_VOLUME_SOL = 41_500_000_000; // 41.5 SOL
+// V4 PRODUCTION TIER (Mainnet) - xy=k bonding curve with 1B multiplier
+const PROD_TARGET_SOL = 8_000_759_000_000_000;     // ~8,000,759 SOL (~€1B)
+const PROD_VICTORY_VOLUME_SOL = 8_800_835_000_000_000; // ~8,800,835 SOL (110%)
 
 const TARGET_SOL = USE_TEST_TIER ? TEST_TARGET_SOL : PROD_TARGET_SOL;
 const VICTORY_VOLUME_SOL = USE_TEST_TIER ? TEST_VICTORY_VOLUME_SOL : PROD_VICTORY_VOLUME_SOL;
-const SOL_THRESHOLD = Math.floor(TARGET_SOL * 995 / 1000); // 99.5%
+const SOL_THRESHOLD = Math.floor(TARGET_SOL * 9999 / 10000); // 99.99% tolerance (match contract!)
 
 // Fee constants (must match smart contract!)
 const PLATFORM_FEE_BPS = 500; // 5%
 
-console.log(`🎯 Victory Thresholds: SOL >= ${SOL_THRESHOLD / 1e9} SOL (99.5% of ${TARGET_SOL / 1e9}), Volume >= ${VICTORY_VOLUME_SOL / 1e9} SOL`);
+console.log(`🎯 Victory Thresholds V4: SOL >= ${(SOL_THRESHOLD / 1e9).toFixed(6)} SOL (99.99% of ${(TARGET_SOL / 1e9).toFixed(6)}), Volume >= ${(VICTORY_VOLUME_SOL / 1e9).toFixed(6)} SOL`);
 
 // V1 Struct offsets
 const V1_OFFSET_SOL_COLLECTED = 40;

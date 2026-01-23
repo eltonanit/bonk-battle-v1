@@ -348,7 +348,7 @@ export function TokenHero({ token, preloadedMetadata, battleId, battleStatus }: 
 
                 {battleStatus === BattleStatus.Qualified && (
                   <Link
-                    href="/battlestart?tab=qualify"
+                    href="/battles?tab=qualified"
                     className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-xs sm:text-sm font-medium transition-colors"
                   >
                     <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-yellow-400"></span>

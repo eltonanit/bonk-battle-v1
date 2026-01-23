@@ -25,17 +25,17 @@ function getCurrentNetwork(): 'mainnet' | 'devnet' {
 export const USE_TEST_TIER = typeof window !== 'undefined' && getCurrentNetwork() === 'devnet';
 
 // ========================================================================
-// BONDING CURVE CONSTANTS (from smart contract)
+// BONDING CURVE CONSTANTS (from smart contract V4 - xy=k with 1B multiplier)
 // ========================================================================
 // Contract: const TOTAL_SUPPLY: u64 = 1_000_000_000_000_000_000; // 1B * 10^9
-// Contract: const BONDING_CURVE_SUPPLY: u64 = 793_100_000_000_000_000; // 79.31%
-// Contract: const RAYDIUM_RESERVED_SUPPLY: u64 = 206_900_000_000_000_000; // 20.69%
+// Contract: const BONDING_CURVE_SUPPLY: u64 = 999_968_377_000_000_000; // 99.997%
+// Contract: const RAYDIUM_RESERVED_SUPPLY: u64 = 31_623_000_000_000; // 0.003% (31,623 * 10^9)
 export const TOTAL_SUPPLY = 1_000_000_000;           // 1B tokens (without decimals for display)
-export const BONDING_CURVE_TOKENS = 793_100_000;     // 79.31% for bonding curve
-export const RAYDIUM_RESERVE_TOKENS = 206_900_000;   // 20.69% for Raydium
-export const VIRTUAL_TOKEN_INIT = 1_073_000_000;     // Initial virtual tokens
-export const VIRTUAL_TOKEN_FINAL = 279_900_000;      // Final virtual tokens
-export const MULTIPLIER = 14.68;                      // MC multiplier (always!)
+export const BONDING_CURVE_TOKENS = 999_968_377;     // 99.997% for bonding curve
+export const RAYDIUM_RESERVE_TOKENS = 31_623;        // 0.003% for Raydium (V4)
+export const VIRTUAL_TOKEN_INIT = 1_000_000_000;     // Initial virtual tokens = TOTAL_SUPPLY (V4)
+export const VIRTUAL_TOKEN_FINAL = 31_623;           // Final virtual tokens = RAYDIUM_RESERVE (V4)
+export const MULTIPLIER = 1_000_000_000;             // 1 BILLION multiplier (V4!)
 
 // ========================================================================
 // TIER DEFINITIONS (from smart contract lib.rs)

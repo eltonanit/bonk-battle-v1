@@ -29,6 +29,8 @@ function AdminSidebar() {
     { href: '/admin/battle-card', label: 'Battle Card Editor', icon: '⚔️' },
     { href: '/create', label: 'Create Token', icon: '➕' },
     { href: '/sale/my-battles.html', label: 'Battle List', icon: '🗡️', external: true },
+    { href: '/battles?tab=qualified', label: 'Battle Qualified', icon: '⭐' },
+    { href: '/battles?tab=new', label: 'New Tokens', icon: '🆕' },
     { href: '/', label: 'Public Site', icon: '🌐', external: true },
   ];
 

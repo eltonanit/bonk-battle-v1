@@ -57,8 +57,8 @@ export enum BattleStatus {
 export const BONDING_CURVE = {
   TOKEN_DECIMALS: 9, // 9 decimals like SOL
   TOTAL_SUPPLY: 1_000_000_000, // 1B tokens
-  BONDING_CURVE_SUPPLY: 793_100_000, // 793.1M (79.31%)
-  RAYDIUM_RESERVED_SUPPLY: 206_900_000, // 206.9M (20.69%)
+  BONDING_CURVE_SUPPLY: 999_968_377, // 999.97M (99.997%) - V4
+  RAYDIUM_RESERVED_SUPPLY: 31_623, // 31,623 (0.003%) - V4
 } as const;
 
 // =================================================================
