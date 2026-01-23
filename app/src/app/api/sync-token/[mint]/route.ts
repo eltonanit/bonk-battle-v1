@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
-import { syncSingleToken } from '@/lib/indexer/sync-single-token';
+import { syncSingleToken, NetworkType } from '@/lib/indexer/sync-single-token';
 
 export async function GET(
     request: NextRequest,
@@ -15,22 +15,29 @@ export async function GET(
         return NextResponse.json({ error: 'Invalid mint address' }, { status: 400 });
     }
 
-    console.log(`🔄 Manual sync requested for: ${mint}`);
+    // ⭐ FIX: Read network from query params (default to mainnet)
+    const url = new URL(request.url);
+    const network = (url.searchParams.get('network') as NetworkType) || 'mainnet';
+
+    console.log(`🔄 Manual sync requested for: ${mint} (network: ${network})`);
 
     try {
-        const result = await syncSingleToken(mint);
+        // ⭐ FIX: Pass network option to syncSingleToken
+        const result = await syncSingleToken(mint, { network });
 
         if (result.success) {
             return NextResponse.json({
                 success: true,
-                message: `Token ${mint.slice(0, 8)}... synced successfully`,
-                mint
+                message: `Token ${mint.slice(0, 8)}... synced successfully on ${network}`,
+                mint,
+                network
             });
         } else {
             return NextResponse.json({
                 success: false,
                 error: result.error,
-                mint
+                mint,
+                network
             }, { status: 500 });
         }
     } catch (error) {
@@ -38,7 +45,8 @@ export async function GET(
         return NextResponse.json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            mint
+            mint,
+            network
         }, { status: 500 });
     }
 }

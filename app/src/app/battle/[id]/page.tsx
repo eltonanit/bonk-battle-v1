@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { PublicKey } from '@solana/web3.js';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/Header';
 import { DesktopHeader } from '@/components/layout/DesktopHeader';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -32,10 +33,12 @@ import {
   hasMetGraduationConditions,
 } from '@/config/tier-config';
 import { BattleActivityFeed } from '@/components/feed/BattleActivityFeed';
+import { getCurrentNetwork } from '@/config/network';
 
 export default function BattleDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const battleId = params.id as string;
 
   // Parse battle ID to get both token mints
@@ -180,6 +183,55 @@ export default function BattleDetailPage() {
     };
   }, [showVictoryModal]);
 
+  // ═══════════════════════════════════════════════════════════════
+  // ⭐ SYNC TOKENS FROM BLOCKCHAIN ON LOAD
+  // ═══════════════════════════════════════════════════════════════
+
+  // Track activity refresh (increment after each sync to force BattleActivityFeed refresh)
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+
+  const syncToken = useCallback(async (mintAddress: string) => {
+    try {
+      // ⭐ FIX: Use getCurrentNetwork() helper which uses correct key 'bonk-network'
+      const network = getCurrentNetwork();
+      console.log(`🔄 Syncing token: ${mintAddress.slice(0, 8)}... (network: ${network})`);
+
+      const response = await fetch(`/api/sync-token/${mintAddress}?network=${network}`);
+      const result = await response.json();
+      if (result.success) {
+        console.log(`✅ Synced: ${mintAddress.slice(0, 8)}...`, result);
+        // Invalidate React Query cache to force refetch
+        queryClient.invalidateQueries({ queryKey: ['tokens', mintAddress, 'battleState'] });
+        // Trigger activity feed refresh
+        setActivityRefreshKey(prev => prev + 1);
+      } else {
+        console.warn(`⚠️ Sync failed: ${result.error}`);
+      }
+      return result.success;
+    } catch (err) {
+      console.error('Sync error:', err);
+      return false;
+    }
+  }, [queryClient]);
+
+  // Sync both tokens on page load
+  useEffect(() => {
+    const syncBothTokens = async () => {
+      const syncPromises: Promise<boolean>[] = [];
+
+      if (tokenAMint) {
+        syncPromises.push(syncToken(tokenAMint.toString()));
+      }
+      if (tokenBMint) {
+        syncPromises.push(syncToken(tokenBMint.toString()));
+      }
+
+      await Promise.all(syncPromises);
+    };
+
+    syncBothTokens();
+  }, [tokenAMint, tokenBMint, syncToken]);
+
   // Fetch token A state first
   const { state: stateA, loading: loadingA, refetch: refetchA } = useTokenBattleState(tokenAMint);
 
@@ -194,6 +246,14 @@ export default function BattleDetailPage() {
 
   // Fetch token B state using effective mint
   const { state: stateB, loading: loadingB, refetch: refetchB } = useTokenBattleState(effectiveTokenBMint);
+
+  // Also sync opponent token once we know its mint
+  useEffect(() => {
+    if (effectiveTokenBMint && !tokenBMint) {
+      // Opponent mint was discovered from stateA, sync it too
+      syncToken(effectiveTokenBMint.toString());
+    }
+  }, [effectiveTokenBMint, tokenBMint, syncToken]);
 
   // Get SOL price from oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -727,8 +787,8 @@ export default function BattleDetailPage() {
                   <button
                     onClick={() => setActiveTab('comments')}
                     className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors ${activeTab === 'comments'
-                        ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
-                        : 'text-gray-400 hover:text-white'
+                      ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
+                      : 'text-gray-400 hover:text-white'
                       }`}
                   >
                     💬 Comments
@@ -736,8 +796,8 @@ export default function BattleDetailPage() {
                   <button
                     onClick={() => setActiveTab('activity')}
                     className={`flex-1 py-3 px-4 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${activeTab === 'activity'
-                        ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
-                        : 'text-gray-400 hover:text-white'
+                      ? 'text-orange-400 border-b-2 border-orange-400 bg-white/5'
+                      : 'text-gray-400 hover:text-white'
                       }`}
                   >
                     ⚡ Activity
@@ -829,6 +889,7 @@ export default function BattleDetailPage() {
                   ) : (
                     /* Activity Tab Content */
                     <BattleActivityFeed
+                      key={activityRefreshKey}
                       tokenAMint={tokenAMint?.toString() || ''}
                       tokenBMint={effectiveTokenBMint?.toString() || ''}
                       tokenASymbol={stateA?.symbol || 'TOKEN A'}
@@ -857,7 +918,9 @@ export default function BattleDetailPage() {
                       realSolReserves: currentState.realSolReserves,
                     }}
                     solPriceUsd={solPriceUsd || 0}
-                    onSuccess={() => {
+                    onSuccess={async () => {
+                      // Sync from blockchain first, then refetch from Supabase
+                      if (currentMint) await syncToken(currentMint.toString());
                       refetchA();
                       refetchB();
                     }}
@@ -1072,7 +1135,10 @@ export default function BattleDetailPage() {
           } : undefined}
           selectedToken={selectedToken}
           onSelectToken={setSelectedToken}
-          onSuccess={() => {
+          onSuccess={async () => {
+            // Sync current token from blockchain, then refetch
+            const currentMintStr = selectedToken === 'A' ? tokenAMint?.toString() : effectiveTokenBMint?.toString();
+            if (currentMintStr) await syncToken(currentMintStr);
             refetchA();
             refetchB();
           }}

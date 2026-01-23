@@ -266,6 +266,29 @@ export default function BattleCardAdminPage() {
   const tokenA = getTokenInfo(config.token_a_mint);
   const tokenB = getTokenInfo(config.token_b_mint);
 
+  // Share to X (Twitter)
+  const handleShareToX = () => {
+    if (!tokenA || !tokenB) return;
+
+    const battleUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://bonkbattle.lol'}/battle/${config.token_a_mint}-${config.token_b_mint}`;
+
+    const tweetText = `🚨 NEW BATTLE LIVE!
+
+${config.question}
+
+$${tokenA.symbol} ⚔️ $${tokenB.symbol}
+
+💰 $100 → $50,000 potential
+🏆 Winner gets listed on DEX!
+
+Pick your side 👇
+#BonkBattle #Solana #Crypto`;
+
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(battleUrl)}`;
+
+    window.open(twitterUrl, '_blank', 'width=550,height=520');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
@@ -538,6 +561,58 @@ export default function BattleCardAdminPage() {
             </div>
           </div>
         </div>
+
+        {/* Section 5: Publish to X */}
+        <div className="mt-8 p-6 bg-[#1a1a24] border border-[#2a2a3a] rounded-xl">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <span className="w-7 h-7 bg-[#00ff88] rounded-full flex items-center justify-center text-sm text-black font-bold">5</span>
+            Publish to X
+          </h2>
+
+          <p className="text-gray-400 text-sm mb-4">
+            Share this battle on the official BONK BATTLE X account. Twitter will automatically fetch the OG preview card.
+          </p>
+
+          {tokenA && tokenB ? (
+            <div className="space-y-4">
+              {/* Tweet Preview */}
+              <div className="bg-[#0a0a0f] border border-gray-700 rounded-lg p-4">
+                <p className="text-sm text-gray-300 whitespace-pre-line leading-relaxed">
+                  {`🚨 NEW BATTLE LIVE!
+
+${config.question}
+
+$${tokenA.symbol} ⚔️ $${tokenB.symbol}
+
+💰 $100 → $50,000 potential
+🏆 Winner gets listed on DEX!
+
+Pick your side 👇
+#BonkBattle #Solana #Crypto`}
+                </p>
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  <span className="text-xs text-gray-500">🔗 Battle URL will be attached automatically</span>
+                </div>
+              </div>
+
+              {/* Share Button */}
+              <button
+                onClick={handleShareToX}
+                className="w-full py-4 bg-black hover:bg-gray-900 border border-gray-600 rounded-lg font-bold transition-colors flex items-center justify-center gap-3"
+              >
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                <span className="text-white">Share on X</span>
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-4 bg-[#0a0a0f] rounded-lg">
+              Select both tokens above to enable sharing
+            </p>
+          )}
+        </div>
+
         </div>
       </main>
     </div>

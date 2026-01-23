@@ -51,10 +51,12 @@ const DEFAULT_LIMIT = 50;
 const DEFAULT_WHALE_THRESHOLD = 500; // $500 USD
 const REFRESH_INTERVAL = 30000; // 30 seconds
 
-// Get current network from env and map to database value
-const SOLANA_NETWORK = process.env.NEXT_PUBLIC_SOLANA_NETWORK || 'mainnet-beta';
-// Database stores 'mainnet' or 'devnet', env has 'mainnet-beta' or 'devnet'
-const CURRENT_NETWORK_DB = SOLANA_NETWORK === 'mainnet-beta' ? 'mainnet' : 'devnet';
+// ⭐ Helper to get current network from localStorage (matches network.ts)
+function getCurrentNetworkDB(): 'mainnet' | 'devnet' {
+  if (typeof window === 'undefined') return 'mainnet';
+  const saved = localStorage.getItem('bonk-network');
+  return (saved === 'devnet' || saved === 'mainnet') ? saved : 'mainnet';
+}
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -101,11 +103,14 @@ export function useActivityFeed(options: UseActivityFeedOptions = {}) {
   // Fetch events from API/Supabase
   const fetchEvents = useCallback(async () => {
     try {
+      // ⭐ Get current network dynamically (reads from localStorage)
+      const networkDb = getCurrentNetworkDB();
+
       // Build query
       let query = supabase
         .from('user_trades')
         .select('*')
-        .eq('network', CURRENT_NETWORK_DB) // ⭐ Filter by current network
+        .eq('network', networkDb) // ⭐ Filter by current network
         .order('block_time', { ascending: false })
         .limit(limit);
 
@@ -244,7 +249,9 @@ export function useActivityFeed(options: UseActivityFeedOptions = {}) {
 
   // Real-time subscription
   useEffect(() => {
-    const channelName = tokenMint ? `activity-${tokenMint}-${CURRENT_NETWORK_DB}` : `activity-global-${CURRENT_NETWORK_DB}`;
+    // ⭐ Get current network at subscription time
+    const networkDb = getCurrentNetworkDB();
+    const channelName = tokenMint ? `activity-${tokenMint}-${networkDb}` : `activity-global-${networkDb}`;
 
     const channel = supabase
       .channel(channelName)
@@ -255,14 +262,14 @@ export function useActivityFeed(options: UseActivityFeedOptions = {}) {
           schema: 'public',
           table: 'user_trades',
           filter: tokenMint
-            ? `token_mint=eq.${tokenMint},network=eq.${CURRENT_NETWORK_DB}`
-            : `network=eq.${CURRENT_NETWORK_DB}`,
+            ? `token_mint=eq.${tokenMint},network=eq.${networkDb}`
+            : `network=eq.${networkDb}`,
         },
         async (payload) => {
           const trade = payload.new as any;
 
           // ⭐ Double-check network filter (in case realtime filter doesn't work)
-          if (trade.network !== CURRENT_NETWORK_DB) return;
+          if (trade.network !== networkDb) return;
 
           // Apply trade type filter
           if (filter === 'buys' && trade.trade_type !== 'buy') return;
