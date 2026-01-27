@@ -1,17 +1,19 @@
 /**
  * BONK BATTLE - Finalize Duel (CRON 2)
  * GET /api/battles/finalize-duel
- * 
+ *
  * Scans VictoryPending tokens and finalizes the duel.
  * Transfers spoils from loser to winner.
  * Updates: VictoryPending → Listed
- * 
+ *
  * Run every 2 minutes via Vercel Cron
- * 
+ *
  * ⭐ SECURITY FIX: Added CRON_SECRET authentication
+ * ⭐ POTENTIALS.FUN: This route is DISABLED via feature flag
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { FEATURES } from '@/config/features';
 import {
     Connection,
     PublicKey,
@@ -195,6 +197,16 @@ async function finalizeDuelForToken(
 
 export async function GET(request: NextRequest) {
     const startTime = Date.now();
+
+    // ⭐ POTENTIALS.FUN: Feature disabled
+    if (!FEATURES.SHOW_FINALIZE_DUEL_API) {
+        console.log('⚠️ finalize-duel API is disabled (POTENTIALS.FUN mode)');
+        return NextResponse.json({
+            success: false,
+            error: 'Feature disabled',
+            message: 'Battles are not active in this version. Single token graduation is used instead.'
+        }, { status: 404 });
+    }
 
     // ⭐ SECURITY: Verify authentication (NEW)
     if (!verifyAuth(request)) {

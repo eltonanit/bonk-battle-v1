@@ -1,4 +1,6 @@
 // app/src/app/battle/[id]/page.tsx
+// ⭐ POTENTIALS.FUN: This page is HIDDEN via feature flag
+// Will be re-enabled when battles are implemented
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -34,12 +36,33 @@ import {
 } from '@/config/tier-config';
 import { BattleActivityFeed } from '@/components/feed/BattleActivityFeed';
 import { getCurrentNetwork } from '@/config/network';
+import { FEATURES } from '@/config/features';
 
 export default function BattleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
   const battleId = params.id as string;
+
+  // ⭐ POTENTIALS.FUN: Redirect to home if battles are disabled
+  useEffect(() => {
+    if (!FEATURES.SHOW_BATTLE_PAGE) {
+      router.replace('/');
+    }
+  }, [router]);
+
+  // Show nothing while redirecting
+  if (!FEATURES.SHOW_BATTLE_PAGE) {
+    return (
+      <div className="min-h-screen bg-bonk-dark text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">⚔️</div>
+          <div className="text-xl font-bold mb-2">Battles Coming Soon</div>
+          <div className="text-gray-400">Redirecting to home...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Parse battle ID to get both token mints
   const [tokenAMint, tokenBMint] = useMemo(() => {

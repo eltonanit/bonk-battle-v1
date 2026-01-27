@@ -1,5 +1,6 @@
 // app/src/components/token/QualificationPopup.tsx
 // ✅ V3 UPDATE: $10 is SUGGESTION only - any buy amount qualifies the token
+// ⭐ POTENTIALS.FUN: This component is HIDDEN via feature flag
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,6 +12,7 @@ import { Lightbulb, X } from 'lucide-react';
 import { BattleReadyPopup } from '@/components/shared/BattleReadyPopup';
 import { PointsNotification } from '@/components/shared/PointsNotification';
 import { addPointsForBuyToken, POINTS_VALUES } from '@/lib/points';
+import { FEATURES } from '@/config/features';
 
 interface QualificationPopupProps {
     mint: PublicKey;
@@ -21,6 +23,11 @@ interface QualificationPopupProps {
 }
 
 export function QualificationPopup({ mint, tokenSymbol, tokenImage, onQualified, onClose }: QualificationPopupProps) {
+    // ⭐ POTENTIALS.FUN: Hidden via feature flag
+    if (!FEATURES.SHOW_QUALIFICATION_POPUP) {
+        return null;
+    }
+
     const { publicKey, signTransaction } = useWallet();
     const { connection } = useConnection();
     const { solPriceUsd } = usePriceOracle();

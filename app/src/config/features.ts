@@ -44,6 +44,16 @@ export const FEATURES = {
   SHOW_ABOUT_TO_WIN_TAB: false,
   SHOW_WINNERS_TAB: false,
 
+  // ============================================================================
+  // POTENTIALS.FUN - HIDDEN BATTLE FEATURES
+  // ============================================================================
+
+  // Battle system - Hidden for POTENTIALS.FUN (single token graduation)
+  SHOW_VICTORY_MODAL: false,          // Victory celebration modal
+  SHOW_BATTLE_PAGE: false,            // /battle/[id] page
+  SHOW_FINALIZE_DUEL_API: false,      // finalize-duel API route
+  SHOW_QUALIFICATION_POPUP: false,    // Qualification popup
+
   // Profile page tabs - Hidden in S1
   SHOW_PROFILE_COINS_TAB: false,
   SHOW_PROFILE_ARMY_TAB: false,

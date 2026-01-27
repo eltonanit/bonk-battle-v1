@@ -332,7 +332,8 @@ async function withdrawForListing(
 async function createRaydiumPool(
     connection: Connection,
     keeper: Keypair,
-    mint: PublicKey
+    mint: PublicKey,
+    solAmountFromWithdraw: number = 0  // ⭐ NEW PARAMETER: SOL actually withdrawn
 ): Promise<{ success: boolean; poolId?: string; signature?: string; error?: string }> {
 
     console.log(`🌊 Creating Raydium pool for ${mint.toString().slice(0, 8)}...`);
@@ -367,15 +368,28 @@ async function createRaydiumPool(
             return { success: false, error: 'Keeper has 0 tokens' };
         }
 
+        // ⭐ FIX V3: Use withdrawn SOL amount, NOT keeper's full balance!
         const keeperBalance = await connection.getBalance(keeper.publicKey);
         const keeperSol = keeperBalance / 1e9;
-        const actualSolAmount = Math.min(keeperSol - 0.1, 7); // Leave 0.1 for fees, max 7 SOL
 
-        if (actualSolAmount < 1) {
-            return { success: false, error: `Insufficient SOL: ${keeperSol.toFixed(2)}` };
+        let actualSolAmount: number;
+
+        if (solAmountFromWithdraw > 0) {
+            // Use the SOL actually withdrawn from bonding curve (minus fee margin)
+            actualSolAmount = Math.max(solAmountFromWithdraw - 0.02, 0);
+            console.log(`   📊 Using withdrawn SOL: ${actualSolAmount.toFixed(4)} SOL (from ${solAmountFromWithdraw.toFixed(4)})`);
+        } else {
+            // Fallback: recovery mode for already-withdrawn tokens
+            // Use conservative amount from keeper balance
+            actualSolAmount = Math.min(keeperSol - 0.15, 0.5); // Max 0.5 SOL as fallback
+            console.log(`   ⚠️ WARNING: No withdraw amount provided, using fallback: ${actualSolAmount.toFixed(4)} SOL`);
         }
 
-        console.log(`   SOL: ${actualSolAmount.toFixed(2)}`);
+        if (actualSolAmount < 0.05) {
+            return { success: false, error: `Insufficient SOL for pool: ${actualSolAmount.toFixed(4)} SOL (withdrawn: ${solAmountFromWithdraw.toFixed(4)})` };
+        }
+
+        console.log(`   SOL for pool: ${actualSolAmount.toFixed(4)}`);
         console.log(`   Tokens: ${(BigInt(tokenAmountRaw) / BigInt(1e9)).toString()}`);
 
         const solAmountBN = new BN(Math.floor(actualSolAmount * 1e9));
@@ -466,6 +480,10 @@ async function processListedToken(
         return { success: false, error: `Withdraw failed: ${withdrawResult.error}` };
     }
 
+    // ⭐ Capture the SOL withdrawn for pool creation
+    const solWithdrawn = withdrawResult.solWithdrawn;
+    console.log(`   💰 SOL withdrawn: ${solWithdrawn.toFixed(4)} SOL`);
+
     // If already withdrawn, check again if pool exists (might have been created)
     if (withdrawResult.alreadyWithdrawn) {
         console.log(`   🔍 Re-checking for existing pool after withdraw...`);
@@ -488,8 +506,8 @@ async function processListedToken(
 
     await sleep(2000);
 
-    // STEP 2: Create Pool
-    const poolResult = await createRaydiumPool(connection, keeper, mint);
+    // STEP 2: Create Pool - ⭐ PASS THE WITHDRAWN SOL AMOUNT!
+    const poolResult = await createRaydiumPool(connection, keeper, mint, solWithdrawn);
 
     if (!poolResult.success) {
         // ⭐ One more check - pool might have been created despite error

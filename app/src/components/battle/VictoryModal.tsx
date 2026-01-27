@@ -1,9 +1,12 @@
 // app/src/components/battle/VictoryModal.tsx
+// ⭐ POTENTIALS.FUN: This component is HIDDEN via feature flag
+// Will be re-enabled when battles are implemented
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { FEATURES } from '@/config/features';
 
 interface VictoryModalProps {
   winnerSymbol: string;
@@ -35,6 +38,11 @@ export function VictoryModal({
   onShowPointsModal,
 }: VictoryModalProps) {
   const router = useRouter();
+
+  // ⭐ POTENTIALS.FUN: Hidden via feature flag
+  if (!FEATURES.SHOW_VICTORY_MODAL) {
+    return null;
+  }
 
   // Animation states
   const [confettiPieces, setConfettiPieces] = useState<Array<{ id: number; left: string; delay: string; color: string }>>([]);
