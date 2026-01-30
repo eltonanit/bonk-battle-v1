@@ -2,7 +2,7 @@
 // ⭐ UPDATED: Uses each token's tier to get correct targets
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import type { ParsedTokenBattleState } from '@/types/bonk';
 import { BattleStatus, BattleTier } from '@/types/bonk';
@@ -100,6 +100,51 @@ export function TokenGridBonk() {
   const [poolData, setPoolData] = useState<Record<string, any>>({});
   // ⭐ Creator profiles cache (wallet -> avatar_url)
   const [creatorAvatars, setCreatorAvatars] = useState<Record<string, string | null>>({});
+
+  // 🔥 PUMP.FUN ANIMATIONS - Visual shuffle every 5 seconds
+  const [shakingCards, setShakingCards] = useState<Set<string>>(new Set());
+  const [flashingCards, setFlashingCards] = useState<Set<string>>(new Set());
+  const [animCounter, setAnimCounter] = useState(0);
+  const battlePairsRef = useRef<(BattlePair & { winner?: 'A' | 'B' | null })[]>([]);
+  // Persistent display order: array of pairKeys that accumulates reorder changes
+  const [displayOrder, setDisplayOrder] = useState<string[]>([]);
+  const displayOrderRef = useRef<string[]>([]);
+
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // 🔥 Trigger animation: shake -> flash -> move to top (persistent order)
+  const triggerTradeAnimation = useCallback((mintAddress: string) => {
+    console.log('🔥 TRADE ANIMATION:', mintAddress);
+    setShakingCards(prev => new Set(prev).add(mintAddress));
+    setAnimCounter(c => c + 1);
+
+    // Update persistent display order: move this pair to index 0
+    setDisplayOrder(prev => {
+      const pairIdx = prev.findIndex(key => key.includes(mintAddress));
+      if (pairIdx <= 0) return prev; // already at top or not found
+      const next = [...prev];
+      const [moved] = next.splice(pairIdx, 1);
+      next.unshift(moved);
+      return next;
+    });
+
+    setTimeout(() => {
+      setShakingCards(prev => {
+        const next = new Set(prev);
+        next.delete(mintAddress);
+        return next;
+      });
+      setFlashingCards(prev => new Set(prev).add(mintAddress));
+    }, 500);
+
+    setTimeout(() => {
+      setFlashingCards(prev => {
+        const next = new Set(prev);
+        next.delete(mintAddress);
+        return next;
+      });
+    }, 1200);
+  }, []);
 
   // ⭐ REAL SOL PRICE from on-chain oracle
   const { solPriceUsd, loading: priceLoading } = usePriceOracle();
@@ -289,6 +334,48 @@ export function TokenGridBonk() {
     return pairs;
   }, [allTokens]);
 
+  // 🔥 Keep battlePairs ref in sync + initialize display order
+  useEffect(() => {
+    battlePairsRef.current = battlePairs;
+    // Initialize displayOrder from battlePairs keys (only if not yet set or pairs changed)
+    const newKeys = battlePairs.map(p => `${p.tokenA.mint.toString()}-${p.tokenB.mint.toString()}`);
+    setDisplayOrder(prev => {
+      if (prev.length === 0) return newKeys;
+      // Keep existing order, add any new pairs, remove stale ones
+      const newSet = new Set(newKeys);
+      const kept = prev.filter(k => newSet.has(k));
+      const added = newKeys.filter(k => !kept.includes(k));
+      const result = [...kept, ...added];
+      displayOrderRef.current = result;
+      return result;
+    });
+  }, [battlePairs]);
+
+  // Keep displayOrderRef in sync
+  useEffect(() => {
+    displayOrderRef.current = displayOrder;
+  }, [displayOrder]);
+
+  useEffect(() => {
+    console.log('🔥 SHUFFLE INTERVAL: Starting');
+    const interval = setInterval(() => {
+      const order = displayOrderRef.current;
+      if (order.length <= 1) return;
+
+      // Pick a random pair that's NOT currently at visual position #1
+      const randomIdx = Math.floor(Math.random() * (order.length - 1)) + 1;
+      const pairKey = order[randomIdx];
+      if (pairKey) {
+        // Extract mintA from the pairKey (format: "mintA-mintB")
+        const mintA = pairKey.split('-')[0];
+        console.log('🔥 SHUFFLING visual pos', randomIdx, '→ #1 (total:', order.length, ')');
+        triggerTradeAnimation(mintA);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [triggerTradeAnimation]);
+
   // ⭐ Get tokens "About to Win" - uses each token's tier for progress calculation
   const aboutToWinTokens = useMemo((): ParsedTokenBattleState[] => {
     return allTokens
@@ -468,24 +555,54 @@ export function TokenGridBonk() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {battlePairs.map((pair, idx) => {
-              // ⭐ KEY FIX: Get tier-specific targets for THIS battle
-              const { targetSol, victoryVolumeSol } = getTierTargets(pair.tokenA.tier);
-
-              return (
-                <BattleCard
-                  key={`${pair.tokenA.mint}-${pair.tokenB.mint}-${idx}`}
-                  tokenA={toBattleToken(pair.tokenA)}
-                  tokenB={toBattleToken(pair.tokenB)}
-                  targetSol={targetSol}
-                  targetVolumeSol={victoryVolumeSol}
-                  winner={pair.winner}
-                  enableAnimations={idx < 3}
-                  goldenAnimations={idx === 0}
-                />
+          <div ref={gridRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(() => {
+              // 🔥 Reorder using persistent displayOrder
+              const pairsMap = new Map(
+                battlePairs.map(p => [`${p.tokenA.mint.toString()}-${p.tokenB.mint.toString()}`, p])
               );
-            })}
+              const orderedPairs: typeof battlePairs = [];
+              // Add pairs in displayOrder sequence
+              for (const key of displayOrder) {
+                const pair = pairsMap.get(key);
+                if (pair) {
+                  orderedPairs.push(pair);
+                  pairsMap.delete(key);
+                }
+              }
+              // Add any remaining pairs not in displayOrder
+              for (const pair of pairsMap.values()) {
+                orderedPairs.push(pair);
+              }
+
+              return orderedPairs.map((pair, idx) => {
+                const { targetSol, victoryVolumeSol } = getTierTargets(pair.tokenA.tier);
+                const mintA = pair.tokenA.mint.toString();
+                const mintB = pair.tokenB.mint.toString();
+                const pairKey = `${mintA}-${mintB}`;
+                const isShaking = shakingCards.has(mintA) || shakingCards.has(mintB);
+                const isFlashing = flashingCards.has(mintA) || flashingCards.has(mintB);
+                // Clash animation when card arrives at #1
+                const isTopAnimated = idx === 0 && (isShaking || isFlashing);
+
+                return (
+                  <div key={pairKey} data-pair-key={pairKey}>
+                    <BattleCard
+                      tokenA={toBattleToken(pair.tokenA)}
+                      tokenB={toBattleToken(pair.tokenB)}
+                      targetSol={targetSol}
+                      targetVolumeSol={victoryVolumeSol}
+                      winner={pair.winner}
+                      enableAnimations={false}
+                      goldenAnimations={false}
+                      isTradeShaking={isShaking}
+                      isFlashSweep={isFlashing}
+                      forceClash={isTopAnimated}
+                    />
+                  </div>
+                );
+              });
+            })()}
           </div>
         )
       ) : activeFilter === 'aboutToWin' ? (

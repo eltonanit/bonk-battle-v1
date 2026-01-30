@@ -260,6 +260,9 @@ interface BattleCardProps {
   showBuyButtons?: boolean;
   enableAnimations?: boolean; // Only first 3 cards + tagline get color animations
   goldenAnimations?: boolean; // First card in grid: yellow strips instead of blue/pink
+  isTradeShaking?: boolean;   // Pump.fun-style shake on trade event
+  isFlashSweep?: boolean;     // Pump.fun-style gold sweep flash
+  forceClash?: boolean;       // Immediately trigger clash animation (tokens attack + yellow glow)
 }
 
 // ⭐ NEW: Helper function to format creator display
@@ -321,6 +324,9 @@ export function BattleCard({
   showBuyButtons = true,
   enableAnimations = true,
   goldenAnimations = false,
+  isTradeShaking = false,
+  isFlashSweep = false,
+  forceClash = false,
 }: BattleCardProps) {
   const router = useRouter();
 
@@ -367,6 +373,31 @@ export function BattleCard({
   // ⭐ Get creator display for both tokens
   const creatorA = formatCreatorDisplay(tokenA);
   const creatorB = formatCreatorDisplay(tokenB);
+
+  // ⚔️ Force clash: tokens attack each other + yellow glow on arrival at #1
+  useEffect(() => {
+    if (!forceClash) {
+      // Reset all attack states when leaving #1
+      setAttackA(false);
+      setAttackB(false);
+      setClash(false);
+      return;
+    }
+    // Sequence: A attacks → B attacks → CLASH (yellow)
+    setAttackA(true);
+    const t1 = setTimeout(() => {
+      setAttackA(false);
+      setAttackB(true);
+    }, 400);
+    const t2 = setTimeout(() => {
+      setAttackB(false);
+      setClash(true);
+    }, 800);
+    const t3 = setTimeout(() => {
+      setClash(false);
+    }, 1300);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [forceClash]);
 
   // ⚔️ Random battle animations - Only for first 3 cards + tagline
   useEffect(() => {
@@ -572,7 +603,7 @@ export function BattleCard({
 
       <div
         onClick={handleCardClick}
-        className="bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer"
+        className={`bg-[#1d2531] rounded-xl overflow-hidden border border-[#2a3544] hover:border-orange-500 transition-all cursor-pointer ${isTradeShaking ? 'trade-shaking trade-border-glow' : ''} ${isFlashSweep ? 'flash-gold-sweep' : ''}`}
       >
         {/* ════════════════════════════════════════════════════════════════
             HEADER - Always visible (both tokens + MC) - PRESERVED

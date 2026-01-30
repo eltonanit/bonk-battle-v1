@@ -82,9 +82,10 @@ export function Tagline() {
 
         if (allTokens.length === 0) return;
 
-        // Find the most recent battle (InBattle status)
+        // Find the battle with highest combined MC (closest to victory)
         const battlingTokens = allTokens.filter(t => t.battleStatus === BattleStatus.InBattle);
         const processed = new Set<string>();
+        const allPairs: { tokenA: ParsedTokenBattleState; tokenB: ParsedTokenBattleState; maxMc: number }[] = [];
 
         for (const token of battlingTokens) {
           const mintStr = token.mint.toString();
@@ -95,11 +96,18 @@ export function Tagline() {
 
           const opponent = allTokens.find(t => t.mint.toString() === opponentMint);
           if (opponent) {
-            setLatestBattle({ tokenA: token, tokenB: opponent });
+            const mcA = lamportsToSol(token.realSolReserves ?? 0) * (solPriceUsd || 100);
+            const mcB = lamportsToSol(opponent.realSolReserves ?? 0) * (solPriceUsd || 100);
+            allPairs.push({ tokenA: token, tokenB: opponent, maxMc: Math.max(mcA, mcB) });
             processed.add(mintStr);
             processed.add(opponentMint);
-            break;
           }
+        }
+
+        // Sort by highest MC and pick the top battle
+        allPairs.sort((a, b) => b.maxMc - a.maxMc);
+        if (allPairs.length > 0) {
+          setLatestBattle({ tokenA: allPairs[0].tokenA, tokenB: allPairs[0].tokenB });
         }
 
         const taglineTokens: TaglineToken[] = allTokens.slice(0, 15).map((token) => {
