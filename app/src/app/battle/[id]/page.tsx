@@ -585,7 +585,7 @@ export default function BattleDetailPage() {
           </div>
 
           {/* Battle Score Header */}
-          <div className="battle-grid-bg border border-[#2a3544] rounded-xl p-4 mb-6">
+          <div className="border border-[#2a3544] rounded-xl p-4 mb-6">
             <div className="flex items-center justify-between">
               {/* Token A */}
               <div

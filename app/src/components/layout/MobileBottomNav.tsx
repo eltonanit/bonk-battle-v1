@@ -73,34 +73,45 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Home</span>
           </Link>
 
-          {/* PROFILE - Shows balance */}
+          {/* BATTLES */}
           <Link
-            href="/profile"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
-                ? 'text-sky-400 bg-sky-500/20'
-                : 'text-white/60'
-              }`}
-          >
-            <span className={`text-[15px] font-bold ${connected && balanceUsd ? 'text-green-400' : 'text-white/40'}`}>
-              ${connected && balanceUsd ? balanceUsd : '0'}
-            </span>
-            <span className="text-[11px] font-semibold">Profile</span>
-          </Link>
-
-          {/* 1000x */}
-          <Link
-            href="/holders"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/holders')
-                ? 'text-green-400 bg-green-500/20'
-                : 'text-green-400'
+            href="/battlestart"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/battlestart')
+                ? 'text-red-400 bg-red-500/20'
+                : 'text-red-400'
               }`}
           >
             <span className="w-6 h-6">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                <path d="M14.5 17.5L3 6V3h3l11.5 11.5" />
+                <path d="M13 19l6-6" />
+                <path d="M16 16l4 4" />
+                <path d="M19 21l2-2" />
+                <path d="M14.5 6.5L21 3v3L9.5 17.5" />
+                <path d="M5 14l4-4" />
+                <path d="M7 17l-4 4" />
+                <path d="M3 19l2 2" />
               </svg>
             </span>
-            <span className="text-[11px] font-semibold">1000x</span>
+            <span className="text-[11px] font-semibold">Battles</span>
+          </Link>
+
+          {/* CREATE COIN */}
+          <Link
+            href="/create"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/create')
+                ? 'text-emerald-400 bg-emerald-500/20'
+                : 'text-emerald-400'
+              }`}
+          >
+            <span className="w-6 h-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="16" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+              </svg>
+            </span>
+            <span className="text-[11px] font-semibold">Create</span>
           </Link>
 
           {/* NOW - Orange/Fire */}
@@ -119,25 +130,18 @@ export function MobileBottomNav() {
             <span className="text-[11px] font-semibold">Now</span>
           </Link>
 
-          {/* TOP - Gold/Trophy */}
+          {/* PROFILE - Shows balance */}
           <Link
-            href="/top"
-            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/top')
-                ? 'text-yellow-400 bg-yellow-500/20'
-                : 'text-yellow-400'
+            href="/profile"
+            className={`flex flex-col items-center gap-1 py-2 px-2 rounded-xl transition-all ${isActive('/profile')
+                ? 'text-sky-400 bg-sky-500/20'
+                : 'text-white/60'
               }`}
           >
-            <span className="w-6 h-6">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-full h-full">
-                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-                <path d="M4 22h16" />
-                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-                <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-              </svg>
+            <span className={`text-[15px] font-bold ${connected && balanceUsd ? 'text-green-400' : 'text-white/40'}`}>
+              ${connected && balanceUsd ? balanceUsd : '0'}
             </span>
-            <span className="text-[11px] font-semibold">Top</span>
+            <span className="text-[11px] font-semibold">Profile</span>
           </Link>
 
         </div>

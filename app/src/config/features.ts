@@ -23,11 +23,11 @@ export const FEATURES = {
   // Create Coin - Only platform creates battles in S1
   SHOW_CREATE_COIN: false,
 
-  // Armies system - No armies in S1, only curated battles
-  SHOW_ARMIES: false,
+  // Armies system
+  SHOW_ARMIES: true,
 
-  // Join ARMY button - Not needed in S1
-  SHOW_JOIN_ARMY: false,
+  // Join ARMY button
+  SHOW_JOIN_ARMY: true,
 
   // New Coins tab - Only 5 curated battles
   SHOW_NEW_COINS: false,
@@ -38,21 +38,21 @@ export const FEATURES = {
   // Created Ticker - Hide "X CREATED $Y" ticker in S1
   SHOW_CREATED_TICKER: false,
 
-  // Home page tabs - Hidden in S1
-  SHOW_BATTLE_TAB: false,
-  SHOW_NEW_COINS_TAB: false,
-  SHOW_ABOUT_TO_WIN_TAB: false,
-  SHOW_WINNERS_TAB: false,
+  // Home page tabs
+  SHOW_BATTLE_TAB: true,
+  SHOW_NEW_COINS_TAB: true,
+  SHOW_ABOUT_TO_WIN_TAB: true,
+  SHOW_WINNERS_TAB: true,
 
   // ============================================================================
   // POTENTIALS.FUN - HIDDEN BATTLE FEATURES
   // ============================================================================
 
-  // Battle system - Hidden for POTENTIALS.FUN (single token graduation)
-  SHOW_VICTORY_MODAL: false,          // Victory celebration modal
-  SHOW_BATTLE_PAGE: false,            // /battle/[id] page
-  SHOW_FINALIZE_DUEL_API: false,      // finalize-duel API route
-  SHOW_QUALIFICATION_POPUP: false,    // Qualification popup
+  // Battle system - Re-enabled for BONK-BATTLE
+  SHOW_VICTORY_MODAL: true,           // Victory celebration modal
+  SHOW_BATTLE_PAGE: true,             // /battle/[id] page
+  SHOW_FINALIZE_DUEL_API: true,       // finalize-duel API route
+  SHOW_QUALIFICATION_POPUP: true,     // Qualification popup
 
   // Profile page tabs - Hidden in S1
   SHOW_PROFILE_COINS_TAB: false,

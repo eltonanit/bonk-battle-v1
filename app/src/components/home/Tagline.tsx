@@ -4,27 +4,12 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { fetchAllBonkTokens } from '@/lib/solana/fetch-all-bonk-tokens';
 import Link from 'next/link';
-import Image from 'next/image';
 import { ParsedTokenBattleState, BattleStatus, BattleTier } from '@/types/bonk';
-import { KalshiBattleCard } from '@/components/shared/KalshiBattleCard';
-import { KalshiChart } from '@/components/shared/KalshiChart';
+import { BattleCard } from '@/components/shared/BattleCard';
 import { usePriceOracle } from '@/hooks/usePriceOracle';
 import { lamportsToSol } from '@/lib/solana/constants';
-import { FEATURES } from '@/config/features';
 import { calculateMarketCapUsd as calcMcUsd } from '@/config/tier-config';
-
-// Battle Card Config from admin
-interface BattleCardConfig {
-  question: string;
-  question_image_url: string | null;
-  target_text: string;
-  context_text: string;
-  selected_battle_id: string | null;
-  token_a_buy_link: string | null;
-  token_b_buy_link: string | null;
-  is_active: boolean;
-  network: string;
-}
+import Image from 'next/image';
 
 // ⭐ TIER TARGETS - Must match smart contract & constants.ts!
 // Contract: PROD_TARGET_SOL = 14_586_338_000_000_000 lamports (~$2.07B @ $142/SOL)
@@ -60,12 +45,6 @@ interface TaglineToken {
   tier: number;
 }
 
-const FEATURED_IMAGES = [
-  '/tagline/1.png',
-  '/3.png',
-  '/4.png',
-];
-
 interface BattlePair {
   tokenA: ParsedTokenBattleState;
   tokenB: ParsedTokenBattleState;
@@ -76,25 +55,24 @@ export function Tagline() {
   const [latestBattle, setLatestBattle] = useState<BattlePair | null>(null);
   const tokenScrollRef = useRef<HTMLDivElement>(null);
   const [isHoveringTokens, setIsHoveringTokens] = useState(false);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { solPriceUsd } = usePriceOracle();
-  // ⭐ Battle Card Config from admin
-  const [battleCardConfig, setBattleCardConfig] = useState<BattleCardConfig | null>(null);
 
-  // ⭐ Fetch Battle Card Config from admin
+  // Top Armies
+  const [topArmies, setTopArmies] = useState<{ id: string; name: string; image_url: string | null; icon: string; member_count: number }[]>([]);
+
   useEffect(() => {
-    async function fetchConfig() {
+    async function fetchTopArmies() {
       try {
-        const res = await fetch('/api/admin/battle-card-config');
+        const res = await fetch('/api/armies?sort=top');
         if (res.ok) {
           const data = await res.json();
-          setBattleCardConfig(data);
+          setTopArmies((data.armies || []).slice(0, 4));
         }
       } catch (err) {
-        console.error('Error fetching battle card config:', err);
+        console.error('Error fetching top armies:', err);
       }
     }
-    fetchConfig();
+    fetchTopArmies();
   }, []);
 
   useEffect(() => {
@@ -166,14 +144,6 @@ export function Tagline() {
 
     return () => clearInterval(interval);
   }, [isHoveringTokens, tokens.length]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % FEATURED_IMAGES.length);
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const formatMarketCap = (mc: number): string => {
     if (mc >= 1000000) return `$${(mc / 1000000).toFixed(2)}M`;
@@ -307,26 +277,32 @@ export function Tagline() {
         }
       `}</style>
 
-      {/* ⭐ MAIN TAGLINE - Above everything */}
-      <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white text-center mb-6">
-        Who will reach $10.00B first?
-      </h1>
-
       {/* ⭐ LAYOUT: Mobile stack, Desktop full width when ARMIES hidden */}
-      <div className={`flex flex-col gap-6 ${FEATURES.SHOW_ARMIES ? 'lg:grid lg:grid-cols-2' : ''}`}>
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 
         {/* ===== LEFT SIDE - COLOSSEUM (visible on all screens) ===== */}
         <div className="order-1 lg:order-1">
+          {/* THE COLOSSEUM heading */}
+          <h2
+            className="text-2xl lg:text-3xl font-extrabold text-center mb-4"
+            style={{
+              color: '#38bdf8',
+              textShadow: '0 0 15px rgba(56, 189, 248, 0.5)',
+              letterSpacing: '0.15em',
+            }}
+          >
+            THE COLOSSEUM
+          </h2>
+
           {/* ⭐ Battle Section */}
           <div>
             {/* ⭐ NEW: Kalshi-style Battle Card */}
             {latestBattle ? (
               <>
-                {/* Battle Card + Chart side by side on desktop */}
-                <div className="flex flex-col lg:flex-row gap-4 justify-center items-stretch">
-                  {/* Battle Card */}
-                  <div className="flex-1 max-w-[420px]">
-                    <KalshiBattleCard
+                {/* Standard BattleCard */}
+                <div className="flex justify-center">
+                  <div className="w-full max-w-[480px]">
+                    <BattleCard
                       tokenA={{
                         mint: latestBattle.tokenA.mint.toString(),
                         name: latestBattle.tokenA.name || 'Unknown',
@@ -334,6 +310,8 @@ export function Tagline() {
                         image: latestBattle.tokenA.image || null,
                         marketCapUsd: calculateMarketCapUsd(latestBattle.tokenA),
                         solCollected: lamportsToSol(latestBattle.tokenA.realSolReserves ?? 0),
+                        totalVolumeSol: latestBattle.tokenA.totalVolumeSol ?? lamportsToSol(latestBattle.tokenA.totalTradeVolume ?? 0),
+                        tokensSold: latestBattle.tokenA.tokensSold,
                       }}
                       tokenB={{
                         mint: latestBattle.tokenB.mint.toString(),
@@ -342,35 +320,12 @@ export function Tagline() {
                         image: latestBattle.tokenB.image || null,
                         marketCapUsd: calculateMarketCapUsd(latestBattle.tokenB),
                         solCollected: lamportsToSol(latestBattle.tokenB.realSolReserves ?? 0),
+                        totalVolumeSol: latestBattle.tokenB.totalVolumeSol ?? lamportsToSol(latestBattle.tokenB.totalTradeVolume ?? 0),
+                        tokensSold: latestBattle.tokenB.tokensSold,
                       }}
-                      config={{
-                        question: battleCardConfig?.question || 'Which satisfies you most?',
-                        target_text: battleCardConfig?.target_text || 'First to $10B wins.',
-                        context_text: battleCardConfig?.context_text || '',
-                        token_a_link: battleCardConfig?.token_a_buy_link || null,
-                        token_b_link: battleCardConfig?.token_b_buy_link || null,
-                      }}
-                    />
-                  </div>
-
-                  {/* Chart */}
-                  <div className="flex-1 max-w-[500px]">
-                    <KalshiChart
-                      tokenA={{
-                        mint: latestBattle.tokenA.mint.toString(),
-                        name: latestBattle.tokenA.name || 'Unknown',
-                        symbol: latestBattle.tokenA.symbol || '???',
-                        image: latestBattle.tokenA.image || null,
-                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenA),
-                      }}
-                      tokenB={{
-                        mint: latestBattle.tokenB.mint.toString(),
-                        name: latestBattle.tokenB.name || 'Unknown',
-                        symbol: latestBattle.tokenB.symbol || '???',
-                        image: latestBattle.tokenB.image || null,
-                        marketCapUsd: calculateMarketCapUsd(latestBattle.tokenB),
-                      }}
-                      targetMarketCap={10_000_000_000}
+                      targetSol={battleTargets.targetSol}
+                      targetVolumeSol={battleTargets.victoryVolumeSol}
+                      showBuyButtons={true}
                     />
                   </div>
                 </div>
@@ -406,84 +361,77 @@ export function Tagline() {
           </div>
         </div>
 
-        {/* ===== RIGHT SIDE - SLIDER IMMAGINI (DESKTOP ONLY) - HIDDEN IN SEASON 1 ===== */}
-        {FEATURES.SHOW_ARMIES && (
-          <div className="hidden lg:block order-2">
-            {/* DONT TRADE ALONE JOIN AN ARMY */}
-            <h2
-              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold mt-6 mb-4 flex items-center justify-center gap-2"
-              style={{
-                color: '#FACC15',
-                textShadow: '0 0 15px rgba(250, 204, 21, 0.4)'
-              }}
-            >
-              DONT TRADE ALONE JOIN AN ARMY
-            </h2>
+        {/* ===== RIGHT SIDE - JOIN ARMY + LEGENDARY CREATORS (DESKTOP ONLY) ===== */}
+        <div className="hidden lg:flex flex-col items-center justify-center order-2 gap-6">
 
-            {/* JOIN ARMY TO BATTLE Button */}
-            <div className="flex justify-center mb-4">
-              <Link
-                href="/armies"
-                className="inline-flex items-center gap-2 px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-colors"
-              >
-              <svg viewBox="0 0 640 640" fill="currentColor" className="w-5 h-5">
-                <path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/>
-              </svg>
-              JOIN ARMY TO BATTLE
-              </Link>
-            </div>
+          {/* --- DON'T TRADE ALONE JOIN AN ARMY --- */}
+          <h2
+            className="text-2xl lg:text-3xl font-extrabold text-center"
+            style={{
+              color: '#FACC15',
+              textShadow: '0 0 15px rgba(250, 204, 21, 0.4)'
+            }}
+          >
+            DON&apos;T TRADE ALONE JOIN AN ARMY
+          </h2>
 
-            {/* ⭐ Container slider - ALTEZZA RIDOTTA per matchare sinistra */}
-            <div className="relative w-full h-[180px] lg:h-[280px] bg-black border border-white/10 rounded-xl overflow-hidden">
-              {/* Immagini */}
-              {FEATURED_IMAGES.map((imgSrc, index) => (
-                <div
-                  key={index}
-                  className={`absolute inset-0 transition-opacity duration-500 ${index === currentImageIndex ? 'opacity-100' : 'opacity-0'
-                    }`}
+          <Link
+            href="/armies"
+            className="inline-flex items-center gap-2 px-6 py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl transition-colors"
+          >
+            <svg viewBox="0 0 640 640" fill="currentColor" className="w-5 h-5">
+              <path d="M320 80C377.4 80 424 126.6 424 184C424 241.4 377.4 288 320 288C262.6 288 216 241.4 216 184C216 126.6 262.6 80 320 80zM96 152C135.8 152 168 184.2 168 224C168 263.8 135.8 296 96 296C56.2 296 24 263.8 24 224C24 184.2 56.2 152 96 152zM0 480C0 409.3 57.3 352 128 352C140.8 352 153.2 353.9 164.9 357.4C132 394.2 112 442.8 112 496L112 512C112 523.4 114.4 534.2 118.7 544L32 544C14.3 544 0 529.7 0 512L0 480zM521.3 544C525.6 534.2 528 523.4 528 512L528 496C528 442.8 508 394.2 475.1 357.4C486.8 353.9 499.2 352 512 352C582.7 352 640 409.3 640 480L640 512C640 529.7 625.7 544 608 544L521.3 544zM472 224C472 184.2 504.2 152 544 152C583.8 152 616 184.2 616 224C616 263.8 583.8 296 544 296C504.2 296 472 263.8 472 224zM160 496C160 407.6 231.6 336 320 336C408.4 336 480 407.6 480 496L480 512C480 529.7 465.7 544 448 544L192 544C174.3 544 160 529.7 160 512L160 496z"/>
+            </svg>
+            JOIN ARMY TO BATTLE
+          </Link>
+
+          {/* --- TOP ARMIES --- */}
+          <div>
+            <h4 className="text-[#bbb89b] text-[10px] font-bold tracking-widest uppercase mb-4 text-center">
+              LEGENDARY ARMIES
+            </h4>
+            <div className="flex items-start gap-6">
+              {topArmies.length > 0 ? topArmies.map((army, index) => (
+                <Link
+                  key={army.id}
+                  href="/armies"
+                  className={`flex flex-col items-center gap-2 text-center group ${index > 0 ? 'grayscale opacity-70 hover:grayscale-0 hover:opacity-100' : ''} transition-all`}
+                  style={{ width: 100 }}
                 >
-                  <Image
-                    src={imgSrc}
-                    alt={`Featured ${index + 1}`}
-                    fill
-                    className="object-cover"
-                    priority={index === 0}
-                    onError={(e) => {
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `
-                          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-green-500 to-emerald-600 text-white text-4xl font-bold">
-                            🚀
-                          </div>
-                        `;
-                      }
-                    }}
-                  />
-                </div>
-              ))}
-
-              {/* ⭐ PALLINI INDICATORI */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-                {FEATURED_IMAGES.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentImageIndex(index)}
-                    className={`h-2 rounded-full transition-all ${index === currentImageIndex
-                      ? 'bg-yellow-400 w-6'
-                      : 'bg-white/40 hover:bg-white/60 w-2'
-                      }`}
-                    aria-label={`Go to image ${index + 1}`}
-                  />
-                ))}
-              </div>
+                  <div className={`rounded-full overflow-hidden ${index === 0
+                    ? 'border-2 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.4)] p-[3px]'
+                    : 'border border-white/20 p-[2px]'
+                  }`}>
+                    {army.image_url ? (
+                      <Image
+                        src={army.image_url}
+                        alt={army.name}
+                        width={90}
+                        height={90}
+                        className="rounded-full object-cover w-[90px] h-[90px]"
+                      />
+                    ) : (
+                      <div className="w-[90px] h-[90px] rounded-full bg-white/10 flex items-center justify-center text-3xl">
+                        {army.icon}
+                      </div>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-bold uppercase leading-tight ${index === 0 ? 'text-yellow-400' : 'text-white'}`}>
+                    {army.name}
+                  </span>
+                </Link>
+              )) : (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2" style={{ width: 100 }}>
+                    <div className="w-[90px] h-[90px] rounded-full bg-white/5 animate-pulse" />
+                    <div className="w-14 h-2 rounded bg-white/5 animate-pulse" />
+                  </div>
+                ))
+              )}
             </div>
-
-            {/* Blue text below slides */}
-            <p className="text-center mt-4 text-lg font-bold uppercase tracking-wide" style={{ color: '#38bdf8', textShadow: '0 0 15px rgba(56, 189, 248, 0.5)' }}>
-              BATTLECOIN MARKET IS WHERE COMMUNITIES TURN IN TO ARMIES
-            </p>
           </div>
-        )}
+
+        </div>
       </div>
     </div>
   );

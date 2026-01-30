@@ -572,11 +572,9 @@ export function BattleCard({
             HEADER - Always visible (both tokens + MC) - PRESERVED
         ════════════════════════════════════════════════════════════════ */}
         <div
-          className={`${!isEpicBattle ? 'battle-grid-bg' : ''} px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
+          className={`px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
           style={isEpicBattle ? {
-            backgroundColor: '#2D1065',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cpath d='M20 0 L40 20 L20 40 L0 20 Z' fill='%23391A76' stroke='%23230460' stroke-width='1'/%3E%3C/svg%3E")`,
-            backgroundSize: '40px 40px'
+            backgroundColor: '#2D1065'
           } : {}}
         >
           {/* Responsive container that scales with zoom */}

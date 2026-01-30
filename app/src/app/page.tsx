@@ -10,7 +10,6 @@ import { FOMOTicker } from '@/components/global/FOMOTicker';
 import { NowMomentTicker } from '@/components/global/NowMomentTicker';
 import { CreatedTicker } from '@/components/global/CreatedTicker';
 import { Tagline } from '@/components/home/Tagline';
-import { HomeTabsSection } from '@/components/home/HomeTabsSection';
 import { TokenGridBonk } from '@/components/home/TokenGrid.BONK';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
@@ -41,9 +40,6 @@ export default function HomePage() {
       <div className="pt-36 lg:pt-0 lg:ml-56 lg:mt-12 max-w-full">
 
         <Tagline />
-
-        {/* HOME TABS: Last Trade | On Battle */}
-        <HomeTabsSection />
 
         <TokenGridBonk />
       </div>
