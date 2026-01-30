@@ -258,6 +258,8 @@ interface BattleCardProps {
   isEpicBattle?: boolean;
   showShareButton?: boolean;
   showBuyButtons?: boolean;
+  enableAnimations?: boolean; // Only first 3 cards + tagline get color animations
+  goldenAnimations?: boolean; // First card in grid: yellow strips instead of blue/pink
 }
 
 // ⭐ NEW: Helper function to format creator display
@@ -317,6 +319,8 @@ export function BattleCard({
   isEpicBattle = false,
   showShareButton = true,
   showBuyButtons = true,
+  enableAnimations = true,
+  goldenAnimations = false,
 }: BattleCardProps) {
   const router = useRouter();
 
@@ -364,8 +368,10 @@ export function BattleCard({
   const creatorA = formatCreatorDisplay(tokenA);
   const creatorB = formatCreatorDisplay(tokenB);
 
-  // ⚔️ Random battle animations - PRESERVED FROM ORIGINAL
+  // ⚔️ Random battle animations - Only for first 3 cards + tagline
   useEffect(() => {
+    if (!enableAnimations) return; // Skip animations for cards beyond first 3
+
     let timeoutId: NodeJS.Timeout;
     let animationTimeoutId: NodeJS.Timeout;
     let isMounted = true;
@@ -408,7 +414,7 @@ export function BattleCard({
       if (timeoutId) clearTimeout(timeoutId);
       if (animationTimeoutId) clearTimeout(animationTimeoutId);
     };
-  }, []);
+  }, [enableAnimations]);
 
   // ⭐ Handle amount change
   const handleAmountChange = useCallback((value: number) => {
@@ -572,7 +578,7 @@ export function BattleCard({
             HEADER - Always visible (both tokens + MC) - PRESERVED
         ════════════════════════════════════════════════════════════════ */}
         <div
-          className={`px-2 py-2 lg:px-4 lg:py-3 border-b border-[#2a3544] relative overflow-hidden`}
+          className={`px-2 py-1.5 lg:px-4 lg:py-2.5 border-b border-[#2a3544] relative overflow-hidden`}
           style={isEpicBattle ? {
             backgroundColor: '#2D1065'
           } : {}}
@@ -583,8 +589,8 @@ export function BattleCard({
             className={`absolute left-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackA || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#386BFD',
-              boxShadow: attackA ? (isEpicBattle ? '0 0 30px rgba(147, 51, 234, 0.6)' : '0 0 30px rgba(56, 107, 253, 0.6)') : 'none'
+              backgroundColor: clash ? '#EFFE16' : goldenAnimations ? '#EFFE16' : isEpicBattle ? '#9333ea' : '#386BFD',
+              boxShadow: attackA ? (goldenAnimations ? '0 0 30px rgba(239, 254, 22, 0.6)' : isEpicBattle ? '0 0 30px rgba(147, 51, 234, 0.6)' : '0 0 30px rgba(56, 107, 253, 0.6)') : 'none'
             }}
           />
           {/* Background Attack Strip - Token B */}
@@ -592,15 +598,15 @@ export function BattleCard({
             className={`absolute right-0 top-0 bottom-0 w-[60%] transition-all duration-500 ${attackB || clash ? 'opacity-100' : 'opacity-0'}`}
             style={{
               zIndex: 0,
-              backgroundColor: clash ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FD1F6F',
-              boxShadow: attackB ? (isEpicBattle ? '0 0 30px rgba(168, 85, 247, 0.6)' : '0 0 30px rgba(253, 31, 111, 0.6)') : 'none'
+              backgroundColor: clash ? '#EFFE16' : goldenAnimations ? '#EFFE16' : isEpicBattle ? '#a855f7' : '#FD1F6F',
+              boxShadow: attackB ? (goldenAnimations ? '0 0 30px rgba(239, 254, 22, 0.6)' : isEpicBattle ? '0 0 30px rgba(168, 85, 247, 0.6)' : '0 0 30px rgba(253, 31, 111, 0.6)') : 'none'
             }}
           />
 
           <div className="flex items-center justify-between relative gap-3 lg:gap-2" style={{ zIndex: 1 }}>
             {/* Token A Image - BIG on mobile, normal on desktop */}
             <div
-              className={`w-24 h-24 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-20 h-20 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackA ? 'battle-attack-bounce-right' : clash ? 'battle-clash-bounce-right' : ''} ${isEpicBattle && attackA ? 'epic-radiate' : ''} ${isEpicBattle ? (attackA || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -638,7 +644,7 @@ export function BattleCard({
 
             {/* Token B Image - BIG on mobile, normal on desktop */}
             <div
-              className={`w-24 h-24 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
+              className={`w-20 h-20 lg:w-20 lg:h-20 xl:w-24 xl:h-24 rounded-xl overflow-visible flex-shrink-0 relative ${attackB ? 'battle-attack-bounce-left' : clash ? 'battle-clash-bounce-left' : ''} ${isEpicBattle && attackB ? 'epic-radiate' : ''} ${isEpicBattle ? (attackB || clash ? 'epic-image-attacking' : 'epic-image-container') : ''}`}
               style={isEpicBattle ? {
                 padding: '3px',
                 background: 'linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #7c3aed 100%)'
@@ -668,7 +674,7 @@ export function BattleCard({
           ══════════════════════════════════════════════════════════════ */
           <>
             {/* Battle Content - Responsive */}
-            <div className="bg-[#232a36] p-2 sm:p-3 lg:p-4">
+            <div className="bg-[#232a36] p-1.5 sm:p-2.5 lg:p-3">
               <div className="flex items-start justify-between gap-2">
                 {/* Left Token Stats */}
                 <div className="flex-1 min-w-0 pr-1 sm:pr-2 lg:pr-4">
@@ -730,6 +736,7 @@ export function BattleCard({
                     <span className="text-[10px] sm:text-xs lg:text-sm text-gray-400">MC</span>
                     <span className="text-xs sm:text-sm lg:text-base text-yellow-400 font-semibold">{formatUsd(targetMcUsd)}</span>
                   </div>
+                  <span className="text-[8px] sm:text-[9px] lg:text-[10px] text-emerald-400 font-bold uppercase tracking-wide whitespace-nowrap">First to hit wins!</span>
                 </div>
 
                 {/* Right Token Stats - Responsive */}
@@ -789,7 +796,7 @@ export function BattleCard({
 
             {/* Buy Winner Buttons - Responsive */}
             {showBuyButtons && (
-              <div className="bg-[#1d2531] px-2 sm:px-3 py-1.5 sm:py-2 my-2 sm:my-3 flex items-center justify-between gap-2">
+              <div className="bg-[#1d2531] px-2 sm:px-3 py-1 sm:py-1.5 my-1.5 sm:my-2 flex items-center justify-between gap-2">
                 {/* Token A - Green Button */}
                 <button
                   data-buy-button
@@ -812,23 +819,6 @@ export function BattleCard({
               </div>
             )}
 
-            {/* Share Footer */}
-            {showShareButton && (
-              <a
-                href={getShareUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-share-button
-                onClick={(e) => e.stopPropagation()}
-                className="bg-black/80 py-2 px-4 flex items-center justify-center gap-3 hover:bg-black/90 transition-colors cursor-pointer"
-              >
-                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                <span className="font-semibold text-sm text-white">Share</span>
-                <span className="text-orange-400 font-bold text-sm">+250 Points</span>
-              </a>
-            )}
           </>
         ) : (
           /* ══════════════════════════════════════════════════════════════

@@ -481,6 +481,8 @@ export function TokenGridBonk() {
                   targetSol={targetSol}
                   targetVolumeSol={victoryVolumeSol}
                   winner={pair.winner}
+                  enableAnimations={idx < 3}
+                  goldenAnimations={idx === 0}
                 />
               );
             })}
